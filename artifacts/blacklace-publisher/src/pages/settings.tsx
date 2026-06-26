@@ -5,11 +5,32 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useQueryClient } from "@tanstack/react-query";
-import { Save } from "lucide-react";
+import { Brain, Database, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
+
+const SETTINGS_STORAGE_KEY = "blacklace-publisher-settings-draft";
+
+interface SettingsFormData {
+  postsPerWeek: number;
+  autonomyLevel: string;
+  mainLanguage: string;
+  globalTone: string;
+  notionEnabled: boolean;
+  mistralEnabled: boolean;
+}
+
+const DEFAULT_FORM_DATA: SettingsFormData = {
+  postsPerWeek: 5,
+  autonomyLevel: "manual",
+  mainLanguage: "fr",
+  globalTone: "",
+  notionEnabled: false,
+  mistralEnabled: false,
+};
 
 export default function Settings() {
   const queryClient = useQueryClient();
@@ -19,27 +40,53 @@ export default function Settings() {
     query: { queryKey: getGetSettingsQueryKey() }
   });
 
+  const [formData, setFormData] = useState<SettingsFormData>(DEFAULT_FORM_DATA);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+
   const updateSettings = useUpdateSettings({
     mutation: {
-      onSuccess: () => {
+      onSuccess: (savedSettings) => {
         queryClient.invalidateQueries({ queryKey: getGetSettingsQueryKey() });
+        const nextData = {
+          postsPerWeek: savedSettings.postsPerWeek || 5,
+          autonomyLevel: savedSettings.autonomyLevel || "manual",
+          mainLanguage: savedSettings.mainLanguage || "fr",
+          globalTone: savedSettings.globalTone || "",
+          notionEnabled: savedSettings.notionEnabled || false,
+          mistralEnabled: savedSettings.mistralEnabled || false,
+        };
+        setFormData(nextData);
+        window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(nextData));
+        setLastSavedAt(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
         toast({ title: "Paramètres sauvegardés", description: "Le noyau a été mis à jour." });
+      },
+      onError: () => {
+        window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(formData));
+        toast({
+          title: "Sauvegarde locale effectuée",
+          description: "Le serveur n'a pas confirmé. Le navigateur garde ces choix pour la démo.",
+          variant: "destructive",
+        });
       }
     }
   });
 
-  const [formData, setFormData] = useState({
-    postsPerWeek: 5,
-    autonomyLevel: "manual",
-    mainLanguage: "fr",
-    globalTone: "",
-    notionEnabled: false,
-    mistralEnabled: false
-  });
-
   const initialized = useRef(false);
   useEffect(() => {
-    if (settings && !initialized.current) {
+    if (initialized.current) return;
+
+    const savedDraft = window.localStorage.getItem(SETTINGS_STORAGE_KEY);
+    if (savedDraft) {
+      try {
+        setFormData({ ...DEFAULT_FORM_DATA, ...JSON.parse(savedDraft) });
+        initialized.current = true;
+        return;
+      } catch {
+        window.localStorage.removeItem(SETTINGS_STORAGE_KEY);
+      }
+    }
+
+    if (settings) {
       setFormData({
         postsPerWeek: settings.postsPerWeek || 5,
         autonomyLevel: settings.autonomyLevel || "manual",
@@ -53,33 +100,69 @@ export default function Settings() {
   }, [settings]);
 
   const handleSave = () => {
+    window.localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(formData));
+    setLastSavedAt(new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }));
     updateSettings.mutate({ data: formData });
   };
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Paramètres du Noyau</h1>
           <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Configuration Système</p>
         </div>
-        <Button 
-          onClick={handleSave}
-          disabled={updateSettings.isPending || isLoading}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground font-mono font-bold"
-        >
-          <Save className="w-4 h-4 mr-2" />
-          Sauvegarder
-        </Button>
+        <div className="flex flex-col items-end gap-2">
+          <Button 
+            onClick={handleSave}
+            disabled={updateSettings.isPending || isLoading}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-mono font-bold"
+          >
+            <Save className="w-4 h-4 mr-2" />
+            {updateSettings.isPending ? "Sauvegarde..." : "Sauvegarder"}
+          </Button>
+          {lastSavedAt && (
+            <span className="text-[10px] font-mono text-muted-foreground">Dernière sauvegarde visible : {lastSavedAt}</span>
+          )}
+        </div>
       </div>
 
-      {isLoading ? (
+      {isLoading && !initialized.current ? (
         <div className="space-y-6">
           <Skeleton className="h-64 w-full bg-secondary" />
           <Skeleton className="h-64 w-full bg-secondary" />
         </div>
       ) : (
         <div className="space-y-6">
+          <Card className="bg-card border-border shadow-md">
+            <CardHeader className="border-b border-border/50 pb-4">
+              <CardTitle className="font-serif">État visible</CardTitle>
+              <CardDescription className="font-mono text-xs">Ce bloc confirme les choix actifs dans le portail. Les vraies clés restent dans Render.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-6">
+              <div className="p-4 border border-border rounded-md bg-secondary/20 flex items-start gap-3">
+                <Brain className="w-5 h-5 text-primary mt-1" />
+                <div>
+                  <h3 className="font-serif font-semibold">Brain: AI Provider</h3>
+                  <p className="text-xs font-mono text-muted-foreground mb-2">Choix dans l'interface : {formData.mistralEnabled ? "activé" : "désactivé"}</p>
+                  <Badge variant={formData.mistralEnabled ? "default" : "outline"} className="font-mono">
+                    {formData.mistralEnabled ? "Sélectionné" : "Non sélectionné"}
+                  </Badge>
+                </div>
+              </div>
+              <div className="p-4 border border-border rounded-md bg-secondary/20 flex items-start gap-3">
+                <Database className="w-5 h-5 text-primary mt-1" />
+                <div>
+                  <h3 className="font-serif font-semibold">Memory: Knowledge Source</h3>
+                  <p className="text-xs font-mono text-muted-foreground mb-2">Choix dans l'interface : {formData.notionEnabled ? "activé" : "désactivé"}</p>
+                  <Badge variant={formData.notionEnabled ? "default" : "outline"} className="font-mono">
+                    {formData.notionEnabled ? "Sélectionné" : "Non sélectionné"}
+                  </Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <Card className="bg-card border-border shadow-md">
             <CardHeader className="border-b border-border/50 pb-4">
               <CardTitle className="font-serif">Comportement Éditorial</CardTitle>
@@ -160,7 +243,7 @@ export default function Settings() {
           <Card className="bg-card border-border shadow-md">
             <CardHeader className="border-b border-border/50 pb-4">
               <CardTitle className="font-serif">Modules Moteurs</CardTitle>
-              <CardDescription className="font-mono text-xs">Activation des sous-systèmes principaux. Les noms restent génériques pour vendre le moteur à d'autres univers.</CardDescription>
+              <CardDescription className="font-mono text-xs">Ces boutons choisissent les modules pour le portail. La connexion réelle se vérifie dans Connecteurs.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               
