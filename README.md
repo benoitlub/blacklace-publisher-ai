@@ -37,7 +37,7 @@ Blacklace Publisher AI est une application web modulaire permettant de :
 
 ```bash
 # 1. Cloner le repo
-git clone https://github.com/feuch-institute/blacklace-publisher-ai
+git clone https://github.com/benoitlub/blacklace-publisher-ai
 cd blacklace-publisher-ai
 
 # 2. Installer les dépendances
