@@ -1,14 +1,15 @@
 import { Link, useLocation } from "wouter";
-import { 
-  LayoutDashboard, 
-  Calendar as CalendarIcon, 
-  FileText, 
-  Megaphone, 
-  Users, 
-  Plug, 
+import {
+  LayoutDashboard,
+  Calendar as CalendarIcon,
+  FileText,
+  Megaphone,
+  Users,
+  Plug,
   Settings as SettingsIcon,
   Tent,
-  Building2
+  Building2,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,18 +24,37 @@ const NAV_ITEMS = [
   { href: "/settings", label: "Paramètres", icon: SettingsIcon },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [location] = useLocation();
 
   return (
-    <aside className="w-64 border-r border-border bg-card flex flex-col h-[100dvh] fixed top-0 left-0">
+    <aside
+      className={cn(
+        "fixed left-0 top-0 z-30 flex h-[100dvh] w-64 flex-col border-r border-border bg-card transition-transform duration-200 ease-in-out md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full",
+      )}
+    >
       <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-3 text-primary">
-          <Tent className="w-6 h-6" />
-          <div>
-            <h1 className="font-serif font-bold text-lg leading-none tracking-tight">Feuch Institute</h1>
-            <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Blacklace Publisher</span>
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3 text-primary">
+            <Tent className="w-6 h-6" />
+            <div>
+              <h1 className="font-serif font-bold text-lg leading-none tracking-tight">Feuch Institute</h1>
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Blacklace Publisher</span>
+            </div>
           </div>
+          <button
+            className="-mr-2 -mt-2 flex h-8 w-8 items-center justify-center rounded-md border border-border bg-secondary/40 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden"
+            onClick={onClose}
+            aria-label="Fermer le menu"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       </div>
       
@@ -44,12 +64,15 @@ export function Sidebar() {
           
           return (
             <Link key={item.href} href={item.href}>
-              <div className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md font-mono text-sm transition-all cursor-pointer group",
-                isActive 
-                  ? "bg-primary/10 text-primary border border-primary/20" 
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground border border-transparent"
-              )}>
+              <div
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2 rounded-md font-mono text-sm transition-all cursor-pointer group",
+                  isActive
+                    ? "bg-primary/10 text-primary border border-primary/20"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground border border-transparent"
+                )}
+                onClick={onClose}
+              >
                 <item.icon className={cn("w-4 h-4", isActive ? "text-primary" : "group-hover:text-foreground")} />
                 {item.label}
               </div>
