@@ -124,3 +124,21 @@
     @apply font-serif tracking-tight text-foreground;
   }
 }
+
+@layer utilities {
+  @media (max-width: 767px) {
+    main h1 {
+      font-size: 1.35rem;
+      line-height: 1.75rem;
+    }
+
+    main h2 {
+      font-size: 1.1rem;
+      line-height: 1.5rem;
+    }
+
+    main .page-subtitle {
+      font-size: 0.7rem;
+    }
+  }
+}
