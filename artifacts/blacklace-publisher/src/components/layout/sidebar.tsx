@@ -7,12 +7,14 @@ import {
   Users, 
   Plug, 
   Settings as SettingsIcon,
-  Tent
+  Tent,
+  Building2
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/client", label: "Espace Client", icon: Building2 },
   { href: "/calendar", label: "Calendrier", icon: CalendarIcon },
   { href: "/posts", label: "Publications", icon: FileText },
   { href: "/campaigns", label: "Campagnes", icon: Megaphone },
