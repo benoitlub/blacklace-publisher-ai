@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { fetchBlacklaceKnowledge } from "../services/notion";
+import { fetchBlacklaceKnowledgeWithDiagnostics } from "../services/notion";
 
 const router = Router();
 
@@ -119,29 +119,24 @@ router.post("/:name/test", async (req, res) => {
   }
 
   if (name === "notion") {
-    try {
-      const items = await fetchBlacklaceKnowledge();
-      const isMock = items[0]?.isMock ?? true;
-      const preview = items.slice(0, 8).map((item) => ({
-        id: item.id,
-        title: item.title,
-        universe: item.universe,
-        excerpt: item.content.length > 220 ? `${item.content.slice(0, 220)}…` : item.content,
-        tags: item.tags,
-      }));
+    const result = await fetchBlacklaceKnowledgeWithDiagnostics();
+    const preview = result.items.slice(0, 8).map((item) => ({
+      id: item.id,
+      title: item.title,
+      universe: item.universe,
+      excerpt: item.content.length > 220 ? `${item.content.slice(0, 220)}…` : item.content,
+      tags: item.tags,
+    }));
 
-      return res.json({
-        success: true,
-        message: isMock
-          ? `Mode mock actif — ${items.length} entrées simulées retournées. Configurez NOTION_API_KEY et NOTION_DATABASE_ID pour une vraie connexion.`
-          : `Connexion Notion réussie — ${items.length} entrées trouvées. Aperçu affiché ci-dessous.`,
-        isMock,
-        testedAt,
-        preview,
-      });
-    } catch {
-      return res.json({ success: false, message: "Erreur lors du test Notion", isMock: true, testedAt });
-    }
+    return res.json({
+      success: !result.error,
+      message: result.error
+        ? `Notion configuré mais lecture impossible : ${result.error}`
+        : `Connexion Notion réussie — ${result.items.length} entrées trouvées. Aperçu affiché ci-dessous.`,
+      isMock: result.isMock,
+      testedAt,
+      preview,
+    });
   }
 
   if (!isConfigured) {
