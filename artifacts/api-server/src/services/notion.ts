@@ -13,6 +13,13 @@ export interface BlacklaceKnowledgeItem {
   isMock: boolean;
 }
 
+export interface NotionKnowledgeResult {
+  items: BlacklaceKnowledgeItem[];
+  isMock: boolean;
+  isConfigured: boolean;
+  error?: string;
+}
+
 const MOCK_KNOWLEDGE: BlacklaceKnowledgeItem[] = [
   {
     id: "mock-1",
@@ -56,10 +63,37 @@ const MOCK_KNOWLEDGE: BlacklaceKnowledgeItem[] = [
   },
 ];
 
-export async function fetchBlacklaceKnowledge(): Promise<BlacklaceKnowledgeItem[]> {
-  if (!NOTION_API_KEY || !NOTION_DATABASE_ID) {
-    logger.info("Notion API keys not set, returning mock knowledge");
-    return MOCK_KNOWLEDGE;
+function getConfigurationError(): string | undefined {
+  if (!NOTION_API_KEY && !NOTION_DATABASE_ID) return "NOTION_API_KEY et NOTION_DATABASE_ID manquent dans Render.";
+  if (!NOTION_API_KEY) return "NOTION_API_KEY manque dans Render.";
+  if (!NOTION_DATABASE_ID) return "NOTION_DATABASE_ID manque dans Render.";
+  return undefined;
+}
+
+function mapNotionPage(page: {
+  id: string;
+  properties: {
+    Name?: { title: Array<{ plain_text: string }> };
+    Universe?: { select?: { name: string } };
+    Content?: { rich_text: Array<{ plain_text: string }> };
+    Tags?: { multi_select: Array<{ name: string }> };
+  };
+}): BlacklaceKnowledgeItem {
+  return {
+    id: page.id,
+    title: page.properties.Name?.title?.[0]?.plain_text ?? "Sans titre",
+    universe: page.properties.Universe?.select?.name ?? "Blacklace",
+    content: page.properties.Content?.rich_text?.[0]?.plain_text ?? "",
+    tags: page.properties.Tags?.multi_select?.map((t) => t.name) ?? [],
+    isMock: false,
+  };
+}
+
+export async function fetchBlacklaceKnowledgeWithDiagnostics(): Promise<NotionKnowledgeResult> {
+  const configurationError = getConfigurationError();
+  if (configurationError) {
+    logger.info({ configurationError }, "Notion API keys not set, returning mock knowledge");
+    return { items: MOCK_KNOWLEDGE, isMock: true, isConfigured: false, error: configurationError };
   }
 
   try {
@@ -74,7 +108,8 @@ export async function fetchBlacklaceKnowledge(): Promise<BlacklaceKnowledgeItem[
     });
 
     if (!response.ok) {
-      throw new Error(`Notion API error: ${response.status}`);
+      const body = await response.text();
+      throw new Error(`Notion API error ${response.status}: ${body.slice(0, 400)}`);
     }
 
     const data = (await response.json()) as {
@@ -89,16 +124,15 @@ export async function fetchBlacklaceKnowledge(): Promise<BlacklaceKnowledgeItem[
       }>;
     };
 
-    return data.results.map((page) => ({
-      id: page.id,
-      title: page.properties.Name?.title?.[0]?.plain_text ?? "Sans titre",
-      universe: page.properties.Universe?.select?.name ?? "Blacklace",
-      content: page.properties.Content?.rich_text?.[0]?.plain_text ?? "",
-      tags: page.properties.Tags?.multi_select?.map((t) => t.name) ?? [],
-      isMock: false,
-    }));
+    return { items: data.results.map(mapNotionPage), isMock: false, isConfigured: true };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur Notion inconnue.";
     logger.error({ err }, "Notion API call failed, falling back to mock knowledge");
-    return MOCK_KNOWLEDGE;
+    return { items: MOCK_KNOWLEDGE, isMock: true, isConfigured: true, error: message };
   }
+}
+
+export async function fetchBlacklaceKnowledge(): Promise<BlacklaceKnowledgeItem[]> {
+  const result = await fetchBlacklaceKnowledgeWithDiagnostics();
+  return result.items;
 }
