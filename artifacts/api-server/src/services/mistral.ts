@@ -7,6 +7,13 @@ export interface GeneratePostDraftInput {
   agentTone: string;
   platform: string;
   prompt?: string;
+  knowledgeContext?: Array<{
+    title: string;
+    universe?: string;
+    content: string;
+    tags?: string[];
+    isMock?: boolean;
+  }>;
 }
 
 export interface GeneratedDraft {
@@ -16,6 +23,7 @@ export interface GeneratedDraft {
   isMock: boolean;
   provider?: string;
   model?: string;
+  knowledgeSources?: string[];
 }
 
 const MOCK_POSTS_BY_AGENT: Record<string, Array<{ title: string; content: string; hashtags: string }>> = {
@@ -113,21 +121,46 @@ function getMockDraft(input: GeneratePostDraftInput): GeneratedDraft {
       content: `Contenu généré pour l'univers ${input.universe} par ${input.agentName}. Mode mock actif — configurez AI_PROVIDER et AI_API_KEY pour une génération réelle.`,
       hashtags: `#${input.universe.replace(/\s+/g, "")} #Blacklace #FeuchInstitute`,
       isMock: true,
+      knowledgeSources: input.knowledgeContext?.map((item) => item.title) ?? [],
     };
   }
   const post = agentPosts[Math.floor(Math.random() * agentPosts.length)];
-  return { ...post, isMock: true };
+  return { ...post, isMock: true, knowledgeSources: input.knowledgeContext?.map((item) => item.title) ?? [] };
+}
+
+function formatKnowledgeContext(input: GeneratePostDraftInput): string {
+  const items = input.knowledgeContext?.slice(0, 5) ?? [];
+  if (items.length === 0) {
+    return "Aucun contexte de connaissance fourni. Reste prudent et n'invente pas de détail précis.";
+  }
+
+  return items
+    .map((item, index) => {
+      const tags = item.tags?.length ? ` Tags: ${item.tags.join(", ")}.` : "";
+      const universe = item.universe ? ` Univers: ${item.universe}.` : "";
+      return `[${index + 1}] ${item.title}.${universe}${tags}\n${item.content}`;
+    })
+    .join("\n\n");
 }
 
 export async function generatePostDraft(input: GeneratePostDraftInput): Promise<GeneratedDraft> {
   const provider = getAIProvider();
+  const knowledgeContext = formatKnowledgeContext(input);
 
   const systemPrompt = `Tu es ${input.agentName}, un agent éditorial du Feuch Institute.
 Ton ton est : ${input.agentTone}.
 Tu crées du contenu pour l'univers ${input.universe} destiné à la plateforme ${input.platform}.
-Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "hashtags": "..." }`;
 
-  const userPrompt = input.prompt ?? `Rédige une publication pour ${input.universe} sur ${input.platform}.`;
+Base de connaissance disponible :
+${knowledgeContext}
+
+Règles :
+- Utilise uniquement les faits présents dans la base de connaissance ou dans la demande utilisateur.
+- Si une information manque, reste général et n'invente pas.
+- Respecte le ton de l'agent.
+- Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "hashtags": "..." }`;
+
+  const userPrompt = input.prompt ?? `Rédige une publication pour ${input.universe} sur ${input.platform}, en t'appuyant sur la base de connaissance fournie.`;
 
   try {
     const result = await provider.generateText({
@@ -135,8 +168,8 @@ Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "h
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.8,
-      maxTokens: 600,
+      temperature: 0.75,
+      maxTokens: 700,
     });
 
     if (result.isMock) {
@@ -154,6 +187,7 @@ Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "h
       isMock: false,
       provider: result.provider,
       model: result.model,
+      knowledgeSources: input.knowledgeContext?.map((item) => item.title) ?? [],
     };
   } catch (err) {
     logger.error({ err, provider: provider.name, agent: input.agentName }, "AI generation failed — falling back to mock");
