@@ -1,0 +1,877 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Feuch Institute — Blacklace Publisher AI API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: agents
+    description: Editorial agents
+  - name: posts
+    description: Publication posts
+  - name: campaigns
+    description: Editorial campaigns
+  - name: connectors
+    description: External service connectors
+  - name: settings
+    description: Application settings
+  - name: dashboard
+    description: Dashboard summaries and stats
+  - name: calendar
+    description: Editorial calendar
+  - name: generate
+    description: Content generation
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # ── DASHBOARD ──────────────────────────────────────────────────────────────
+
+  /dashboard/stats:
+    get:
+      operationId: getDashboardStats
+      tags: [dashboard]
+      summary: Get dashboard summary statistics
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /dashboard/recent-posts:
+    get:
+      operationId: getRecentPosts
+      tags: [dashboard]
+      summary: Get recent posts for dashboard activity feed
+      responses:
+        "200":
+          description: Recent posts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+
+  # ── AGENTS ─────────────────────────────────────────────────────────────────
+
+  /agents:
+    get:
+      operationId: listAgents
+      tags: [agents]
+      summary: List all editorial agents
+      responses:
+        "200":
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Agent"
+    post:
+      operationId: createAgent
+      tags: [agents]
+      summary: Create a new agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentInput"
+      responses:
+        "201":
+          description: Created agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+
+  /agents/{id}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      summary: Get a single agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateAgent
+      tags: [agents]
+      summary: Update an agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentUpdate"
+      responses:
+        "200":
+          description: Updated agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+    delete:
+      operationId: deleteAgent
+      tags: [agents]
+      summary: Delete an agent
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── POSTS ──────────────────────────────────────────────────────────────────
+
+  /posts:
+    get:
+      operationId: listPosts
+      tags: [posts]
+      summary: List all posts
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: agentId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: campaignId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: platform
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+    post:
+      operationId: createPost
+      tags: [posts]
+      summary: Create a new post
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  /posts/{id}:
+    get:
+      operationId: getPost
+      tags: [posts]
+      summary: Get a single post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePost
+      tags: [posts]
+      summary: Update a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostUpdate"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+    delete:
+      operationId: deletePost
+      tags: [posts]
+      summary: Delete a post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /posts/{id}/approve:
+    patch:
+      operationId: approvePost
+      tags: [posts]
+      summary: Approve a post for publishing
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Approved post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+  # ── CAMPAIGNS ──────────────────────────────────────────────────────────────
+
+  /campaigns:
+    get:
+      operationId: listCampaigns
+      tags: [campaigns]
+      summary: List all campaigns
+      responses:
+        "200":
+          description: List of campaigns
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Campaign"
+    post:
+      operationId: createCampaign
+      tags: [campaigns]
+      summary: Create a new campaign
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignInput"
+      responses:
+        "201":
+          description: Created campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+
+  /campaigns/{id}:
+    get:
+      operationId: getCampaign
+      tags: [campaigns]
+      summary: Get a single campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateCampaign
+      tags: [campaigns]
+      summary: Update a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignUpdate"
+      responses:
+        "200":
+          description: Updated campaign
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Campaign"
+    delete:
+      operationId: deleteCampaign
+      tags: [campaigns]
+      summary: Delete a campaign
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  # ── CONNECTORS ─────────────────────────────────────────────────────────────
+
+  /connectors:
+    get:
+      operationId: listConnectors
+      tags: [connectors]
+      summary: List all connectors and their status
+      responses:
+        "200":
+          description: List of connectors
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Connector"
+
+  /connectors/{name}/test:
+    post:
+      operationId: testConnector
+      tags: [connectors]
+      summary: Test a connector connection
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectorTestResult"
+
+  # ── SETTINGS ───────────────────────────────────────────────────────────────
+
+  /settings:
+    get:
+      operationId: getSettings
+      tags: [settings]
+      summary: Get application settings
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+    patch:
+      operationId: updateSettings
+      tags: [settings]
+      summary: Update application settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Settings"
+
+  # ── CALENDAR ───────────────────────────────────────────────────────────────
+
+  /calendar:
+    get:
+      operationId: getCalendar
+      tags: [calendar]
+      summary: Get calendar view of posts for the next 30 days
+      responses:
+        "200":
+          description: Calendar posts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Post"
+
+  # ── GENERATE ───────────────────────────────────────────────────────────────
+
+  /generate/month:
+    post:
+      operationId: generateMonth
+      tags: [generate]
+      summary: Generate a month of mock content posts
+      responses:
+        "201":
+          description: Generated posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateMonthResult"
+
+  /generate/post:
+    post:
+      operationId: generateSinglePost
+      tags: [generate]
+      summary: Generate a single post draft using Mistral (or mock)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GeneratePostInput"
+      responses:
+        "201":
+          description: Generated post draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Post"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    # ── DASHBOARD ──────────────────────────────────────────────────────────
+
+    DashboardStats:
+      type: object
+      required:
+        - totalPostsThisMonth
+        - draftCount
+        - scheduledCount
+        - publishedCount
+        - activeCampaigns
+        - activeAgents
+        - connectorStatuses
+      properties:
+        totalPostsThisMonth:
+          type: integer
+        draftCount:
+          type: integer
+        scheduledCount:
+          type: integer
+        approvedCount:
+          type: integer
+        publishedCount:
+          type: integer
+        failedCount:
+          type: integer
+        activeCampaigns:
+          type: integer
+        activeAgents:
+          type: integer
+        connectorStatuses:
+          type: object
+          additionalProperties:
+            type: boolean
+
+    # ── AGENT ─────────────────────────────────────────────────────────────
+
+    Agent:
+      type: object
+      required: [id, name, role, tone, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+        tone:
+          type: string
+        missions:
+          type: ["string", "null"]
+        limits:
+          type: ["string", "null"]
+        examplePhrases:
+          type: ["string", "null"]
+        color:
+          type: ["string", "null"]
+        avatar:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+
+    AgentInput:
+      type: object
+      required: [name, role, tone]
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        tone:
+          type: string
+        missions:
+          type: string
+        limits:
+          type: string
+        examplePhrases:
+          type: string
+        color:
+          type: string
+        avatar:
+          type: string
+        isActive:
+          type: boolean
+
+    AgentUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+        tone:
+          type: string
+        missions:
+          type: string
+        limits:
+          type: string
+        examplePhrases:
+          type: string
+        color:
+          type: string
+        avatar:
+          type: string
+        isActive:
+          type: boolean
+
+    # ── POST ──────────────────────────────────────────────────────────────
+
+    Post:
+      type: object
+      required: [id, title, content, platform, status, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+          enum: [draft, approved, scheduled, published, failed]
+        hashtags:
+          type: ["string", "null"]
+        scheduledAt:
+          type: ["string", "null"]
+        agentId:
+          type: ["integer", "null"]
+        agentName:
+          type: ["string", "null"]
+        campaignId:
+          type: ["integer", "null"]
+        campaignName:
+          type: ["string", "null"]
+        universe:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+
+    PostInput:
+      type: object
+      required: [title, content, platform]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+        hashtags:
+          type: string
+        scheduledAt:
+          type: string
+        agentId:
+          type: integer
+        campaignId:
+          type: integer
+        universe:
+          type: string
+
+    PostUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        platform:
+          type: string
+        status:
+          type: string
+        hashtags:
+          type: string
+        scheduledAt:
+          type: string
+        agentId:
+          type: integer
+        campaignId:
+          type: integer
+        universe:
+          type: string
+
+    # ── CAMPAIGN ──────────────────────────────────────────────────────────
+
+    Campaign:
+      type: object
+      required: [id, name, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        universe:
+          type: ["string", "null"]
+        objective:
+          type: ["string", "null"]
+        startDate:
+          type: ["string", "null"]
+        endDate:
+          type: ["string", "null"]
+        platforms:
+          type: ["string", "null"]
+        assignedAgents:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [planning, active, paused, completed, archived]
+        createdAt:
+          type: string
+
+    CampaignInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        universe:
+          type: string
+        objective:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        platforms:
+          type: string
+        assignedAgents:
+          type: string
+        status:
+          type: string
+
+    CampaignUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        universe:
+          type: string
+        objective:
+          type: string
+        startDate:
+          type: string
+        endDate:
+          type: string
+        platforms:
+          type: string
+        assignedAgents:
+          type: string
+        status:
+          type: string
+
+    # ── CONNECTOR ─────────────────────────────────────────────────────────
+
+    Connector:
+      type: object
+      required: [name, displayName, status, requiredVars]
+      properties:
+        name:
+          type: string
+        displayName:
+          type: string
+        description:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [connected, disconnected, error, mock]
+        requiredVars:
+          type: array
+          items:
+            type: string
+        isConfigured:
+          type: boolean
+        lastTestedAt:
+          type: ["string", "null"]
+
+    ConnectorTestResult:
+      type: object
+      required: [success, message, isMock]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        isMock:
+          type: boolean
+        testedAt:
+          type: string
+
+    # ── SETTINGS ──────────────────────────────────────────────────────────
+
+    Settings:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: integer
+        postsPerWeek:
+          type: integer
+        autonomyLevel:
+          type: string
+          enum: [manual, semi-auto, auto]
+        mainLanguage:
+          type: string
+        globalTone:
+          type: string
+        notionEnabled:
+          type: boolean
+        mistralEnabled:
+          type: boolean
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    SettingsUpdate:
+      type: object
+      properties:
+        postsPerWeek:
+          type: integer
+        autonomyLevel:
+          type: string
+        mainLanguage:
+          type: string
+        globalTone:
+          type: string
+        notionEnabled:
+          type: boolean
+        mistralEnabled:
+          type: boolean
+
+    # ── GENERATE ──────────────────────────────────────────────────────────
+
+    GenerateMonthResult:
+      type: object
+      required: [count, posts]
+      properties:
+        count:
+          type: integer
+        posts:
+          type: array
+          items:
+            $ref: "#/components/schemas/Post"
+
+    GeneratePostInput:
+      type: object
+      required: [universe, agentId]
+      properties:
+        universe:
+          type: string
+        agentId:
+          type: integer
+        platform:
+          type: string
+        campaignId:
+          type: integer
+        prompt:
+          type: string
