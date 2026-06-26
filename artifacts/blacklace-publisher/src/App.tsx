@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 
 import { Layout } from "@/components/layout/layout";
 import Dashboard from "@/pages/dashboard";
+import ClientSpace from "@/pages/client-space";
 import Calendar from "@/pages/calendar";
 import Posts from "@/pages/posts";
 import Campaigns from "@/pages/campaigns";
@@ -24,6 +25,7 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/client" component={ClientSpace} />
         <Route path="/calendar" component={Calendar} />
         <Route path="/posts" component={Posts} />
         <Route path="/campaigns" component={Campaigns} />
