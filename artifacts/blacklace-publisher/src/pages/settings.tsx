@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useQueryClient } from "@tanstack/react-query";
-import { Settings as SettingsIcon, Save } from "lucide-react";
+import { Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
 
@@ -28,7 +28,6 @@ export default function Settings() {
     }
   });
 
-  // Local state for form
   const [formData, setFormData] = useState({
     postsPerWeek: 5,
     autonomyLevel: "manual",
@@ -38,7 +37,6 @@ export default function Settings() {
     mistralEnabled: false
   });
 
-  // Sync with server data once
   const initialized = useRef(false);
   useEffect(() => {
     if (settings && !initialized.current) {
@@ -162,14 +160,14 @@ export default function Settings() {
           <Card className="bg-card border-border shadow-md">
             <CardHeader className="border-b border-border/50 pb-4">
               <CardTitle className="font-serif">Modules Moteurs</CardTitle>
-              <CardDescription className="font-mono text-xs">Activation des sous-systèmes principaux.</CardDescription>
+              <CardDescription className="font-mono text-xs">Activation des sous-systèmes principaux. Les noms restent génériques pour vendre le moteur à d'autres univers.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               
               <div className="flex items-center justify-between p-4 border border-border rounded-md bg-secondary/20">
                 <div className="space-y-1">
-                  <h4 className="font-serif font-semibold">Brain: Mistral AI</h4>
-                  <p className="text-xs font-mono text-muted-foreground">Moteur cognitif pour la génération de texte.</p>
+                  <h4 className="font-serif font-semibold">Brain: AI Provider</h4>
+                  <p className="text-xs font-mono text-muted-foreground">Moteur cognitif interchangeable : mock, Mistral, OpenAI, Anthropic, Gemini, Ollama ou autre API.</p>
                 </div>
                 <Switch 
                   checked={formData.mistralEnabled}
@@ -180,8 +178,8 @@ export default function Settings() {
 
               <div className="flex items-center justify-between p-4 border border-border rounded-md bg-secondary/20">
                 <div className="space-y-1">
-                  <h4 className="font-serif font-semibold">Memory: Notion</h4>
-                  <p className="text-xs font-mono text-muted-foreground">Synchronisation de la base de connaissances.</p>
+                  <h4 className="font-serif font-semibold">Memory: Knowledge Source</h4>
+                  <p className="text-xs font-mono text-muted-foreground">Source de connaissance interchangeable : Notion, Markdown, GitHub, Drive, PDF, DOCX ou API client.</p>
                 </div>
                 <Switch 
                   checked={formData.notionEnabled}
