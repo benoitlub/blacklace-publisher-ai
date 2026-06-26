@@ -4,12 +4,14 @@ services:
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
     startCommand: pnpm --filter @workspace/api-server run start
     healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: 24
       - key: LOG_LEVEL
         value: info
       - key: DATABASE_URL
@@ -25,9 +27,11 @@ services:
     name: blacklace-publisher-web
     runtime: static
     rootDir: .
-    buildCommand: corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile && pnpm --filter @workspace/blacklace-publisher run build
+    buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/blacklace-publisher run build
     staticPublishPath: artifacts/blacklace-publisher/dist
     envVars:
+      - key: NODE_VERSION
+        value: 24
       - key: VITE_API_BASE_URL
         value: https://blacklace-publisher-api.onrender.com
     routes:
