@@ -28,10 +28,14 @@ services:
     runtime: static
     rootDir: .
     buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/blacklace-publisher run build
-    staticPublishPath: artifacts/blacklace-publisher/dist
+    staticPublishPath: artifacts/blacklace-publisher/dist/public
     envVars:
       - key: NODE_VERSION
         value: 24
+      - key: PORT
+        value: 3000
+      - key: BASE_PATH
+        value: /
       - key: VITE_API_BASE_URL
         value: https://blacklace-publisher-api.onrender.com
     routes:
