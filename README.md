@@ -1,4 +1,4 @@
-# Feuch Institute — Blacklace Publisher AI
+# Feuch Institute — Blacklace Publisher AI V1
 
 Tableau de bord éditorial IA pour les univers Blacklace. Un assistant de community management qui libère Benoît de la charge éditoriale.
 
