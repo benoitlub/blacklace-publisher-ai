@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Save, Sparkles, Palette, BookOpen, Share2 } from "lucide-react";
+import { Save, Sparkles, Palette, BookOpen, Share2, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ClientProfile {
@@ -18,17 +18,50 @@ interface ClientProfile {
   platforms: string;
 }
 
-const DEFAULT_PROFILE: ClientProfile = {
-  clientName: "Feuch Institute",
-  projectName: "Blacklace Publisher",
-  tagline: "Créer. Le reste est pris en charge.",
-  mainColor: "#ff3b1f",
-  tone: "Mystérieux, scientifique, sarcastique, poétique",
-  audience: "Lecteurs, joueurs, créateurs, curieux",
-  goals: "Animer les univers, préparer les posts, réduire la charge éditoriale",
-  platforms: "Instagram, Facebook, TikTok, KDP, site web",
+const PRESETS: Record<string, ClientProfile> = {
+  blacklace: {
+    clientName: "Feuch Institute",
+    projectName: "Blacklace Publisher",
+    tagline: "Créer. Le reste est pris en charge.",
+    mainColor: "#ff3b1f",
+    tone: "Mystérieux, scientifique, sarcastique, poétique, absurde contrôlé",
+    audience: "Lecteurs, joueurs, créateurs, curieux, communautés IA",
+    goals: "Animer les univers Blacklace, préparer les posts, relier livres, apps, jeux et personnages",
+    platforms: "Instagram, Facebook, TikTok, KDP, GitHub Pages, site web",
+  },
+  yael: {
+    clientName: "Yaël Bali",
+    projectName: "Super taux",
+    tagline: "Meilleur taux pour achat de biens immobiliers",
+    mainColor: "#16ff3b",
+    tone: "Corporate, sympathique, clair, rassurant",
+    audience: "Personnes voulant acheter au meilleur taux",
+    goals: "Qualifier les prospects, expliquer le financement, réduire la charge éditoriale",
+    platforms: "Facebook, Instagram, LinkedIn, site web",
+  },
+  author: {
+    clientName: "Auteur indépendant",
+    projectName: "Book Launch OS",
+    tagline: "Transformer un manuscrit en calendrier éditorial.",
+    mainColor: "#8b5cf6",
+    tone: "Littéraire, accessible, incarné, régulier",
+    audience: "Lecteurs, chroniqueurs, communautés Kindle, libraires indépendants",
+    goals: "Préparer les lancements, recycler les extraits, créer une présence autour des livres",
+    platforms: "KDP, Instagram, Facebook, TikTok, newsletter",
+  },
+  association: {
+    clientName: "Association locale",
+    projectName: "Ateliers & événements",
+    tagline: "Informer, mobiliser, accueillir.",
+    mainColor: "#38bdf8",
+    tone: "Humain, simple, utile, chaleureux",
+    audience: "Habitants, bénévoles, partenaires, familles",
+    goals: "Annoncer les ateliers, clarifier les inscriptions, valoriser les actions",
+    platforms: "Facebook, Instagram, site web, newsletter",
+  },
 };
 
+const DEFAULT_PROFILE = PRESETS.blacklace;
 const STORAGE_KEY = "blacklace-client-profile";
 
 export default function ClientSpace() {
@@ -56,6 +89,11 @@ export default function ClientSpace() {
     toast({ title: "Espace client sauvegardé", description: "La personnalisation locale a été enregistrée." });
   };
 
+  const applyPreset = (presetKey: keyof typeof PRESETS) => {
+    setProfile(PRESETS[presetKey]);
+    toast({ title: "Profil chargé", description: `Le preset ${PRESETS[presetKey].clientName} est affiché.` });
+  };
+
   const update = (field: keyof ClientProfile, value: string) => {
     setProfile((current) => ({ ...current, [field]: value }));
   };
@@ -74,6 +112,23 @@ export default function ClientSpace() {
           Sauvegarder
         </Button>
       </div>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="font-serif">Systèmes rapides</CardTitle>
+          <CardDescription className="font-mono text-xs">
+            Charge un univers de démonstration. Cela permet de montrer que le moteur n'est pas seulement Blacklace.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-3">
+          <Button variant="outline" onClick={() => applyPreset("blacklace")} className="font-mono">
+            <RotateCcw className="w-4 h-4 mr-2" /> Blacklace / Feuch
+          </Button>
+          <Button variant="outline" onClick={() => applyPreset("yael")} className="font-mono">Yaël Bali</Button>
+          <Button variant="outline" onClick={() => applyPreset("author")} className="font-mono">Auteur indépendant</Button>
+          <Button variant="outline" onClick={() => applyPreset("association")} className="font-mono">Association locale</Button>
+        </CardContent>
+      </Card>
 
       <Card className="bg-card border-border overflow-hidden">
         <div className="h-2" style={{ backgroundColor: profile.mainColor }} />
