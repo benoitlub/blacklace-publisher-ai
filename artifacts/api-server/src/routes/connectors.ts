@@ -122,13 +122,22 @@ router.post("/:name/test", async (req, res) => {
     try {
       const items = await fetchBlacklaceKnowledge();
       const isMock = items[0]?.isMock ?? true;
+      const preview = items.slice(0, 8).map((item) => ({
+        id: item.id,
+        title: item.title,
+        universe: item.universe,
+        excerpt: item.content.length > 220 ? `${item.content.slice(0, 220)}…` : item.content,
+        tags: item.tags,
+      }));
+
       return res.json({
         success: true,
         message: isMock
           ? `Mode mock actif — ${items.length} entrées simulées retournées. Configurez NOTION_API_KEY et NOTION_DATABASE_ID pour une vraie connexion.`
-          : `Connexion Notion réussie — ${items.length} entrées trouvées.`,
+          : `Connexion Notion réussie — ${items.length} entrées trouvées. Aperçu affiché ci-dessous.`,
         isMock,
         testedAt,
+        preview,
       });
     } catch {
       return res.json({ success: false, message: "Erreur lors du test Notion", isMock: true, testedAt });
