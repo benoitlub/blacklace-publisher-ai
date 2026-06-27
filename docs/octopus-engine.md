@@ -1,6 +1,6 @@
 # Octopus Engine dans Blacklace Publisher AI
 
-Blacklace Publisher AI utilise Octopus Engine comme référence d'architecture.
+Blacklace Publisher AI consomme désormais `octopus-engine` comme package externe.
 
 Le dépôt source d'Octopus Engine est :
 
@@ -10,7 +10,7 @@ https://github.com/benoitlub/octopus-engine
 
 Blacklace Publisher AI ne copie pas Octopus Engine.
 
-Il l'applique progressivement.
+Publisher utilise le runtime commun et conserve uniquement son métier applicatif.
 
 ## Ce que Publisher apporte
 
@@ -20,27 +20,24 @@ Il apporte :
 
 - son interface utilisateur ;
 - sa persona éditoriale ;
-- ses workflows de publication ;
-- ses policies client ;
+- ses workflows métier ;
+- ses modules métier ;
+- son Mission Planner ;
+- son Mission Catalog ;
 - ses connecteurs configurés ;
 - ses données métier ;
 - ses objectifs produit.
 
-## Ce qu'Octopus apporte
+## Ce qu'Octopus Engine apporte
 
-Octopus fournit le modèle de référence :
+`octopus-engine` fournit :
 
-- Conductor / Persona ;
-- Coordinator Runtime ;
-- Workflows déclaratifs ;
-- Module Tasks ;
-- Capabilities ;
-- Connectors ;
-- Policies ;
-- Guardian ;
-- Memory ;
-- Tracing ;
-- règles de frontières.
+- les types communs ;
+- `Coordinator` ;
+- `Guardian` ;
+- `ModuleTask` ;
+- `defineModule` ;
+- les contrats `WorkflowDefinition`, `MissionDefinition`, `Capability`, `UserIntent`.
 
 ## Correspondance actuelle
 
@@ -48,31 +45,40 @@ Octopus fournit le modèle de référence :
 | --- | --- |
 | Application | Blacklace Publisher AI |
 | Conductor / Persona | Interface éditoriale Feuch Institute / client |
-| Mission | Objectif utilisateur : publier, analyser, prospecter, préparer |
-| Workflow | Futurs workflows déclaratifs Publisher |
-| Module Task | Travail local donné à une brique IA ou métier |
-| Capability | Générer, résumer, analyser, publier, lire Notion, lire GitHub |
-| Connector | Notion, GitHub, Mistral, Meta, autres providers |
-| Guardian | Sécurité, coûts, quotas, validation humaine, blocages critiques |
-| Policies | Réglages client, budget, autonomie, ton, plateformes |
+| Mission Planner | Sélectionne une mission depuis une intention utilisateur |
+| Mission Catalog | `draft_article_outline`, `analyze_client_profile` |
+| Workflow | Workflows déclaratifs Publisher |
+| Module Task | Modules métier purs, sans réseau ni LLM |
+| Capability | `text_generation`, `outline_builder`, `text_analysis`, `profile_synthesizer` |
+| Guardian | Validation des capabilities requises |
+| Coordinator | Exécution séquentielle des workflows |
+
+## Endpoint disponible
+
+```http
+POST /api/octopus/mission
+```
+
+Exemple :
+
+```json
+{
+  "text": "analyse ce client",
+  "workspaceId": "default",
+  "context": {}
+}
+```
 
 ## Règles de protection
 
-- Ne pas intégrer de runtime Octopus complet tant que les schémas minimaux ne sont pas définis.
-- Ne pas faire grossir Publisher avec une pseudo-architecture Octopus bricolée localement.
-- Toute brique générique doit être proposée dans `octopus-engine` avant d'être copiée ici.
+- Ne jamais recréer `Coordinator`, `Guardian`, `ModuleTask` ou les contrats Octopus dans Publisher.
+- Toute brique générique doit vivre dans `octopus-engine`.
 - Toute brique spécifique à Publisher reste dans Publisher.
+- L'intention utilisateur complète ne doit pas être loggée.
+- Les workflows actuels restent sans LLM, sans connecteur réel et sans appel réseau.
 
-## Prochaine étape raisonnable
+## Statut
 
-Ajouter une couche de mapping documentaire, pas de runtime.
+Publisher est maintenant consommateur logiciel d'Octopus Engine, pas simple consommateur conceptuel.
 
-Le premier vrai branchement technique devra attendre les schémas :
-
-- Workflow ;
-- Module Task ;
-- Capability ;
-- Policy ;
-- Trace.
-
-Tant que ces contrats ne sont pas stabilisés, Publisher reste consommateur conceptuel d'Octopus, pas consommateur logiciel.
+Un seul Octopus. Un seul cerveau.
