@@ -8,6 +8,7 @@ import settingsRouter from "./settings";
 import dashboardRouter from "./dashboard";
 import calendarRouter from "./calendar";
 import generateRouter from "./generate";
+import octopusRouter from "./octopus";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use("/settings", settingsRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/calendar", calendarRouter);
 router.use("/generate", generateRouter);
+router.use("/octopus", octopusRouter);
 
 export default router;
