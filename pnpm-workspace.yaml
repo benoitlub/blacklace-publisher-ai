@@ -73,6 +73,8 @@ onlyBuiltDependencies:
   - esbuild
   - msw
   - unrs-resolver
+  - sharp
+  - octopus-engine
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
