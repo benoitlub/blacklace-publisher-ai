@@ -9,6 +9,7 @@ import dashboardRouter from "./dashboard";
 import calendarRouter from "./calendar";
 import generateRouter from "./generate";
 import octopusRouter from "./octopus";
+import aiGatewayRouter from "./ai-gateway";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use("/dashboard", dashboardRouter);
 router.use("/calendar", calendarRouter);
 router.use("/generate", generateRouter);
 router.use("/octopus", octopusRouter);
+router.use("/ai-gateway", aiGatewayRouter);
 
 export default router;
