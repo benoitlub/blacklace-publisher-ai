@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plug, Activity, Key, Clock } from "lucide-react";
+import { Plug, Activity, Key, Clock, Bot, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const STATUS_COLORS: Record<string, string> = {
   connected: "text-green-500",
@@ -33,14 +33,70 @@ interface ConnectorPreviewResult {
   preview: ConnectorPreviewItem[];
 }
 
+interface AiGatewayStatus {
+  mode: "mock" | "auto" | "provider" | string;
+  providersAvailable?: string[];
+  availableProviders?: string[];
+  providersConfigured?: string[];
+  configuredProviders?: string[];
+  defaultProvider?: string;
+  fallbackMockActive?: boolean;
+  lastProviderUsed?: string;
+}
+
+interface AiGatewayGenerateResponse {
+  ok: boolean;
+  provider: string;
+  model?: string;
+  output: string;
+  usage?: {
+    inputTokens?: number;
+    outputTokens?: number;
+    estimatedCost?: number;
+  };
+  fallbackUsed?: boolean;
+  error?: string;
+}
+
 export default function Connectors() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [previewResult, setPreviewResult] = useState<ConnectorPreviewResult | null>(null);
+  const [aiGatewayStatus, setAiGatewayStatus] = useState<AiGatewayStatus | null>(null);
+  const [aiGatewayResponse, setAiGatewayResponse] = useState<AiGatewayGenerateResponse | null>(null);
+  const [aiGatewayUnavailable, setAiGatewayUnavailable] = useState(false);
+  const [isTestingGateway, setIsTestingGateway] = useState(false);
   
   const { data: connectors, isLoading } = useListConnectors({
     query: { queryKey: getListConnectorsQueryKey() }
   });
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch("/api/ai-gateway/status")
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error("AI Gateway status unavailable");
+        }
+
+        return response.json() as Promise<AiGatewayStatus>;
+      })
+      .then((status) => {
+        if (!isMounted) return;
+        setAiGatewayStatus(status);
+        setAiGatewayUnavailable(false);
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setAiGatewayStatus(null);
+        setAiGatewayUnavailable(true);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const testConnector = useTestConnector({
     mutation: {
@@ -72,6 +128,50 @@ export default function Connectors() {
     }
   });
 
+  const testAiGateway = async () => {
+    setIsTestingGateway(true);
+    setAiGatewayResponse(null);
+
+    try {
+      const response = await fetch("/api/ai-gateway/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          task: "text.post",
+          prompt: "Test de génération Publisher AI"
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error("AI Gateway test failed");
+      }
+
+      const result = (await response.json()) as AiGatewayGenerateResponse;
+      setAiGatewayResponse(result);
+      setAiGatewayUnavailable(false);
+      setAiGatewayStatus((current) => current ? { ...current, lastProviderUsed: result.provider } : current);
+    } catch {
+      setAiGatewayUnavailable(true);
+      toast({
+        title: "AI Gateway indisponible",
+        description: "AI Gateway indisponible — mode mock local conservé.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingGateway(false);
+    }
+  };
+
+  const availableProviders = aiGatewayStatus?.availableProviders ?? aiGatewayStatus?.providersAvailable ?? ["mock", "mistral"];
+  const configuredProviders =
+    aiGatewayStatus?.configuredProviders ??
+    aiGatewayStatus?.providersConfigured ??
+    (aiGatewayStatus?.mode === "mock" || !aiGatewayStatus ? ["mock"] : [aiGatewayStatus.lastProviderUsed ?? "mock"]);
+  const fallbackMockActive = aiGatewayStatus?.fallbackMockActive ?? true;
+  const defaultProvider = aiGatewayStatus?.defaultProvider ?? (aiGatewayStatus?.mode === "mock" ? "mock" : undefined);
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
@@ -80,6 +180,74 @@ export default function Connectors() {
           <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Liaisons Extérieures</p>
         </div>
       </div>
+
+      <Card className="bg-card border-primary/30 shadow-md">
+        <CardHeader className="border-b border-border/50">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <CardTitle className="font-serif flex items-center gap-3">
+                <Bot className="w-5 h-5 text-primary" />
+                AI Gateway
+              </CardTitle>
+              <p className="text-xs font-mono text-muted-foreground mt-2">
+                Capability serveur utilisee par Octopus quand une tache demande un provider IA.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={testAiGateway}
+              disabled={isTestingGateway}
+              className="font-mono text-xs border-primary/50 text-primary hover:bg-primary/20"
+            >
+              <RefreshCw className="w-4 h-4" />
+              {isTestingGateway ? "Test..." : "Tester la Gateway"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-6">
+          {aiGatewayUnavailable ? (
+            <div className="rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+              <p className="text-sm font-mono text-amber-500">AI Gateway indisponible — mode mock local conservé.</p>
+            </div>
+          ) : null}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+            <GatewayMetric label="Mode actuel" value={aiGatewayStatus?.mode ?? "mock"} />
+            <GatewayMetric label="Provider par defaut" value={defaultProvider ?? "non force"} />
+            <GatewayMetric label="Dernier provider" value={aiGatewayStatus?.lastProviderUsed ?? "aucun"} />
+            <GatewayMetric label="Fallback mock" value={fallbackMockActive ? "actif" : "inactif"} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <ProviderList title="Providers disponibles" providers={availableProviders} />
+            <ProviderList title="Providers configures" providers={configuredProviders} />
+          </div>
+
+          {aiGatewayResponse ? (
+            <div className="rounded-md border border-border bg-secondary/20 p-4 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant={aiGatewayResponse.ok ? "default" : "destructive"} className="font-mono">
+                  {aiGatewayResponse.ok ? "OK" : "ERREUR"}
+                </Badge>
+                <Badge variant="outline" className="font-mono">
+                  Provider: {aiGatewayResponse.provider}
+                </Badge>
+                {aiGatewayResponse.fallbackUsed ? (
+                  <Badge variant="outline" className="font-mono bg-amber-500/10 text-amber-500">
+                    fallback mock
+                  </Badge>
+                ) : null}
+              </div>
+              <p className="text-sm text-muted-foreground whitespace-pre-wrap">{aiGatewayResponse.output}</p>
+              {aiGatewayResponse.error ? (
+                <p className="text-xs font-mono text-destructive">{aiGatewayResponse.error}</p>
+              ) : null}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {previewResult && (
         <Card className="bg-card border-primary/30 shadow-md">
@@ -200,6 +368,34 @@ export default function Connectors() {
           <p className="text-muted-foreground font-mono text-sm">Le système est isolé.</p>
         </div>
       )}
+    </div>
+  );
+}
+
+function GatewayMetric({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-secondary/20 p-3">
+      <p className="font-mono text-[10px] uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 font-serif text-lg text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function ProviderList({ title, providers }: { readonly title: string; readonly providers: readonly string[] }) {
+  return (
+    <div className="rounded-md border border-border bg-secondary/20 p-3">
+      <p className="font-mono text-[10px] uppercase text-muted-foreground mb-2">{title}</p>
+      <div className="flex flex-wrap gap-2">
+        {providers.length > 0 ? (
+          providers.map((provider) => (
+            <Badge key={provider} variant="outline" className="font-mono bg-background/50">
+              {provider}
+            </Badge>
+          ))
+        ) : (
+          <span className="text-sm text-muted-foreground">Aucun</span>
+        )}
+      </div>
     </div>
   );
 }
