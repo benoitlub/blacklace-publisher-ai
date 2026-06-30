@@ -19,7 +19,7 @@ const NAV_ITEMS = [
   { href: "/calendar", label: "Calendrier", icon: CalendarIcon },
   { href: "/posts", label: "Publications", icon: FileText },
   { href: "/campaigns", label: "Campagnes", icon: Megaphone },
-  { href: "/agents", label: "Agents", icon: Users },
+  { href: "/agents", label: "Capacites", icon: Users },
   { href: "/connectors", label: "Connecteurs", icon: Plug },
   { href: "/settings", label: "Paramètres", icon: SettingsIcon },
 ];

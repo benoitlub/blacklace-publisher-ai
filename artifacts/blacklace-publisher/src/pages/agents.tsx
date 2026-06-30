@@ -39,11 +39,11 @@ export default function Agents() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Personnel</h1>
+          <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Capacites</h1>
           <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Intelligence Artificielle</p>
         </div>
         <Button className="bg-secondary hover:bg-secondary/80 text-foreground font-mono font-bold">
-          Recruter
+          Activer une capacite
         </Button>
       </div>
 
