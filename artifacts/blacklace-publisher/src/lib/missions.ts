@@ -10,6 +10,17 @@ export interface ProposedSeed {
   readonly rationale: string;
 }
 
+export interface HarvestDraft {
+  readonly id: string;
+  readonly missionId: string;
+  readonly seedId: string;
+  readonly parcel: MissionParcel;
+  readonly title: string;
+  readonly summary: string;
+  readonly createdAt: string;
+  readonly status: "draft";
+}
+
 export interface OctopusMissionResponse {
   readonly missionId: string;
   readonly octopusStatus: "received";
@@ -42,6 +53,7 @@ export interface CreateMissionInput {
 }
 
 const MISSIONS_STORAGE_KEY = "publisher-ai:missions";
+const HARVEST_DRAFTS_STORAGE_KEY = "publisher-ai:harvest-drafts";
 
 export function createMission(input: CreateMissionInput): ClientMission {
   return {
@@ -97,6 +109,24 @@ export function saveMissions(missions: readonly ClientMission[]): void {
   window.localStorage.setItem(MISSIONS_STORAGE_KEY, JSON.stringify(missions));
 }
 
+export function loadHarvestDrafts(): HarvestDraft[] {
+  const raw = window.localStorage.getItem(HARVEST_DRAFTS_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isHarvestDraft) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveHarvestDrafts(drafts: readonly HarvestDraft[]): void {
+  window.localStorage.setItem(HARVEST_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+}
+
 export function promoteFirstSeedToWip(parcel: MissionParcel): ClientMission[] {
   const missions = loadMissions();
   let promoted = false;
@@ -119,12 +149,12 @@ export function promoteFirstSeedToWip(parcel: MissionParcel): ClientMission[] {
   return nextMissions;
 }
 
-export function prepareHarvestDraft(parcel: MissionParcel): ClientMission[] {
+export function prepareHarvestDraft(parcel: MissionParcel): HarvestDraft | null {
   const missions = loadMissions();
-  let prepared = false;
+  let preparedDraft: HarvestDraft | null = null;
 
   const nextMissions = missions.map((mission) => {
-    if (mission.parcel !== parcel || !mission.octopusResponse || prepared) {
+    if (mission.parcel !== parcel || !mission.octopusResponse || preparedDraft) {
       return mission;
     }
 
@@ -133,12 +163,30 @@ export function prepareHarvestDraft(parcel: MissionParcel): ClientMission[] {
       return mission;
     }
 
-    prepared = true;
+    preparedDraft = createHarvestDraft(mission, wipSeed);
     return updateSeedStatus(mission, wipSeed.id, "harvest-draft");
   });
 
   saveMissions(nextMissions);
-  return nextMissions;
+
+  if (preparedDraft) {
+    saveHarvestDrafts([preparedDraft, ...loadHarvestDrafts()]);
+  }
+
+  return preparedDraft;
+}
+
+function createHarvestDraft(mission: ClientMission, seed: ProposedSeed): HarvestDraft {
+  return {
+    id: crypto.randomUUID(),
+    missionId: mission.id,
+    seedId: seed.id,
+    parcel: mission.parcel,
+    title: seed.label,
+    summary: `Brouillon de recolte prepare depuis la mission : ${mission.intent}`,
+    createdAt: new Date().toISOString(),
+    status: "draft"
+  };
 }
 
 function isClientMission(value: unknown): value is ClientMission {
@@ -154,6 +202,20 @@ function isClientMission(value: unknown): value is ClientMission {
     (mission.octopusStatus === "pending" || mission.octopusStatus === "received") &&
     Array.isArray(mission.proposedSeeds) &&
     Array.isArray(mission.notes)
+  );
+}
+
+function isHarvestDraft(value: unknown): value is HarvestDraft {
+  const draft = value as Partial<HarvestDraft>;
+  return (
+    typeof draft.id === "string" &&
+    typeof draft.missionId === "string" &&
+    typeof draft.seedId === "string" &&
+    typeof draft.parcel === "string" &&
+    typeof draft.title === "string" &&
+    typeof draft.summary === "string" &&
+    typeof draft.createdAt === "string" &&
+    draft.status === "draft"
   );
 }
 
