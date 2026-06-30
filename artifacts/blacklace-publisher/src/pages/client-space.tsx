@@ -4,8 +4,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Save, Sparkles, Palette, BookOpen, Share2, RotateCcw } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Save, Sparkles, Palette, BookOpen, Share2, RotateCcw, Plus, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  createParcel,
+  deleteParcel,
+  loadParcels,
+  updateParcel,
+  type Parcel,
+  type ParcelType
+} from "@/lib/parcels";
 
 interface ClientProfile {
   clientName: string;
@@ -22,53 +31,60 @@ const PRESETS: Record<string, ClientProfile> = {
   blacklace: {
     clientName: "Feuch Institute",
     projectName: "Blacklace Publisher",
-    tagline: "Créer. Le reste est pris en charge.",
+    tagline: "Creer. Le reste est pris en charge.",
     mainColor: "#ff3b1f",
-    tone: "Mystérieux, scientifique, sarcastique, poétique, absurde contrôlé",
-    audience: "Lecteurs, joueurs, créateurs, curieux, communautés IA",
-    goals: "Animer les univers Blacklace, préparer les posts, relier livres, apps, jeux et personnages",
-    platforms: "Instagram, Facebook, TikTok, KDP, GitHub Pages, site web",
+    tone: "Mysterieux, scientifique, sarcastique, poetique, absurde controle",
+    audience: "Lecteurs, joueurs, createurs, curieux, communautes IA",
+    goals: "Animer les univers Blacklace, preparer les posts, relier livres, apps, jeux et personnages",
+    platforms: "Instagram, Facebook, TikTok, KDP, GitHub Pages, site web"
   },
   yael: {
-    clientName: "Yaël Bali",
+    clientName: "Yael Bali",
     projectName: "Super taux",
     tagline: "Meilleur taux pour achat de biens immobiliers",
     mainColor: "#16ff3b",
     tone: "Corporate, sympathique, clair, rassurant",
     audience: "Personnes voulant acheter au meilleur taux",
-    goals: "Qualifier les prospects, expliquer le financement, réduire la charge éditoriale",
-    platforms: "Facebook, Instagram, LinkedIn, site web",
+    goals: "Qualifier les prospects, expliquer le financement, reduire la charge editoriale",
+    platforms: "Facebook, Instagram, LinkedIn, site web"
   },
   author: {
-    clientName: "Auteur indépendant",
+    clientName: "Auteur independant",
     projectName: "Book Launch OS",
-    tagline: "Transformer un manuscrit en calendrier éditorial.",
+    tagline: "Transformer un manuscrit en calendrier editorial.",
     mainColor: "#8b5cf6",
-    tone: "Littéraire, accessible, incarné, régulier",
-    audience: "Lecteurs, chroniqueurs, communautés Kindle, libraires indépendants",
-    goals: "Préparer les lancements, recycler les extraits, créer une présence autour des livres",
-    platforms: "KDP, Instagram, Facebook, TikTok, newsletter",
+    tone: "Litteraire, accessible, incarne, regulier",
+    audience: "Lecteurs, chroniqueurs, communautes Kindle, libraires independants",
+    goals: "Preparer les lancements, recycler les extraits, creer une presence autour des livres",
+    platforms: "KDP, Instagram, Facebook, TikTok, newsletter"
   },
   association: {
     clientName: "Association locale",
-    projectName: "Ateliers & événements",
+    projectName: "Ateliers & evenements",
     tagline: "Informer, mobiliser, accueillir.",
     mainColor: "#38bdf8",
     tone: "Humain, simple, utile, chaleureux",
-    audience: "Habitants, bénévoles, partenaires, familles",
+    audience: "Habitants, benevoles, partenaires, familles",
     goals: "Annoncer les ateliers, clarifier les inscriptions, valoriser les actions",
-    platforms: "Facebook, Instagram, site web, newsletter",
-  },
+    platforms: "Facebook, Instagram, site web, newsletter"
+  }
 };
 
 const DEFAULT_PROFILE = PRESETS.blacklace;
 const STORAGE_KEY = "blacklace-client-profile";
+const PARCEL_TYPES: ParcelType[] = ["client", "project", "personal", "universe"];
 
 export default function ClientSpace() {
   const { toast } = useToast();
   const [profile, setProfile] = useState<ClientProfile>(DEFAULT_PROFILE);
+  const [parcels, setParcels] = useState<Parcel[]>([]);
+  const [newParcelName, setNewParcelName] = useState("");
+  const [newParcelDescription, setNewParcelDescription] = useState("");
+  const [newParcelType, setNewParcelType] = useState<ParcelType>("client");
 
   useEffect(() => {
+    setParcels(loadParcels());
+
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (!saved) return;
 
@@ -81,21 +97,52 @@ export default function ClientSpace() {
 
   const platformList = useMemo(
     () => profile.platforms.split(",").map((item) => item.trim()).filter(Boolean),
-    [profile.platforms],
+    [profile.platforms]
   );
 
   const handleSave = () => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
-    toast({ title: "Espace client sauvegardé", description: "La personnalisation locale a été enregistrée." });
+    toast({ title: "Espace client sauvegarde", description: "La personnalisation locale a ete enregistree." });
   };
 
   const applyPreset = (presetKey: keyof typeof PRESETS) => {
     setProfile(PRESETS[presetKey]);
-    toast({ title: "Profil chargé", description: `Le preset ${PRESETS[presetKey].clientName} est affiché.` });
+    toast({ title: "Profil charge", description: `Le preset ${PRESETS[presetKey].clientName} est affiche.` });
   };
 
   const update = (field: keyof ClientProfile, value: string) => {
     setProfile((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleAddParcel = () => {
+    if (!newParcelName.trim()) {
+      return;
+    }
+
+    createParcel({
+      name: newParcelName,
+      description: newParcelDescription,
+      type: newParcelType
+    });
+    setParcels(loadParcels());
+    setNewParcelName("");
+    setNewParcelDescription("");
+    setNewParcelType("client");
+    toast({ title: "Parcelle ajoutee", description: "Elle est disponible dans le Dashboard et le rapport du jardin." });
+  };
+
+  const handleUpdateParcel = (parcelId: string, field: "name" | "description" | "type", value: string) => {
+    setParcels(updateParcel(parcelId, { [field]: value }));
+  };
+
+  const handleDeleteParcel = (parcel: Parcel) => {
+    if (parcel.isDefault) {
+      toast({ title: "Suppression bloquee", description: "Les parcelles par defaut restent disponibles." });
+      return;
+    }
+
+    setParcels(deleteParcel(parcel.id));
+    toast({ title: "Parcelle supprimee", description: "Les anciennes missions restent lisibles." });
   };
 
   return (
@@ -104,7 +151,7 @@ export default function ClientSpace() {
         <div>
           <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Espace Client</h1>
           <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">
-            Personnalisation du portail éditorial
+            Personnalisation du portail editorial
           </p>
         </div>
         <Button onClick={handleSave} className="bg-primary hover:bg-primary/90 text-primary-foreground font-mono font-bold">
@@ -115,18 +162,100 @@ export default function ClientSpace() {
 
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="font-serif">Systèmes rapides</CardTitle>
+          <CardTitle className="font-serif">Systemes rapides</CardTitle>
           <CardDescription className="font-mono text-xs">
-            Charge un univers de démonstration. Cela permet de montrer que le moteur n'est pas seulement Blacklace.
+            Charge un univers de demonstration. Cela permet de montrer que le moteur n'est pas seulement Blacklace.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3">
           <Button variant="outline" onClick={() => applyPreset("blacklace")} className="font-mono">
             <RotateCcw className="w-4 h-4 mr-2" /> Blacklace / Feuch
           </Button>
-          <Button variant="outline" onClick={() => applyPreset("yael")} className="font-mono">Yaël Bali</Button>
-          <Button variant="outline" onClick={() => applyPreset("author")} className="font-mono">Auteur indépendant</Button>
+          <Button variant="outline" onClick={() => applyPreset("yael")} className="font-mono">Yael Bali</Button>
+          <Button variant="outline" onClick={() => applyPreset("author")} className="font-mono">Auteur independant</Button>
           <Button variant="outline" onClick={() => applyPreset("association")} className="font-mono">Association locale</Button>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="font-serif">Parcelles / clients</CardTitle>
+          <CardDescription className="font-mono text-xs">
+            Source locale utilisee par le Dashboard, les missions et le rapport du jardin.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 lg:grid-cols-[minmax(160px,1fr)_minmax(220px,1.4fr)_160px_auto] gap-3 items-end">
+            <div className="space-y-2">
+              <Label className="font-mono text-xs uppercase text-muted-foreground">Nom</Label>
+              <Input value={newParcelName} onChange={(event) => setNewParcelName(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-mono text-xs uppercase text-muted-foreground">Description</Label>
+              <Input value={newParcelDescription} onChange={(event) => setNewParcelDescription(event.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label className="font-mono text-xs uppercase text-muted-foreground">Type</Label>
+              <Select value={newParcelType} onValueChange={(value) => setNewParcelType(value as ParcelType)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PARCEL_TYPES.map((type) => (
+                    <SelectItem key={type} value={type}>
+                      {type}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button type="button" onClick={handleAddParcel} disabled={!newParcelName.trim()} className="font-mono">
+              <Plus className="w-4 h-4 mr-2" />
+              Ajouter une parcelle
+            </Button>
+          </div>
+
+          <div className="space-y-3">
+            {parcels.map((parcel) => (
+              <div key={parcel.id} className="grid grid-cols-1 lg:grid-cols-[minmax(160px,1fr)_minmax(220px,1.4fr)_160px_auto] gap-3 rounded-md border border-border bg-secondary/20 p-3">
+                <div className="space-y-2">
+                  <Label className="font-mono text-xs uppercase text-muted-foreground">Nom</Label>
+                  <Input value={parcel.name} onChange={(event) => handleUpdateParcel(parcel.id, "name", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-mono text-xs uppercase text-muted-foreground">Description</Label>
+                  <Input value={parcel.description} onChange={(event) => handleUpdateParcel(parcel.id, "description", event.target.value)} />
+                </div>
+                <div className="space-y-2">
+                  <Label className="font-mono text-xs uppercase text-muted-foreground">Type</Label>
+                  <Select value={parcel.type} onValueChange={(value) => handleUpdateParcel(parcel.id, "type", value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PARCEL_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {type}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-end">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleDeleteParcel(parcel)}
+                    disabled={parcel.isDefault}
+                    className="font-mono"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Supprimer
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         </CardContent>
       </Card>
 
@@ -180,9 +309,9 @@ export default function ClientSpace() {
 
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="font-serif">Réglages client</CardTitle>
+          <CardTitle className="font-serif">Reglages client</CardTitle>
           <CardDescription className="font-mono text-xs">
-            Première couche visible : chaque client peut renommer, colorer et cadrer son portail sans modifier le moteur.
+            Premiere couche visible : chaque client peut renommer, colorer et cadrer son portail sans modifier le moteur.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -207,7 +336,7 @@ export default function ClientSpace() {
             <Input value={profile.platforms} onChange={(event) => update("platforms", event.target.value)} />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <Label className="font-mono text-xs uppercase text-muted-foreground">Ton éditorial</Label>
+            <Label className="font-mono text-xs uppercase text-muted-foreground">Ton editorial</Label>
             <Input value={profile.tone} onChange={(event) => update("tone", event.target.value)} />
           </div>
           <div className="space-y-2 md:col-span-2">
