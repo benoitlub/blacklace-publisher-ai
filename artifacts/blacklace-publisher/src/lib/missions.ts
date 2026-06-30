@@ -1,4 +1,4 @@
-export type MissionParcel = "Yael Bali" | "Blacklace" | "Benoît / Personnel" | "Nouveau client";
+export type MissionParcel = string;
 
 export type MissionPersona = "neutre" | "conseiller marketing" | "assistant commercial";
 

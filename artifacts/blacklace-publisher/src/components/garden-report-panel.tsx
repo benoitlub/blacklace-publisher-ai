@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { loadGardenReport, runGardenWorker, type GardenReport } from "@/lib/gardenWorker";
 import { prepareHarvestDraft, promoteFirstSeedToWip, type MissionParcel } from "@/lib/missions";
+import { getArchivedParcelLabel, getParcelDisplayName, loadParcels } from "@/lib/parcels";
 
 export function GardenReportPanel() {
   const [report, setReport] = useState<GardenReport | null>(null);
@@ -77,7 +78,10 @@ export function GardenReportPanel() {
                   <article key={parcelReport.parcel} className="rounded-md border border-border bg-secondary/20 p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-serif font-semibold text-foreground">{parcelReport.parcel}</h3>
+                        <h3 className="font-serif font-semibold text-foreground">{getParcelDisplayName(parcelReport.parcel, loadParcels())}</h3>
+                        {getArchivedParcelLabel(parcelReport.parcel, loadParcels()) ? (
+                          <p className="text-[11px] font-mono text-muted-foreground">Ancien libelle : {parcelReport.parcel}</p>
+                        ) : null}
                         <p className="text-xs font-mono text-muted-foreground">
                           {parcelReport.totalMissions} mission(s)
                         </p>

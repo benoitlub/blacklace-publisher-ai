@@ -1,4 +1,5 @@
 import { loadMissions, type ClientMission, type MissionParcel } from "@/lib/missions";
+import { findParcelByName, loadParcels } from "@/lib/parcels";
 
 export interface GardenParcelReport {
   readonly parcel: MissionParcel;
@@ -43,25 +44,35 @@ export function saveGardenReport(report: GardenReport): void {
 }
 
 function createGardenReport(missions: readonly ClientMission[]): GardenReport {
-  const parcels = groupByParcel(missions).map(([parcel, parcelMissions]) =>
-    createParcelReport(parcel, parcelMissions)
-  );
+  const groupedMissions = groupByParcel(missions);
+  const knownParcelNames = new Set<string>();
+  const parcelReports = loadParcels().map((parcel) => {
+    knownParcelNames.add(parcel.name);
+    return createParcelReport(parcel.name, groupedMissions.get(parcel.name) ?? []);
+  });
+
+  for (const [parcel, parcelMissions] of groupedMissions.entries()) {
+    if (!knownParcelNames.has(parcel)) {
+      parcelReports.push(createParcelReport(parcel, parcelMissions));
+    }
+  }
 
   return {
     generatedAt: new Date().toISOString(),
-    parcels,
-    globalRecommendations: missions.length === 0 ? ["Créer une première mission client."] : []
+    parcels: parcelReports,
+    globalRecommendations: missions.length === 0 ? ["Creer une premiere mission client."] : []
   };
 }
 
-function groupByParcel(missions: readonly ClientMission[]): Array<[MissionParcel, ClientMission[]]> {
+function groupByParcel(missions: readonly ClientMission[]): Map<MissionParcel, ClientMission[]> {
   const grouped = new Map<MissionParcel, ClientMission[]>();
 
   for (const mission of missions) {
-    grouped.set(mission.parcel, [...(grouped.get(mission.parcel) ?? []), mission]);
+    const parcelName = findParcelByName(mission.parcel)?.name ?? mission.parcel;
+    grouped.set(parcelName, [...(grouped.get(parcelName) ?? []), mission]);
   }
 
-  return [...grouped.entries()];
+  return grouped;
 }
 
 function createParcelReport(parcel: MissionParcel, missions: readonly ClientMission[]): GardenParcelReport {
@@ -94,14 +105,14 @@ function createRecommendations(
   }
 
   if (wipCount >= 1) {
-    recommendations.push("Préparer une récolte.");
+    recommendations.push("Preparer une recolte.");
   }
 
   const isYaelMission = parcel === "Yael Bali" || missions.some((mission) => mission.intent.toLowerCase().includes("yael"));
   if (isYaelMission) {
-    recommendations.push("Préparer un audit Facebook.");
-    recommendations.push("Préparer une carte de visite.");
-    recommendations.push("Préparer une campagne courte.");
+    recommendations.push("Preparer un audit Facebook.");
+    recommendations.push("Preparer une carte de visite.");
+    recommendations.push("Preparer une campagne courte.");
   }
 
   return recommendations;
