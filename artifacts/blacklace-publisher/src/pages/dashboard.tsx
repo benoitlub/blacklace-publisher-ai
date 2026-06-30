@@ -2,6 +2,8 @@ import { useGetDashboardStats, getGetDashboardStatsQueryKey, useGetRecentPosts, 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { MissionPanel } from "@/components/mission-panel";
+import { GardenReportPanel } from "@/components/garden-report-panel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -20,6 +22,10 @@ export default function Dashboard() {
         <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Rapport d'Opérations</h1>
         <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Résumé du mois en cours</p>
       </div>
+
+      <MissionPanel />
+
+      <GardenReportPanel />
 
       {statsLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
