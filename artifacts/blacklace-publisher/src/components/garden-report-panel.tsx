@@ -7,10 +7,12 @@ import { loadGardenReport, runGardenWorker, type GardenReport } from "@/lib/gard
 import {
   createPublicationDraftFromHarvest,
   loadHarvestDrafts,
+  loadPublisherLoopSource,
   loadPublicationDrafts,
   prepareHarvestDraft,
   promoteFirstSeedToWip,
   recordActivity,
+  syncPublisherLoopFromServer,
   updatePublicationDraft,
   type HarvestDraft,
   type MissionParcel,
@@ -24,6 +26,7 @@ export function GardenReportPanel() {
   const [publicationDrafts, setPublicationDrafts] = useState<PublicationDraft[]>([]);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [progressMessage, setProgressMessage] = useState<string | null>(null);
+  const [loopSource, setLoopSource] = useState(loadPublisherLoopSource());
   const [generatingHarvestId, setGeneratingHarvestId] = useState<string | null>(null);
   const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
   const [editingText, setEditingText] = useState("");
@@ -32,6 +35,12 @@ export function GardenReportPanel() {
     setReport(loadGardenReport());
     setHarvestDrafts(loadHarvestDrafts());
     setPublicationDrafts(loadPublicationDrafts());
+    void syncPublisherLoopFromServer().then(() => {
+      setReport(loadGardenReport());
+      setHarvestDrafts(loadHarvestDrafts());
+      setPublicationDrafts(loadPublicationDrafts());
+      setLoopSource(loadPublisherLoopSource());
+    });
   }, []);
 
   const refreshGardenState = () => {
@@ -109,14 +118,14 @@ export function GardenReportPanel() {
   return (
     <Card className="bg-card border-border shadow-md">
       <CardHeader className="border-b border-border/50 pb-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <CardTitle className="font-serif">Rapport du jardin</CardTitle>
             <CardDescription className="font-mono text-xs">
-              Lecture locale des missions, graines et WIP par parcelle.
+              Lecture {loopSource === "server" ? "serveur" : "locale"} des missions, graines et WIP par parcelle.
             </CardDescription>
           </div>
-          <Button type="button" onClick={handleRunWorker} className="font-mono font-bold">
+          <Button type="button" onClick={handleRunWorker} className="w-full font-mono font-bold sm:w-auto">
             <Sprout className="w-4 h-4" />
             Faire jardiner le Poulpe
           </Button>
@@ -164,7 +173,7 @@ export function GardenReportPanel() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {report.parcels.map((parcelReport) => (
                   <article key={parcelReport.parcel} className="rounded-md border border-border bg-secondary/20 p-4 space-y-3">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <h3 className="font-serif font-semibold text-foreground">{getParcelDisplayName(parcelReport.parcel, loadParcels())}</h3>
                         {getArchivedParcelLabel(parcelReport.parcel, loadParcels()) ? (
@@ -174,7 +183,7 @@ export function GardenReportPanel() {
                           {parcelReport.totalMissions} mission(s)
                         </p>
                       </div>
-                      <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="grid grid-cols-3 gap-2 text-center sm:min-w-44">
                         <Metric label="Seed" value={parcelReport.seedsCount} />
                         <Metric label="WIP" value={parcelReport.wipCount} />
                         <Metric label="Harvest" value={parcelReport.harvestReadyCount} />
@@ -186,7 +195,7 @@ export function GardenReportPanel() {
                       {parcelReport.recommendations.length > 0 ? (
                         <ul className="space-y-2 text-sm text-muted-foreground">
                           {parcelReport.recommendations.map((recommendation) => (
-                            <li key={recommendation} className="flex items-start justify-between gap-3">
+                            <li key={recommendation} className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                               <span>{recommendation}</span>
                               {isActionableRecommendation(recommendation) ? (
                                 <Button
@@ -194,7 +203,7 @@ export function GardenReportPanel() {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => applyRecommendation(parcelReport.parcel, recommendation)}
-                                  className="shrink-0 font-mono"
+                                  className="w-full shrink-0 font-mono sm:w-auto"
                                 >
                                   Appliquer la recommandation
                                 </Button>
@@ -227,7 +236,7 @@ export function GardenReportPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {harvestDrafts.map((draft) => (
                 <article key={draft.id} className="rounded-md border border-border bg-secondary/20 p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-[11px] font-mono uppercase text-muted-foreground">{draft.parcel}</p>
                       <h4 className="font-serif font-semibold text-foreground">{draft.title}</h4>
@@ -251,7 +260,7 @@ export function GardenReportPanel() {
                     size="sm"
                     onClick={() => generatePublication(draft)}
                     disabled={generatingHarvestId === draft.id}
-                    className="font-mono"
+                    className="w-full font-mono sm:w-auto"
                   >
                     <FileText className="w-4 h-4" />
                     Generer le contenu
@@ -278,7 +287,7 @@ export function GardenReportPanel() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
               {publicationDrafts.map((draft) => (
                 <article key={draft.id} className="rounded-md border border-border bg-secondary/20 p-4 space-y-3">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                       <p className="text-[11px] font-mono uppercase text-muted-foreground">
                         {draft.channel} - source {getSourceLabel(draft.source)}
@@ -304,7 +313,7 @@ export function GardenReportPanel() {
 
                   <Diagnostic draft={draft} />
 
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                     <Button type="button" variant="outline" size="sm" onClick={() => startEditing(draft)} className="font-mono">
                       <Pencil className="w-4 h-4" />
                       Modifier

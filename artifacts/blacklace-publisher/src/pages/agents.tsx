@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { useQueryClient } from "@tanstack/react-query";
 import { Users, Fingerprint, BookOpen, MessageSquare } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { LOCAL_PERSONAS } from "@/lib/personas";
 
 // Mapped from predefined agents
 const AGENT_COLORS: Record<string, string> = {
@@ -25,6 +26,22 @@ export default function Agents() {
   const { data: agents, isLoading } = useListAgents({
     query: { queryKey: getListAgentsQueryKey() }
   });
+  const visibleAgents = agents?.length
+    ? agents
+    : LOCAL_PERSONAS.map((persona, index) => ({
+        id: -(index + 1),
+        name: persona.name,
+        role: persona.role,
+        tone: persona.tone,
+        missions: persona.goals.join("\n"),
+        limits: `Source ${persona.source}`,
+        examplePhrases: persona.capabilities.join("\n"),
+        color: null,
+        avatar: null,
+        isActive: true,
+        createdAt: new Date(0).toISOString(),
+        source: persona.source
+      }));
 
   const updateAgent = useUpdateAgent({
     mutation: {
@@ -43,7 +60,7 @@ export default function Agents() {
           <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Intelligence Artificielle</p>
         </div>
         <Button className="bg-secondary hover:bg-secondary/80 text-foreground font-mono font-bold">
-          Recruter
+          Activer une capacite
         </Button>
       </div>
 
@@ -53,10 +70,11 @@ export default function Agents() {
             <Skeleton key={i} className="h-72 w-full bg-secondary" />
           ))}
         </div>
-      ) : agents?.length ? (
+      ) : visibleAgents.length ? (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {agents.map((agent) => {
+          {visibleAgents.map((agent) => {
             const agentColor = agent.color || AGENT_COLORS[agent.name] || "#FFFFFF";
+            const isFrontendFallback = agent.id < 0;
             
             return (
               <Card key={agent.id} className="bg-card border-border overflow-hidden relative shadow-lg">
@@ -78,6 +96,11 @@ export default function Agents() {
                         <Badge variant="outline" className="font-mono text-[10px] uppercase bg-secondary/50">
                           {agent.role}
                         </Badge>
+                        {"source" in agent ? (
+                          <Badge variant="outline" className="ml-2 font-mono text-[10px] uppercase bg-secondary/30">
+                            {agent.source === "notion" ? "Notion" : "Mock"}
+                          </Badge>
+                        ) : null}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -87,7 +110,7 @@ export default function Agents() {
                       <Switch 
                         checked={agent.isActive}
                         onCheckedChange={(checked) => updateAgent.mutate({ id: agent.id, data: { isActive: checked } })}
-                        disabled={updateAgent.isPending}
+                        disabled={updateAgent.isPending || isFrontendFallback}
                         className="data-[state=checked]:bg-primary"
                       />
                     </div>

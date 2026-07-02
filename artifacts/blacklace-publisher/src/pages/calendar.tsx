@@ -9,7 +9,7 @@ import { fr } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
 import { Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { loadHarvestDrafts, mergePublicationDrafts, recordActivity, type PublicationDraft } from "@/lib/missions";
+import { loadHarvestDrafts, mergePublicationDrafts, recordActivity, syncPublisherLoopFromServer, type PublicationDraft } from "@/lib/missions";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -31,6 +31,7 @@ export default function Calendar() {
   const generateMonth = async () => {
     setIsGeneratingMonth(true);
     try {
+      await syncPublisherLoopFromServer();
       const response = await fetch("/api/generate/month", {
         method: "POST",
         headers: { "Content-Type": "application/json" },

@@ -2,9 +2,11 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   loadHarvestDrafts,
+  loadPublisherLoopSource,
   loadMissions,
   loadPublicationDrafts,
   PUBLISHER_LOOP_CHANGED_EVENT,
+  syncPublisherLoopFromServer,
   type ClientMission,
   type HarvestDraft,
   type ProposedSeed,
@@ -28,13 +30,16 @@ interface ScheduledPost {
 
 export function PublisherLoopPanel() {
   const [state, setState] = useState<LoopState>(() => loadLoopState());
+  const [loopSource, setLoopSource] = useState(loadPublisherLoopSource());
 
   useEffect(() => {
     const refresh = () => {
       setState(loadLoopState());
+      setLoopSource(loadPublisherLoopSource());
       void loadScheduledPosts().then((scheduledPosts) => setState((current) => ({ ...current, scheduledPosts })));
     };
     refresh();
+    void syncPublisherLoopFromServer().then(refresh);
     window.addEventListener(PUBLISHER_LOOP_CHANGED_EVENT, refresh);
     window.addEventListener("storage", refresh);
     return () => {
@@ -50,7 +55,7 @@ export function PublisherLoopPanel() {
       <CardHeader className="border-b border-border/50 pb-4">
         <CardTitle className="font-serif">Travail en cours d'Octopus</CardTitle>
         <CardDescription className="font-mono text-xs">
-          Vue locale de la boucle Publisher : Intent vers Publication.
+          Vue {loopSource === "server" ? "serveur" : "locale"} de la boucle Publisher : Intent vers Publication.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 pt-6">

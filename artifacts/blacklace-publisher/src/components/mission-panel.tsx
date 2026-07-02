@@ -7,10 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   createMission,
+  loadPublisherLoopSource,
   loadMissions,
   recordActivity,
   saveMissions,
   submitMissionToOctopus,
+  syncPublisherLoopFromServer,
   type ClientMission,
   type MissionParcel,
   type MissionPersona
@@ -31,10 +33,15 @@ export function MissionPanel() {
   const [persona, setPersona] = useState<MissionPersona>("neutre");
   const [personas, setPersonas] = useState<PublisherPersona[]>(LOCAL_PERSONAS);
   const [missions, setMissions] = useState<ClientMission[]>([]);
+  const [loopSource, setLoopSource] = useState(loadPublisherLoopSource());
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setMissions(loadMissions());
+    void syncPublisherLoopFromServer().then(() => {
+      setMissions(loadMissions());
+      setLoopSource(loadPublisherLoopSource());
+    });
     void loadPublisherPersonas().then((loadedPersonas) => {
       setPersonas(loadedPersonas);
       setPersona((current) => loadedPersonas.some((item) => item.name === current) ? current : loadedPersonas[0]?.name ?? current);
@@ -188,8 +195,15 @@ export function MissionPanel() {
 
       <Card className="bg-card border-border shadow-md">
         <CardHeader className="border-b border-border/50 pb-4">
-          <CardTitle className="font-serif">Missions envoyees a Octopus</CardTitle>
-          <CardDescription className="font-mono text-xs">Intentions locales en attente d'orchestration.</CardDescription>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <CardTitle className="font-serif">Missions envoyees a Octopus</CardTitle>
+              <CardDescription className="font-mono text-xs">Intentions synchronisees pour l'orchestration.</CardDescription>
+            </div>
+            <span className="w-fit rounded border border-border bg-secondary/40 px-2 py-1 text-[10px] font-mono uppercase text-muted-foreground">
+              donnees {loopSource === "server" ? "serveur" : "locales"}
+            </span>
+          </div>
         </CardHeader>
         <CardContent className="pt-6">
           {missions.length === 0 ? (
@@ -204,7 +218,7 @@ export function MissionPanel() {
 
                 return (
                   <article key={mission.id} className="p-4 border border-border rounded-md bg-secondary/20 space-y-2">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                       <div>
                         <h3 className="font-serif font-semibold text-foreground">{parcelName}</h3>
                         {archivedParcelLabel ? (
@@ -219,7 +233,7 @@ export function MissionPanel() {
                     <p className="text-sm text-foreground">{mission.intent}</p>
                     {mission.octopusResponse ? (
                       <div className="space-y-3 rounded-md border border-border bg-background/40 p-3">
-                        <div className="flex items-center justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <p className="text-[11px] font-mono uppercase text-muted-foreground">Statut Octopus</p>
                           <span className="text-[10px] font-mono uppercase border border-border rounded px-2 py-1 text-muted-foreground">
                             {mission.octopusResponse.octopusStatus}
@@ -231,9 +245,9 @@ export function MissionPanel() {
                           <div className="space-y-2">
                             {mission.octopusResponse.proposedSeeds.map((seed) => (
                               <div key={seed.id} className="rounded border border-border bg-secondary/30 p-2">
-                                <div className="flex items-center justify-between gap-2">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                   <p className="text-sm font-medium text-foreground">{seed.label}</p>
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
                                     <span className="text-[10px] font-mono uppercase text-muted-foreground">{seed.type}</span>
                                     <span className="text-[10px] font-mono uppercase border border-border rounded px-2 py-1 text-muted-foreground">
                                       {seed.status === "harvest-draft" ? "Harvest draft" : seed.status === "wip" ? "WIP" : "Seed"}
@@ -247,7 +261,7 @@ export function MissionPanel() {
                                   size="sm"
                                   onClick={() => promoteSeedToWip(mission.id, seed.id)}
                                   disabled={seed.status !== "seed"}
-                                  className="mt-3 font-mono"
+                                  className="mt-3 w-full font-mono sm:w-auto"
                                 >
                                   Promouvoir en WIP
                                 </Button>

@@ -58,6 +58,15 @@ export interface ActivityEntry {
   readonly detail?: string;
 }
 
+export interface PublisherLoopSnapshot {
+  readonly missions: ClientMission[];
+  readonly harvestDrafts: HarvestDraft[];
+  readonly publicationDrafts: PublicationDraft[];
+  readonly activity: ActivityEntry[];
+  readonly updatedAt?: string;
+  readonly source?: "server" | "local";
+}
+
 export interface OctopusMissionResponse {
   readonly missionId: string;
   readonly octopusStatus: "received";
@@ -93,6 +102,7 @@ const MISSIONS_STORAGE_KEY = "publisher-ai:missions";
 const HARVEST_DRAFTS_STORAGE_KEY = "publisher-ai:harvest-drafts";
 const PUBLICATION_DRAFTS_STORAGE_KEY = "publisher-ai:publication-drafts";
 const ACTIVITY_STORAGE_KEY = "publisher-ai:activity";
+const LOOP_SOURCE_STORAGE_KEY = "publisher-ai:loop-source";
 const MAX_ACTIVITY_ITEMS = 50;
 
 export const PUBLISHER_LOOP_CHANGED_EVENT = "publisher-ai:loop-changed";
@@ -149,6 +159,7 @@ export function loadMissions(): ClientMission[] {
 
 export function saveMissions(missions: readonly ClientMission[]): void {
   window.localStorage.setItem(MISSIONS_STORAGE_KEY, JSON.stringify(missions));
+  persistPublisherLoopToServer();
   notifyPublisherLoopChanged();
 }
 
@@ -168,6 +179,7 @@ export function loadHarvestDrafts(): HarvestDraft[] {
 
 export function saveHarvestDrafts(drafts: readonly HarvestDraft[]): void {
   window.localStorage.setItem(HARVEST_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  persistPublisherLoopToServer();
   notifyPublisherLoopChanged();
 }
 
@@ -187,6 +199,7 @@ export function loadPublicationDrafts(): PublicationDraft[] {
 
 export function savePublicationDrafts(drafts: readonly PublicationDraft[]): void {
   window.localStorage.setItem(PUBLICATION_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  persistPublisherLoopToServer();
   notifyPublisherLoopChanged();
 }
 
@@ -237,8 +250,115 @@ export function recordActivity(input: Omit<ActivityEntry, "id" | "createdAt">): 
   };
   const nextEntries = [entry, ...loadActivityEntries()].slice(0, MAX_ACTIVITY_ITEMS);
   window.localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(nextEntries));
+  persistPublisherLoopToServer();
   notifyPublisherLoopChanged();
   return nextEntries;
+}
+
+export function loadPublisherLoopSource(): "server" | "local" {
+  return window.localStorage.getItem(LOOP_SOURCE_STORAGE_KEY) === "server" ? "server" : "local";
+}
+
+export async function syncPublisherLoopFromServer(): Promise<PublisherLoopSnapshot | null> {
+  if (typeof fetch !== "function") {
+    markPublisherLoopSource("local");
+    return null;
+  }
+
+  try {
+    const response = await fetch("/api/publisher-loop");
+    if (!response.ok) {
+      markPublisherLoopSource("local");
+      return null;
+    }
+
+    const payload = (await response.json()) as Partial<PublisherLoopSnapshot>;
+    const snapshot = mergePublisherLoopSnapshots(normalizePublisherLoopSnapshot(payload), createPublisherLoopSnapshot());
+    writePublisherLoopCache(snapshot);
+    markPublisherLoopSource("server");
+    persistPublisherLoopToServer();
+    notifyPublisherLoopChanged();
+    return snapshot;
+  } catch {
+    markPublisherLoopSource("local");
+    return null;
+  }
+}
+
+function persistPublisherLoopToServer(): void {
+  if (typeof fetch !== "function") {
+    markPublisherLoopSource("local");
+    return;
+  }
+
+  const snapshot = createPublisherLoopSnapshot();
+  void fetch("/api/publisher-loop", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(snapshot)
+  })
+    .then((response) => {
+      markPublisherLoopSource(response.ok ? "server" : "local");
+    })
+    .catch(() => markPublisherLoopSource("local"));
+}
+
+function createPublisherLoopSnapshot(): PublisherLoopSnapshot {
+  return {
+    missions: loadMissions(),
+    harvestDrafts: loadHarvestDrafts(),
+    publicationDrafts: loadPublicationDrafts(),
+    activity: loadActivityEntries(),
+    updatedAt: new Date().toISOString(),
+    source: "local"
+  };
+}
+
+function writePublisherLoopCache(snapshot: PublisherLoopSnapshot): void {
+  window.localStorage.setItem(MISSIONS_STORAGE_KEY, JSON.stringify(snapshot.missions));
+  window.localStorage.setItem(HARVEST_DRAFTS_STORAGE_KEY, JSON.stringify(snapshot.harvestDrafts));
+  window.localStorage.setItem(PUBLICATION_DRAFTS_STORAGE_KEY, JSON.stringify(snapshot.publicationDrafts));
+  window.localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(snapshot.activity));
+}
+
+function normalizePublisherLoopSnapshot(input: Partial<PublisherLoopSnapshot>): PublisherLoopSnapshot {
+  return {
+    missions: Array.isArray(input.missions) ? input.missions.filter(isClientMission) : [],
+    harvestDrafts: Array.isArray(input.harvestDrafts) ? input.harvestDrafts.filter(isHarvestDraft) : [],
+    publicationDrafts: Array.isArray(input.publicationDrafts) ? input.publicationDrafts.filter(isPublicationDraft) : [],
+    activity: Array.isArray(input.activity) ? input.activity.filter(isActivityEntry) : [],
+    updatedAt: typeof input.updatedAt === "string" ? input.updatedAt : undefined,
+    source: input.source === "server" ? "server" : "local"
+  };
+}
+
+function mergePublisherLoopSnapshots(server: PublisherLoopSnapshot, local: PublisherLoopSnapshot): PublisherLoopSnapshot {
+  return {
+    missions: mergeById(server.missions, local.missions),
+    harvestDrafts: mergeById(server.harvestDrafts, local.harvestDrafts),
+    publicationDrafts: mergeById(server.publicationDrafts, local.publicationDrafts),
+    activity: mergeById(server.activity, local.activity).slice(0, MAX_ACTIVITY_ITEMS),
+    updatedAt: server.updatedAt ?? local.updatedAt,
+    source: "server"
+  };
+}
+
+function mergeById<T extends { readonly id: string }>(primary: readonly T[], secondary: readonly T[]): T[] {
+  const seen = new Set<string>();
+  const merged: T[] = [];
+  for (const item of [...primary, ...secondary]) {
+    if (seen.has(item.id)) {
+      continue;
+    }
+
+    seen.add(item.id);
+    merged.push(item);
+  }
+  return merged;
+}
+
+function markPublisherLoopSource(source: "server" | "local"): void {
+  window.localStorage.setItem(LOOP_SOURCE_STORAGE_KEY, source);
 }
 
 export function promoteFirstSeedToWip(parcel: MissionParcel): ClientMission[] {

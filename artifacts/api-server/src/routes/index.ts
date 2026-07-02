@@ -12,6 +12,7 @@ import octopusRouter from "./octopus";
 import aiGatewayRouter from "./ai-gateway";
 import personasRouter from "./personas";
 import memoryRouter from "./memory";
+import publisherLoopRouter from "./publisher-loop";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use("/octopus", octopusRouter);
 router.use("/ai-gateway", aiGatewayRouter);
 router.use("/personas", personasRouter);
 router.use("/memory", memoryRouter);
+router.use("/publisher-loop", publisherLoopRouter);
 
 export default router;

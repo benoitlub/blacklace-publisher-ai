@@ -12,7 +12,72 @@ router.get("/", async (req, res) => {
     return res.json(agents);
   }
 
-  const personas = await loadPublisherPersonas();
+  let personas = await loadPublisherPersonas();
+  if (personas.length === 0) {
+    logger.warn("No publisher personas returned; using hard fallback agents");
+    personas = [
+      {
+        id: "persona-hard-natasha",
+        name: "Natasha",
+        role: "Direction editoriale",
+        tone: "officiel, structure, clair",
+        goals: ["Transformer les recoltes en publications lisibles"],
+        capabilities: ["text.post"],
+        knowledgeSources: ["Publisher"],
+        source: "local"
+      },
+      {
+        id: "persona-hard-marty",
+        name: "Marty",
+        role: "Operations contenu",
+        tone: "direct, pratique, leger",
+        goals: ["Preparer des contenus actionnables"],
+        capabilities: ["text.post"],
+        knowledgeSources: ["Publisher"],
+        source: "local"
+      },
+      {
+        id: "persona-hard-feuch",
+        name: "Feuch",
+        role: "Direction creative",
+        tone: "tranchant, visionnaire, ironique",
+        goals: ["Preserver la coherence Blacklace"],
+        capabilities: ["text.post"],
+        knowledgeSources: ["Bible Blacklace"],
+        source: "local"
+      },
+      {
+        id: "persona-hard-birdy",
+        name: "Birdy",
+        role: "Veille et reseaux",
+        tone: "alerte, concis, social",
+        goals: ["Adapter les contenus aux plateformes sociales"],
+        capabilities: ["metadata.tags"],
+        knowledgeSources: ["Publisher"],
+        source: "local"
+      },
+      {
+        id: "persona-hard-clochette",
+        name: "Clochette",
+        role: "Coordination client",
+        tone: "clair, rassurant, operationnel",
+        goals: ["Transformer les intentions client en actions lisibles"],
+        capabilities: ["text.summary"],
+        knowledgeSources: ["Constitution Octopus"],
+        source: "local"
+      },
+      {
+        id: "persona-hard-sofia",
+        name: "Sofia",
+        role: "Analyste documentaire",
+        tone: "precis, synthetique, methodique",
+        goals: ["Extraire les angles utiles"],
+        capabilities: ["text.summary"],
+        knowledgeSources: ["Constitution Octopus"],
+        source: "local"
+      }
+    ];
+  }
   return res.json(
     personas.map((persona, index) => ({
       id: index + 1,
