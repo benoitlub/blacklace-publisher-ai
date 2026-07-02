@@ -1,10 +1,13 @@
+import { useEffect, useState } from "react";
 import { useGetDashboardStats, getGetDashboardStatsQueryKey, useGetRecentPosts, getGetRecentPostsQueryKey } from "@workspace/api-client-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MissionPanel } from "@/components/mission-panel";
 import { GardenReportPanel } from "@/components/garden-report-panel";
 import { KnowledgeSourceStatus } from "@/components/knowledge-source-status";
+import { PublisherLoopPanel } from "@/components/publisher-loop-panel";
+import { loadActivityEntries, PUBLISHER_LOOP_CHANGED_EVENT, type ActivityEntry } from "@/lib/missions";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -16,6 +19,18 @@ export default function Dashboard() {
   const { data: recentPosts, isLoading: postsLoading } = useGetRecentPosts({
     query: { queryKey: getGetRecentPostsQueryKey() }
   });
+  const [activityEntries, setActivityEntries] = useState<ActivityEntry[]>([]);
+
+  useEffect(() => {
+    const refreshActivity = () => setActivityEntries(loadActivityEntries());
+    refreshActivity();
+    window.addEventListener(PUBLISHER_LOOP_CHANGED_EVENT, refreshActivity);
+    window.addEventListener("storage", refreshActivity);
+    return () => {
+      window.removeEventListener(PUBLISHER_LOOP_CHANGED_EVENT, refreshActivity);
+      window.removeEventListener("storage", refreshActivity);
+    };
+  }, []);
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -27,6 +42,8 @@ export default function Dashboard() {
       <KnowledgeSourceStatus />
 
       <MissionPanel />
+
+      <PublisherLoopPanel />
 
       <GardenReportPanel />
 
@@ -74,7 +91,30 @@ export default function Dashboard() {
       <div className="space-y-4">
         <h2 className="text-xl font-serif font-semibold border-b border-border pb-2">Activité Récente</h2>
         
-        {postsLoading ? (
+        {activityEntries.length > 0 ? (
+          <div className="space-y-3">
+            {activityEntries.map((entry) => (
+              <Card key={entry.id} className="bg-card border-border">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-serif font-medium text-foreground">{entry.label}</h3>
+                        <Badge variant="outline" className="font-mono text-[10px] uppercase bg-secondary/50">
+                          {entry.type}
+                        </Badge>
+                      </div>
+                      {entry.detail ? <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{entry.detail}</p> : null}
+                    </div>
+                    <span className="shrink-0 text-xs font-mono text-muted-foreground">
+                      {format(new Date(entry.createdAt), "dd MMM HH:mm", { locale: fr })}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : postsLoading ? (
           <div className="space-y-4">
             {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full bg-secondary" />)}
           </div>

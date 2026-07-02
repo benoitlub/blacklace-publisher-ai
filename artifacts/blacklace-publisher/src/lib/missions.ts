@@ -21,6 +21,43 @@ export interface HarvestDraft {
   readonly status: "draft";
 }
 
+export interface PublicationDiagnostic {
+  readonly provider: "mock" | "mistral" | "error" | string;
+  readonly knowledgeSource: "mock" | "notion" | "error" | string;
+  readonly model?: string;
+  readonly fallbackReason?: string | null;
+}
+
+export interface PublicationDraft {
+  readonly id: string;
+  readonly harvestDraftId: string;
+  readonly missionId: string;
+  readonly seedId: string;
+  readonly parcel: MissionParcel;
+  readonly title: string;
+  readonly channel: string;
+  readonly text: string;
+  readonly source: "mock" | "real" | "error";
+  readonly diagnostic: PublicationDiagnostic;
+  readonly status: "draft" | "validated" | "ready-to-publish";
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+export interface ActivityEntry {
+  readonly id: string;
+  readonly createdAt: string;
+  readonly type:
+    | "mission-sent"
+    | "seed-created"
+    | "recommendation-applied"
+    | "harvest-draft-created"
+    | "publication-draft-generated"
+    | "publication-draft-updated";
+  readonly label: string;
+  readonly detail?: string;
+}
+
 export interface OctopusMissionResponse {
   readonly missionId: string;
   readonly octopusStatus: "received";
@@ -54,6 +91,11 @@ export interface CreateMissionInput {
 
 const MISSIONS_STORAGE_KEY = "publisher-ai:missions";
 const HARVEST_DRAFTS_STORAGE_KEY = "publisher-ai:harvest-drafts";
+const PUBLICATION_DRAFTS_STORAGE_KEY = "publisher-ai:publication-drafts";
+const ACTIVITY_STORAGE_KEY = "publisher-ai:activity";
+const MAX_ACTIVITY_ITEMS = 50;
+
+export const PUBLISHER_LOOP_CHANGED_EVENT = "publisher-ai:loop-changed";
 
 export function createMission(input: CreateMissionInput): ClientMission {
   return {
@@ -107,6 +149,7 @@ export function loadMissions(): ClientMission[] {
 
 export function saveMissions(missions: readonly ClientMission[]): void {
   window.localStorage.setItem(MISSIONS_STORAGE_KEY, JSON.stringify(missions));
+  notifyPublisherLoopChanged();
 }
 
 export function loadHarvestDrafts(): HarvestDraft[] {
@@ -125,6 +168,68 @@ export function loadHarvestDrafts(): HarvestDraft[] {
 
 export function saveHarvestDrafts(drafts: readonly HarvestDraft[]): void {
   window.localStorage.setItem(HARVEST_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  notifyPublisherLoopChanged();
+}
+
+export function loadPublicationDrafts(): PublicationDraft[] {
+  const raw = window.localStorage.getItem(PUBLICATION_DRAFTS_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isPublicationDraft) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function savePublicationDrafts(drafts: readonly PublicationDraft[]): void {
+  window.localStorage.setItem(PUBLICATION_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
+  notifyPublisherLoopChanged();
+}
+
+export function updatePublicationDraft(
+  draftId: string,
+  updates: Partial<Pick<PublicationDraft, "title" | "channel" | "text" | "status">>
+): PublicationDraft[] {
+  const nextDrafts = loadPublicationDrafts().map((draft) =>
+    draft.id === draftId ? { ...draft, ...updates, updatedAt: new Date().toISOString() } : draft
+  );
+  savePublicationDrafts(nextDrafts);
+  recordActivity({
+    type: "publication-draft-updated",
+    label: "PublicationDraft mis a jour",
+    detail: updates.status ? `Statut : ${updates.status}` : undefined
+  });
+  return nextDrafts;
+}
+
+export function loadActivityEntries(): ActivityEntry[] {
+  const raw = window.localStorage.getItem(ACTIVITY_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter(isActivityEntry) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function recordActivity(input: Omit<ActivityEntry, "id" | "createdAt">): ActivityEntry[] {
+  const entry: ActivityEntry = {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    ...input
+  };
+  const nextEntries = [entry, ...loadActivityEntries()].slice(0, MAX_ACTIVITY_ITEMS);
+  window.localStorage.setItem(ACTIVITY_STORAGE_KEY, JSON.stringify(nextEntries));
+  notifyPublisherLoopChanged();
+  return nextEntries;
 }
 
 export function promoteFirstSeedToWip(parcel: MissionParcel): ClientMission[] {
@@ -146,6 +251,13 @@ export function promoteFirstSeedToWip(parcel: MissionParcel): ClientMission[] {
   });
 
   saveMissions(nextMissions);
+  if (promoted) {
+    recordActivity({
+      type: "recommendation-applied",
+      label: "Recommandation appliquee",
+      detail: `Une graine de ${parcel} est passee en WIP.`
+    });
+  }
   return nextMissions;
 }
 
@@ -169,11 +281,125 @@ export function prepareHarvestDraft(parcel: MissionParcel): HarvestDraft | null 
 
   saveMissions(nextMissions);
 
-  if (preparedDraft) {
-    saveHarvestDrafts([preparedDraft, ...loadHarvestDrafts()]);
+  const draft = preparedDraft as HarvestDraft | null;
+
+  if (draft !== null) {
+    saveHarvestDrafts([draft, ...loadHarvestDrafts()]);
+    recordActivity({
+      type: "harvest-draft-created",
+      label: "HarvestDraft cree",
+      detail: draft.title
+    });
   }
 
   return preparedDraft;
+}
+
+export async function createPublicationDraftFromHarvest(
+  harvestDraft: HarvestDraft,
+  channel = "Instagram"
+): Promise<PublicationDraft> {
+  const prompt = `Prepare une publication pour ${harvestDraft.parcel} a partir de cette recolte : ${harvestDraft.summary}`;
+
+  try {
+    const response = await fetch("/api/generate/post", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        universe: harvestDraft.parcel,
+        agentId: 1,
+        platform: channel,
+        prompt
+      })
+    });
+
+    const payload = (await response.json()) as Partial<GeneratePostResponse>;
+    if (!response.ok) {
+      throw new Error(typeof payload.error === "string" ? payload.error : "Generation indisponible");
+    }
+
+    const draft = createPublicationDraft({
+      harvestDraft,
+      channel: payload.platform ?? channel,
+      title: payload.title ?? harvestDraft.title,
+      text: payload.content ?? "",
+      source: payload.isMock ? "mock" : "real",
+      diagnostic: {
+        provider: payload.aiProvider ?? (payload.isMock ? "mock" : "mistral"),
+        knowledgeSource: payload.knowledgeSource ?? "mock",
+        model: payload.model,
+        fallbackReason: payload.fallbackReason ?? null
+      }
+    });
+
+    savePublicationDrafts([draft, ...loadPublicationDrafts()]);
+    recordActivity({
+      type: "publication-draft-generated",
+      label: "PublicationDraft genere",
+      detail: draft.title
+    });
+    return draft;
+  } catch (error) {
+    const fallbackReason = error instanceof Error ? error.message : "Generation indisponible";
+    const draft = createPublicationDraft({
+      harvestDraft,
+      channel,
+      title: harvestDraft.title,
+      text: "Generation indisponible pour l'instant. Le HarvestDraft reste pret a etre regenere.",
+      source: "error",
+      diagnostic: {
+        provider: "error",
+        knowledgeSource: "error",
+        fallbackReason
+      }
+    });
+
+    savePublicationDrafts([draft, ...loadPublicationDrafts()]);
+    recordActivity({
+      type: "publication-draft-generated",
+      label: "PublicationDraft genere avec diagnostic d'erreur",
+      detail: fallbackReason
+    });
+    return draft;
+  }
+}
+
+interface GeneratePostResponse {
+  readonly title: string;
+  readonly content: string;
+  readonly platform: string;
+  readonly aiProvider: string;
+  readonly knowledgeSource: "mock" | "notion";
+  readonly model?: string;
+  readonly isMock: boolean;
+  readonly fallbackReason: string | null;
+  readonly error?: string;
+}
+
+function createPublicationDraft(input: {
+  readonly harvestDraft: HarvestDraft;
+  readonly channel: string;
+  readonly title: string;
+  readonly text: string;
+  readonly source: PublicationDraft["source"];
+  readonly diagnostic: PublicationDiagnostic;
+}): PublicationDraft {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    harvestDraftId: input.harvestDraft.id,
+    missionId: input.harvestDraft.missionId,
+    seedId: input.harvestDraft.seedId,
+    parcel: input.harvestDraft.parcel,
+    title: input.title,
+    channel: input.channel,
+    text: input.text,
+    source: input.source,
+    diagnostic: input.diagnostic,
+    status: "draft",
+    createdAt: now,
+    updatedAt: now
+  };
 }
 
 function createHarvestDraft(mission: ClientMission, seed: ProposedSeed): HarvestDraft {
@@ -217,6 +443,35 @@ function isHarvestDraft(value: unknown): value is HarvestDraft {
     typeof draft.createdAt === "string" &&
     draft.status === "draft"
   );
+}
+
+function isPublicationDraft(value: unknown): value is PublicationDraft {
+  const draft = value as Partial<PublicationDraft>;
+  return (
+    typeof draft.id === "string" &&
+    typeof draft.harvestDraftId === "string" &&
+    typeof draft.missionId === "string" &&
+    typeof draft.seedId === "string" &&
+    typeof draft.parcel === "string" &&
+    typeof draft.title === "string" &&
+    typeof draft.channel === "string" &&
+    typeof draft.text === "string" &&
+    (draft.source === "mock" || draft.source === "real" || draft.source === "error") &&
+    typeof draft.diagnostic === "object" &&
+    draft.diagnostic !== null &&
+    (draft.status === "draft" || draft.status === "validated" || draft.status === "ready-to-publish") &&
+    typeof draft.createdAt === "string" &&
+    typeof draft.updatedAt === "string"
+  );
+}
+
+function isActivityEntry(value: unknown): value is ActivityEntry {
+  const entry = value as Partial<ActivityEntry>;
+  return typeof entry.id === "string" && typeof entry.createdAt === "string" && typeof entry.label === "string";
+}
+
+function notifyPublisherLoopChanged(): void {
+  window.dispatchEvent(new CustomEvent(PUBLISHER_LOOP_CHANGED_EVENT));
 }
 
 function updateSeedStatus(
