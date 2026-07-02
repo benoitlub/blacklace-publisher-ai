@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   createMission,
   loadMissions,
+  recordActivity,
   saveMissions,
   submitMissionToOctopus,
   type ClientMission,
@@ -65,6 +66,18 @@ export function MissionPanel() {
       const nextMissions = [submitted, ...missions];
       setMissions(nextMissions);
       saveMissions(nextMissions);
+      recordActivity({
+        type: "mission-sent",
+        label: "Mission envoyee",
+        detail: submitted.intent
+      });
+      submitted.proposedSeeds.forEach((seed) => {
+        recordActivity({
+          type: "seed-created",
+          label: "Graine creee",
+          detail: `${seed.label} (${submitted.parcel})`
+        });
+      });
       setIntent("");
     } finally {
       setIsSubmitting(false);
@@ -93,6 +106,11 @@ export function MissionPanel() {
 
     setMissions(nextMissions);
     saveMissions(nextMissions);
+    recordActivity({
+      type: "recommendation-applied",
+      label: "Graine promue en WIP",
+      detail: seedId
+    });
   };
 
   return (
