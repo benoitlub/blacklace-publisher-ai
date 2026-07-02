@@ -14,6 +14,7 @@ import Campaigns from "@/pages/campaigns";
 import Agents from "@/pages/agents";
 import Connectors from "@/pages/connectors";
 import Settings from "@/pages/settings";
+import Memory from "@/pages/memory";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
 setBaseUrl(apiBaseUrl?.trim() ? apiBaseUrl : null);
@@ -31,6 +32,7 @@ function Router() {
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/agents" component={Agents} />
         <Route path="/connectors" component={Connectors} />
+        <Route path="/memory" component={Memory} />
         <Route path="/settings" component={Settings} />
         <Route>
           <div className="p-8 text-center border border-dashed border-border rounded-lg max-w-lg mx-auto mt-20">

@@ -15,13 +15,26 @@ interface LoopState {
   readonly missions: ClientMission[];
   readonly harvestDrafts: HarvestDraft[];
   readonly publicationDrafts: PublicationDraft[];
+  readonly scheduledPosts: ScheduledPost[];
+}
+
+interface ScheduledPost {
+  readonly id: number;
+  readonly title: string;
+  readonly platform: string;
+  readonly status: string;
+  readonly scheduledAt?: string | null;
 }
 
 export function PublisherLoopPanel() {
   const [state, setState] = useState<LoopState>(() => loadLoopState());
 
   useEffect(() => {
-    const refresh = () => setState(loadLoopState());
+    const refresh = () => {
+      setState(loadLoopState());
+      void loadScheduledPosts().then((scheduledPosts) => setState((current) => ({ ...current, scheduledPosts })));
+    };
+    refresh();
     window.addEventListener(PUBLISHER_LOOP_CHANGED_EVENT, refresh);
     window.addEventListener("storage", refresh);
     return () => {
@@ -47,6 +60,12 @@ export function PublisherLoopPanel() {
           ))}
         </LoopColumn>
 
+        <LoopColumn title="Missions structurees" count={loop.missions.length}>
+          {loop.missions.map((mission) => (
+            <LoopItem key={mission.id} title={mission.id} detail={`${mission.parcel} - ${mission.octopusStatus}`} />
+          ))}
+        </LoopColumn>
+
         <LoopColumn title="Graines proposees" count={loop.seeds.length}>
           {loop.seeds.map(({ mission, seed }) => (
             <LoopItem key={seed.id} title={seed.label} detail={`${mission.parcel} - ${seed.type}`} />
@@ -57,6 +76,10 @@ export function PublisherLoopPanel() {
           {loop.wip.map(({ mission, seed }) => (
             <LoopItem key={seed.id} title={seed.label} detail={mission.parcel} />
           ))}
+        </LoopColumn>
+
+        <LoopColumn title="Garden" count={loop.gardenItems}>
+          <LoopItem title="Seeds / WIP / Harvest" detail={`${loop.seeds.length} seed(s), ${loop.wip.length} WIP, ${loop.harvestDrafts.length} recolte(s)`} />
         </LoopColumn>
 
         <LoopColumn title="Recoltes preparees" count={loop.harvestDrafts.length}>
@@ -76,6 +99,18 @@ export function PublisherLoopPanel() {
             <LoopItem key={draft.id} title={draft.title} detail={`${draft.channel} - ${draft.source}`} />
           ))}
         </LoopColumn>
+
+        <LoopColumn title="Calendrier" count={loop.calendarItems.length}>
+          {loop.calendarItems.map((post) => (
+            <LoopItem key={post.id} title={post.title} detail={`${post.platform} - ${post.status}`} />
+          ))}
+        </LoopColumn>
+
+        <LoopColumn title="Publication" count={loop.publishedItems.length}>
+          {loop.publishedItems.map((post) => (
+            <LoopItem key={post.id} title={post.title} detail={post.platform} />
+          ))}
+        </LoopColumn>
       </CardContent>
     </Card>
   );
@@ -85,7 +120,8 @@ function loadLoopState(): LoopState {
   return {
     missions: loadMissions(),
     harvestDrafts: loadHarvestDrafts(),
-    publicationDrafts: loadPublicationDrafts()
+    publicationDrafts: loadPublicationDrafts(),
+    scheduledPosts: []
   };
 }
 
@@ -94,15 +130,35 @@ function summarizeLoop(state: LoopState) {
   const wip = collectSeedsByStatus(state.missions, "wip");
   const generatedHarvestIds = new Set(state.publicationDrafts.map((draft) => draft.harvestDraftId));
   const readyPublications = state.publicationDrafts.filter((draft) => draft.status === "ready-to-publish");
+  const calendarItems = state.scheduledPosts.filter((post) => post.status !== "published");
+  const publishedItems = state.scheduledPosts.filter((post) => post.status === "published");
 
   return {
     intentions: state.missions,
+    missions: state.missions.filter((mission) => mission.octopusStatus === "received"),
     seeds,
     wip,
+    gardenItems: seeds.length + wip.length + state.harvestDrafts.length,
     harvestDrafts: state.harvestDrafts,
     publicationsToGenerate: state.harvestDrafts.filter((draft) => !generatedHarvestIds.has(draft.id)),
-    readyPublications
+    readyPublications,
+    calendarItems,
+    publishedItems
   };
+}
+
+async function loadScheduledPosts(): Promise<ScheduledPost[]> {
+  try {
+    const response = await fetch("/api/calendar");
+    if (!response.ok) {
+      return [];
+    }
+
+    const posts = (await response.json()) as ScheduledPost[];
+    return Array.isArray(posts) ? posts : [];
+  } catch {
+    return [];
+  }
 }
 
 function collectSeedsByStatus(missions: readonly ClientMission[], status: ProposedSeed["status"]) {

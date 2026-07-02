@@ -9,6 +9,7 @@ import {
   Settings as SettingsIcon,
   Tent,
   Building2,
+  Brain,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/campaigns", label: "Campagnes", icon: Megaphone },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/connectors", label: "Connecteurs", icon: Plug },
+  { href: "/memory", label: "Memoire", icon: Brain },
   { href: "/settings", label: "Paramètres", icon: SettingsIcon },
 ];
 

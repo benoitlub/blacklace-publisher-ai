@@ -2,12 +2,36 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, agentsTable, insertAgentSchema } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { loadPublisherPersonas } from "../services/notion-knowledge-provider";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
   const agents = await db.select().from(agentsTable).orderBy(agentsTable.id);
-  return res.json(agents);
+  if (agents.length > 0) {
+    return res.json(agents);
+  }
+
+  const personas = await loadPublisherPersonas();
+  return res.json(
+    personas.map((persona, index) => ({
+      id: index + 1,
+      name: persona.name,
+      role: persona.role,
+      tone: persona.tone,
+      missions: persona.goals.join("\n"),
+      limits: null,
+      examplePhrases: persona.capabilities.join("\n"),
+      color: null,
+      avatar: null,
+      isActive: true,
+      createdAt: new Date(0).toISOString(),
+      goals: persona.goals,
+      capabilities: persona.capabilities,
+      knowledgeSources: persona.knowledgeSources,
+      source: persona.source
+    }))
+  );
 });
 
 router.post("/", async (req, res) => {

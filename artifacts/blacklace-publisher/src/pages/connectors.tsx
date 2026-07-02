@@ -3,6 +3,8 @@ import { useListConnectors, getListConnectorsQueryKey, useTestConnector } from "
 import type { ConnectorTestResult } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { useQueryClient } from "@tanstack/react-query";
@@ -35,6 +37,7 @@ export default function Connectors() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [lastResults, setLastResults] = useState<Record<string, ConnectorTestResult>>({});
+  const [draftSettings, setDraftSettings] = useState<Record<string, Record<string, string>>>({});
 
   const { data: connectors, isLoading } = useListConnectors({
     query: { queryKey: getListConnectorsQueryKey() }
@@ -57,6 +60,38 @@ export default function Connectors() {
     }
   });
 
+  const updateDraftValue = (connectorName: string, fieldName: string, value: string) => {
+    setDraftSettings((current) => ({
+      ...current,
+      [connectorName]: {
+        ...(current[connectorName] ?? {}),
+        [fieldName]: value
+      }
+    }));
+  };
+
+  const saveConnectorSettings = async (connectorName: string) => {
+    const response = await fetch(`/api/connectors/${connectorName}/settings`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(draftSettings[connectorName] ?? {})
+    });
+    if (!response.ok) {
+      toast({ title: "Configuration refusee", description: "Les parametres n'ont pas ete enregistres.", variant: "destructive" });
+      return;
+    }
+
+    await queryClient.invalidateQueries({ queryKey: getListConnectorsQueryKey() });
+    toast({ title: "Configuration enregistree", description: "Les valeurs sont stockees cote serveur." });
+  };
+
+  const clearConnectorSettings = async (connectorName: string) => {
+    await fetch(`/api/connectors/${connectorName}/settings`, { method: "DELETE" });
+    setDraftSettings((current) => ({ ...current, [connectorName]: {} }));
+    await queryClient.invalidateQueries({ queryKey: getListConnectorsQueryKey() });
+    toast({ title: "Configuration supprimee", description: "Les valeurs serveur ont ete effacees." });
+  };
+
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-center justify-between">
@@ -74,7 +109,15 @@ export default function Connectors() {
         </div>
       ) : connectors?.length ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {connectors.map((connector) => (
+          {connectors.map((connector) => {
+            const extendedConnector = connector as typeof connector & {
+              fields?: Array<{ name: string; label: string; sensitive?: boolean }>;
+              settings?: {
+                values?: Record<string, string>;
+                secrets?: Record<string, { configured: boolean; last4?: string }>;
+              } | null;
+            };
+            return (
             <Card key={connector.name} className="bg-card border-border hover:border-primary/30 transition-colors flex flex-col relative overflow-hidden group">
               <div className={cn(
                 "absolute top-0 left-0 w-full h-1",
@@ -140,6 +183,41 @@ export default function Connectors() {
                     ))}
                   </div>
                 </div>
+
+                {extendedConnector.fields && extendedConnector.fields.length > 0 ? (
+                  <div className="space-y-3 pt-4 border-t border-border/50">
+                    <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">Configurer</p>
+                    {extendedConnector.fields.map((field) => {
+                      const existingValue = extendedConnector.settings?.values?.[field.name] ?? "";
+                      const secret = extendedConnector.settings?.secrets?.[field.name];
+                      return (
+                        <div key={field.name} className="space-y-1">
+                          <Label className="text-[11px] font-mono text-muted-foreground">{field.label}</Label>
+                          <Input
+                            type={field.sensitive ? "password" : "text"}
+                            placeholder={field.sensitive && secret?.configured ? `Configure - ${secret.last4}` : field.label}
+                            defaultValue={field.sensitive ? "" : existingValue}
+                            onChange={(event) => updateDraftValue(connector.name, field.name, event.target.value)}
+                            className="bg-secondary/40 border-border"
+                          />
+                          {field.sensitive ? (
+                            <p className="text-[10px] font-mono text-muted-foreground">
+                              {secret?.configured ? `Secret serveur configure, fin : ${secret.last4}` : "Secret absent cote serveur."}
+                            </p>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                    <div className="flex gap-2">
+                      <Button type="button" size="sm" onClick={() => saveConnectorSettings(connector.name)} className="font-mono">
+                        Enregistrer
+                      </Button>
+                      <Button type="button" size="sm" variant="outline" onClick={() => clearConnectorSettings(connector.name)} className="font-mono">
+                        Supprimer
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
                 
                 <div className="pt-4 flex items-center justify-between">
                   <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
@@ -161,7 +239,8 @@ export default function Connectors() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+          );
+          })}
         </div>
       ) : (
         <div className="p-12 text-center border border-dashed border-border rounded-lg bg-card/50">

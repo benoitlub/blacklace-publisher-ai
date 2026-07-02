@@ -8,6 +8,7 @@ import { GeminiProvider } from "./providers/gemini";
 import { OllamaProvider } from "./providers/ollama";
 import { OpenRouterProvider } from "./providers/openrouter";
 import { CustomProvider } from "./providers/custom";
+import { getConnectorSecret } from "../services/connector-settings";
 
 let _instance: AIProvider | null = null;
 
@@ -16,12 +17,13 @@ function resolveApiKey(providerSpecificKey?: string): string {
 }
 
 function buildProvider(): AIProvider {
-  const providerName = (process.env.AI_PROVIDER ?? "mock").toLowerCase();
-  const model = process.env.AI_MODEL;
+  const storedMistralKey = getConnectorSecret("mistral", "apiKey");
+  const providerName = (process.env.AI_PROVIDER ?? (storedMistralKey ? "mistral" : "mock")).toLowerCase();
+  const model = process.env.AI_MODEL ?? getConnectorSecret("mistral", "model");
 
   switch (providerName) {
     case "mistral": {
-      const apiKey = resolveApiKey(process.env.MISTRAL_API_KEY);
+      const apiKey = resolveApiKey(process.env.MISTRAL_API_KEY ?? storedMistralKey);
       if (!apiKey) {
         logger.warn("AI_PROVIDER=mistral but no API key found — falling back to mock");
         return new MockProvider();

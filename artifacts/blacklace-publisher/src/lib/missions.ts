@@ -1,6 +1,6 @@
 export type MissionParcel = string;
 
-export type MissionPersona = "neutre" | "conseiller marketing" | "assistant commercial";
+export type MissionPersona = string;
 
 export interface ProposedSeed {
   readonly id: string;
@@ -188,6 +188,15 @@ export function loadPublicationDrafts(): PublicationDraft[] {
 export function savePublicationDrafts(drafts: readonly PublicationDraft[]): void {
   window.localStorage.setItem(PUBLICATION_DRAFTS_STORAGE_KEY, JSON.stringify(drafts));
   notifyPublisherLoopChanged();
+}
+
+export function mergePublicationDrafts(drafts: readonly PublicationDraft[]): PublicationDraft[] {
+  const existing = loadPublicationDrafts();
+  const existingKeys = new Set(existing.map((draft) => `${draft.harvestDraftId}:${draft.channel}:${draft.title}`));
+  const uniqueIncoming = drafts.filter((draft) => !existingKeys.has(`${draft.harvestDraftId}:${draft.channel}:${draft.title}`));
+  const merged = [...uniqueIncoming, ...existing];
+  savePublicationDrafts(merged);
+  return merged;
 }
 
 export function updatePublicationDraft(

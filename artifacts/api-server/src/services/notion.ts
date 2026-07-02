@@ -1,9 +1,15 @@
 import { logger } from "../lib/logger";
+import { getConnectorSecret } from "./connector-settings";
 
-const NOTION_API_KEY = process.env.NOTION_API_KEY;
-const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
-const NOTION_PAGE_ID = process.env.NOTION_PAGE_ID;
 const NOTION_API_URL = "https://api.notion.com/v1";
+
+function getNotionConfig() {
+  return {
+    apiKey: process.env.NOTION_API_KEY ?? getConnectorSecret("notion", "apiKey"),
+    databaseId: process.env.NOTION_DATABASE_ID ?? getConnectorSecret("notion", "databaseId"),
+    pageId: process.env.NOTION_PAGE_ID ?? getConnectorSecret("notion", "pageId"),
+  };
+}
 
 export interface BlacklaceKnowledgeItem {
   id: string;
@@ -96,10 +102,11 @@ interface NotionDbPage {
 }
 
 async function fetchFromDatabase(): Promise<NotionDiagnostics> {
-  const response = await fetch(`${NOTION_API_URL}/databases/${NOTION_DATABASE_ID}/query`, {
+  const { apiKey, databaseId } = getNotionConfig();
+  const response = await fetch(`${NOTION_API_URL}/databases/${databaseId}/query`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${NOTION_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Notion-Version": "2022-06-28",
       "Content-Type": "application/json",
     },
@@ -126,7 +133,7 @@ async function fetchFromDatabase(): Promise<NotionDiagnostics> {
   return {
     connected: true,
     source: "notion",
-    title: `Base Notion (${NOTION_DATABASE_ID})`,
+    title: `Base Notion (${databaseId})`,
     charCount,
     sectionCount: items.length,
     error: null,
@@ -148,9 +155,10 @@ function extractBlockText(block: NotionBlock): string {
 }
 
 async function fetchFromPage(): Promise<NotionDiagnostics> {
-  const pageResponse = await fetch(`${NOTION_API_URL}/pages/${NOTION_PAGE_ID}`, {
+  const { apiKey, pageId } = getNotionConfig();
+  const pageResponse = await fetch(`${NOTION_API_URL}/pages/${pageId}`, {
     headers: {
-      Authorization: `Bearer ${NOTION_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Notion-Version": "2022-06-28",
     },
   });
@@ -162,11 +170,11 @@ async function fetchFromPage(): Promise<NotionDiagnostics> {
   const page = (await pageResponse.json()) as {
     properties?: { title?: { title?: Array<{ plain_text: string }> } };
   };
-  const pageTitle = page.properties?.title?.title?.[0]?.plain_text ?? `Page Notion (${NOTION_PAGE_ID})`;
+  const pageTitle = page.properties?.title?.title?.[0]?.plain_text ?? `Page Notion (${pageId})`;
 
-  const blocksResponse = await fetch(`${NOTION_API_URL}/blocks/${NOTION_PAGE_ID}/children?page_size=100`, {
+  const blocksResponse = await fetch(`${NOTION_API_URL}/blocks/${pageId}/children?page_size=100`, {
     headers: {
-      Authorization: `Bearer ${NOTION_API_KEY}`,
+      Authorization: `Bearer ${apiKey}`,
       "Notion-Version": "2022-06-28",
     },
   });
@@ -181,7 +189,7 @@ async function fetchFromPage(): Promise<NotionDiagnostics> {
 
   const items: BlacklaceKnowledgeItem[] = [
     {
-      id: NOTION_PAGE_ID as string,
+      id: pageId as string,
       title: pageTitle,
       universe: "Blacklace",
       content,
@@ -202,7 +210,8 @@ async function fetchFromPage(): Promise<NotionDiagnostics> {
 }
 
 export async function fetchBlacklaceKnowledgeWithDiagnostics(): Promise<NotionDiagnostics> {
-  if (!NOTION_API_KEY || (!NOTION_DATABASE_ID && !NOTION_PAGE_ID)) {
+  const { apiKey, databaseId, pageId } = getNotionConfig();
+  if (!apiKey || (!databaseId && !pageId)) {
     logger.info("Notion API keys not set, returning mock knowledge");
     return mockDiagnostics(
       "NOTION_API_KEY et NOTION_DATABASE_ID (ou NOTION_PAGE_ID) ne sont pas configurés.",
@@ -210,7 +219,7 @@ export async function fetchBlacklaceKnowledgeWithDiagnostics(): Promise<NotionDi
   }
 
   try {
-    return NOTION_DATABASE_ID ? await fetchFromDatabase() : await fetchFromPage();
+    return databaseId ? await fetchFromDatabase() : await fetchFromPage();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue lors de l'appel à Notion";
     logger.error({ err }, "Notion API call failed, falling back to mock knowledge");

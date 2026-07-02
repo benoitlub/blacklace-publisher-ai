@@ -1,5 +1,14 @@
 import { Router } from "express";
 import { fetchBlacklaceKnowledgeWithDiagnostics } from "../services/notion";
+import { resetAIProvider } from "../ai/providerRegistry";
+import {
+  clearConnectorSetting,
+  CONNECTOR_SETTINGS_DEFINITIONS,
+  getConnectorSecret,
+  getPublicConnectorSetting,
+  listPublicConnectorSettings,
+  updateConnectorSetting
+} from "../services/connector-settings";
 
 const router = Router();
 
@@ -48,10 +57,28 @@ const CONNECTOR_DEFS: ConnectorDef[] = [
     requiredVars: ["META_ACCESS_TOKEN", "META_PAGE_ID", "META_IG_USER_ID"],
   },
   {
+    name: "instagram",
+    displayName: "Instagram",
+    description: "Publication Instagram via compte Business. Configuration serveur uniquement.",
+    requiredVars: ["INSTAGRAM_TOKEN", "INSTAGRAM_BUSINESS_ID"],
+  },
+  {
+    name: "linkedin",
+    displayName: "LinkedIn",
+    description: "Publication LinkedIn via organisation ou profil configure cote serveur.",
+    requiredVars: ["LINKEDIN_TOKEN", "LINKEDIN_ORGANIZATION_ID"],
+  },
+  {
     name: "tiktok",
     displayName: "TikTok",
     description: "Publication de videos et contenus courts via TikTok Content Posting API. Non active en V1.",
     requiredVars: ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_ACCESS_TOKEN"],
+  },
+  {
+    name: "youtube",
+    displayName: "YouTube",
+    description: "Publication video YouTube via credentials serveur. Non active en V1.",
+    requiredVars: ["YOUTUBE_API_KEY", "YOUTUBE_CHANNEL_ID"],
   },
   {
     name: "kdp",
@@ -62,21 +89,35 @@ const CONNECTOR_DEFS: ConnectorDef[] = [
 ];
 
 function isNotionConfigured(): boolean {
-  return !!process.env.NOTION_API_KEY && (!!process.env.NOTION_DATABASE_ID || !!process.env.NOTION_PAGE_ID);
+  const apiKey = process.env.NOTION_API_KEY ?? getConnectorSecret("notion", "apiKey");
+  const databaseId = process.env.NOTION_DATABASE_ID ?? getConnectorSecret("notion", "databaseId");
+  const pageId = process.env.NOTION_PAGE_ID ?? getConnectorSecret("notion", "pageId");
+  return !!apiKey && (!!databaseId || !!pageId);
 }
 
 function isMistralConfigured(): boolean {
-  const providerName = (process.env.AI_PROVIDER ?? "mock").toLowerCase();
-  return providerName === "mistral" && !!(process.env.AI_API_KEY ?? process.env.MISTRAL_API_KEY);
+  const configuredKey = process.env.AI_API_KEY ?? process.env.MISTRAL_API_KEY ?? getConnectorSecret("mistral", "apiKey");
+  const providerName = (process.env.AI_PROVIDER ?? (configuredKey ? "mistral" : "mock")).toLowerCase();
+  return providerName === "mistral" && !!configuredKey;
+}
+
+function hasServerSetting(name: string): boolean {
+  const serverSetting = getPublicConnectorSetting(name);
+  return (
+    !!serverSetting &&
+    (Object.values(serverSetting.values).some((value) => value.trim().length > 0) ||
+      Object.values(serverSetting.secrets).some((secret) => secret.configured))
+  );
 }
 
 function isConnectorConfigured(def: ConnectorDef): boolean {
   if (def.name === "notion") return isNotionConfigured();
   if (def.name === "mistral") return isMistralConfigured();
-  if (def.name === "ai-provider") return !!process.env.AI_PROVIDER && process.env.AI_PROVIDER !== "mock";
+  if (def.name === "ai-provider") return (!!process.env.AI_PROVIDER && process.env.AI_PROVIDER !== "mock") || hasServerSetting(def.name);
   if (def.name === "knowledge-source") {
-    return !!process.env.KNOWLEDGE_CONNECTOR && process.env.KNOWLEDGE_CONNECTOR !== "mock";
+    return (!!process.env.KNOWLEDGE_CONNECTOR && process.env.KNOWLEDGE_CONNECTOR !== "mock") || hasServerSetting(def.name);
   }
+  if (hasServerSetting(def.name)) return true;
   return def.requiredVars.every((v) => !!process.env[v]);
 }
 
@@ -93,6 +134,7 @@ function getConnectorStatus(def: ConnectorDef): "connected" | "disconnected" | "
 }
 
 router.get("/", (_req, res) => {
+  const settings = listPublicConnectorSettings();
   const connectors = CONNECTOR_DEFS.map((def) => ({
     name: def.name,
     displayName: def.displayName,
@@ -100,9 +142,34 @@ router.get("/", (_req, res) => {
     status: getConnectorStatus(def),
     requiredVars: def.requiredVars,
     isConfigured: isConnectorConfigured(def),
+    settings: settings.find((setting) => setting.id === def.name) ?? null,
+    fields: CONNECTOR_SETTINGS_DEFINITIONS.find((setting) => setting.id === def.name)?.fields ?? [],
     lastTestedAt: null,
   }));
   return res.json(connectors);
+});
+
+router.get("/:name/settings", (req, res) => {
+  const setting = getPublicConnectorSetting(req.params.name);
+  if (!setting) return res.status(404).json({ error: "Connector settings not found" });
+  return res.json(setting);
+});
+
+router.put("/:name/settings", (req, res) => {
+  const setting = updateConnectorSetting(req.params.name, req.body as Record<string, unknown>);
+  if (!setting) return res.status(404).json({ error: "Connector settings not found" });
+  if (req.params.name === "mistral") {
+    resetAIProvider();
+  }
+  return res.json(setting);
+});
+
+router.delete("/:name/settings", (req, res) => {
+  clearConnectorSetting(req.params.name);
+  if (req.params.name === "mistral") {
+    resetAIProvider();
+  }
+  return res.status(204).send();
 });
 
 router.get("/knowledge-source/preview", async (_req, res) => {
@@ -195,11 +262,14 @@ router.post("/:name/test", async (req, res) => {
   }
 
   const isConfigured = def.requiredVars.every((v) => !!process.env[v]);
+  const hasStoredSetting = hasServerSetting(name);
   if (!isConfigured) {
     return res.json({
       success: true,
-      message: `Mode mock actif pour ${def.displayName}. Variables requises : ${def.requiredVars.join(", ")}`,
-      isMock: true,
+      message: hasStoredSetting
+        ? `Configuration serveur enregistree pour ${def.displayName}. Test externe non active en V1.`
+        : `Mode mock actif pour ${def.displayName}. Variables requises : ${def.requiredVars.join(", ")}`,
+      isMock: !hasStoredSetting,
       testedAt,
     });
   }

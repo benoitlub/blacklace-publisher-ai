@@ -1,4 +1,5 @@
-import { useGetCalendar, getGetCalendarQueryKey, useGenerateMonth } from "@workspace/api-client-react";
+import { useState } from "react";
+import { useGetCalendar, getGetCalendarQueryKey } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,6 +9,7 @@ import { fr } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
 import { Calendar as CalendarIcon, Sparkles } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { loadHarvestDrafts, mergePublicationDrafts, recordActivity, type PublicationDraft } from "@/lib/missions";
 
 const STATUS_COLORS: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
@@ -20,32 +22,63 @@ const STATUS_COLORS: Record<string, string> = {
 export default function Calendar() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  
+  const [isGeneratingMonth, setIsGeneratingMonth] = useState(false);
+
   const { data: posts, isLoading } = useGetCalendar({
     query: { queryKey: getGetCalendarQueryKey() }
   });
 
-  const generateMonth = useGenerateMonth({
-    mutation: {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getGetCalendarQueryKey() });
-        toast({
-          title: "Opération réussie",
-          description: "Le mois de contenu a été généré.",
-        });
-      },
-      onError: () => {
-        toast({
-          title: "Échec de l'opération",
-          description: "La génération de contenu a échoué.",
-          variant: "destructive"
-        });
-      }
-    }
-  });
+  const generateMonth = async () => {
+    setIsGeneratingMonth(true);
+    try {
+      const response = await fetch("/api/generate/month", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ harvestDrafts: loadHarvestDrafts() })
+      });
+      const payload = (await response.json()) as {
+        count?: number;
+        publicationDrafts?: Array<Omit<PublicationDraft, "id" | "status" | "createdAt" | "updatedAt">>;
+        error?: string;
+      };
 
-  // Group by date
-  const groupedPosts = (posts || []).reduce((acc: Record<string, typeof posts>, post) => {
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Generation de mois indisponible");
+      }
+
+      const now = new Date().toISOString();
+      const publicationDrafts: PublicationDraft[] = (payload.publicationDrafts ?? []).map((draft) => ({
+        ...draft,
+        id: crypto.randomUUID(),
+        status: "ready-to-publish",
+        createdAt: now,
+        updatedAt: now
+      }));
+
+      mergePublicationDrafts(publicationDrafts);
+      recordActivity({
+        type: "publication-draft-generated",
+        label: "Mois editorial genere",
+        detail: `${payload.count ?? publicationDrafts.length} publication(s) planifiee(s)`
+      });
+      await queryClient.invalidateQueries({ queryKey: getGetCalendarQueryKey() });
+      toast({
+        title: "Operation reussie",
+        description: "Le mois de contenu a ete genere depuis les HarvestDrafts et les personas."
+      });
+    } catch (error) {
+      toast({
+        title: "Echec de l'operation",
+        description: error instanceof Error ? error.message : "La generation de contenu a echoue.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGeneratingMonth(false);
+    }
+  };
+
+  type CalendarPost = NonNullable<typeof posts>[number];
+  const groupedPosts = (posts || []).reduce<Record<string, CalendarPost[]>>((acc, post) => {
     if (!post.scheduledAt) return acc;
     const date = format(parseISO(post.scheduledAt), "yyyy-MM-dd");
     if (!acc[date]) acc[date] = [];
@@ -57,24 +90,24 @@ export default function Calendar() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Planification</h1>
           <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Les 30 prochains jours</p>
         </div>
-        <Button 
-          onClick={() => generateMonth.mutate()} 
-          disabled={generateMonth.isPending}
+        <Button
+          onClick={generateMonth}
+          disabled={isGeneratingMonth}
           className="bg-primary hover:bg-primary/90 text-primary-foreground font-mono font-bold"
         >
-          {generateMonth.isPending ? (
+          {isGeneratingMonth ? (
             <span className="flex items-center gap-2">
-              <span className="animate-spin">◌</span> Génération...
+              <span className="animate-spin">o</span> Generation...
             </span>
           ) : (
             <span className="flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
-              Générer un mois
+              Generer un mois
             </span>
           )}
         </Button>
@@ -111,8 +144,8 @@ export default function Calendar() {
                         <div className="flex-1 min-w-0">
                           <h3 className="font-serif font-medium truncate text-foreground">{post.title}</h3>
                           <div className="flex items-center gap-4 mt-1 text-xs font-mono text-muted-foreground">
-                            <span>{post.agentName || "Anonyme"}</span>
-                            {post.universe && <span>• {post.universe}</span>}
+                            <span>{post.agentName || "Persona Publisher"}</span>
+                            {post.universe && <span>- {post.universe}</span>}
                           </div>
                         </div>
                         <Badge variant="outline" className={cn("font-mono text-[10px] uppercase", STATUS_COLORS[post.status] || "bg-secondary")}>
@@ -130,7 +163,7 @@ export default function Calendar() {
         <div className="p-12 text-center border border-dashed border-border rounded-lg bg-card/50">
           <CalendarIcon className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-serif mb-2">Calendrier vide</h3>
-          <p className="text-muted-foreground font-mono text-sm">Aucune publication planifiée pour les 30 prochains jours.</p>
+          <p className="text-muted-foreground font-mono text-sm">Aucune publication planifiee pour les 30 prochains jours.</p>
         </div>
       )}
     </div>

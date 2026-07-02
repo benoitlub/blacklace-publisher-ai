@@ -4,6 +4,7 @@ import { db, postsTable, agentsTable, campaignsTable } from "@workspace/db";
 import { generatePostDraft } from "../services/mistral";
 import { fetchBlacklaceKnowledgeWithDiagnostics, buildKnowledgeContext } from "../services/notion";
 import { logger } from "../lib/logger";
+import { loadPublisherPersonas } from "../services/notion-knowledge-provider";
 
 const router = Router();
 
@@ -17,54 +18,99 @@ function addDays(date: Date, days: number): Date {
 }
 
 router.post("/month", async (_req, res) => {
+  const body = _req.body as {
+    harvestDrafts?: Array<{ id: string; missionId: string; seedId: string; parcel: string; title: string; summary: string }>;
+  };
   const agents = await db.select().from(agentsTable).where(eq(agentsTable.isActive, true));
   const campaigns = await db.select().from(campaignsTable);
+  const personas = agents.length > 0
+    ? agents.map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        role: agent.role,
+        tone: agent.tone,
+      }))
+    : (await loadPublisherPersonas()).map((persona, index) => ({
+        id: index + 1,
+        name: persona.name,
+        role: persona.role,
+        tone: persona.tone,
+      }));
 
-  if (agents.length === 0) {
-    return res.status(400).json({ error: "No active agents found. Please seed agents first." });
+  if (personas.length === 0) {
+    return res.status(400).json({ error: "No personas available." });
   }
 
   const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
 
   const posts = [];
+  const publicationDrafts = [];
   const today = new Date();
+  const harvestDrafts = body.harvestDrafts?.length
+    ? body.harvestDrafts
+    : [
+        {
+          id: "server-fallback-harvest",
+          missionId: "server-fallback-mission",
+          seedId: "server-fallback-seed",
+          parcel: "Publisher",
+          title: "Publication editoriale mensuelle",
+          summary: "Planification mensuelle generee sans HarvestDraft local fourni."
+        }
+      ];
 
-  for (let day = 0; day < 30; day++) {
-    const scheduledDate = addDays(today, day + 1);
+  for (let index = 0; index < Math.max(harvestDrafts.length, 6); index++) {
+    const harvestDraft = harvestDrafts[index % harvestDrafts.length];
+    const scheduledDate = addDays(today, index * 4 + 1);
+    const persona = personas[index % personas.length];
+    const universe = harvestDraft.parcel || UNIVERSES[index % UNIVERSES.length];
+    const platform = PLATFORMS[index % PLATFORMS.length];
+    const campaign = campaigns.length > 0 ? campaigns[index % campaigns.length] : null;
 
-    const postsForDay = day % 7 === 6 ? 0 : Math.random() < 0.7 ? 1 : 2;
-    for (let p = 0; p < postsForDay; p++) {
-      const agent = agents[Math.floor(Math.random() * agents.length)];
-      const universe = UNIVERSES[Math.floor(Math.random() * UNIVERSES.length)];
-      const platform = PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)];
-      const campaign = campaigns.length > 0 ? campaigns[Math.floor(Math.random() * campaigns.length)] : null;
+    const draft = await generatePostDraft({
+      universe,
+      agentName: persona.name,
+      agentTone: persona.tone,
+      platform,
+      prompt: harvestDraft.summary,
+      knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
+      knowledgeSource: knowledge.source,
+    });
 
-      const draft = await generatePostDraft({
-        universe,
-        agentName: agent.name,
-        agentTone: agent.tone,
-        platform,
-        knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
-        knowledgeSource: knowledge.source,
-      });
+    posts.push({
+      title: draft.title,
+      content: draft.content,
+      platform,
+      status: "scheduled" as const,
+      hashtags: draft.hashtags,
+      scheduledAt: scheduledDate.toISOString(),
+      agentId: agents.length > 0 ? persona.id : null,
+      campaignId: campaign?.id ?? null,
+      universe,
+    });
 
-      posts.push({
-        title: draft.title,
-        content: draft.content,
-        platform,
-        status: "draft" as const,
-        hashtags: draft.hashtags,
-        scheduledAt: scheduledDate.toISOString(),
-        agentId: agent.id,
-        campaignId: campaign?.id ?? null,
-        universe,
-      });
-    }
+    publicationDrafts.push({
+      harvestDraftId: harvestDraft.id,
+      missionId: harvestDraft.missionId,
+      seedId: harvestDraft.seedId,
+      parcel: harvestDraft.parcel,
+      title: draft.title,
+      channel: platform,
+      text: draft.content,
+      source: draft.isMock ? "mock" : "real",
+      scheduledAt: scheduledDate.toISOString(),
+      diagnostic: {
+        provider: draft.provider,
+        knowledgeSource: draft.knowledgeSource,
+        model: draft.model,
+        fallbackReason: draft.fallbackReason,
+      },
+    });
   }
 
   const inserted = await db.insert(postsTable).values(posts).returning();
   logger.info({ count: inserted.length, knowledgeSource: knowledge.source }, "Generated month of posts");
-  return res.status(201).json({ count: inserted.length, posts: inserted });
+  return res.status(201).json({ count: inserted.length, posts: inserted, publicationDrafts });
 });
 
 router.post("/post", async (req, res) => {

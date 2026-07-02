@@ -15,6 +15,7 @@ import {
   type MissionParcel,
   type MissionPersona
 } from "@/lib/missions";
+import { loadPublisherPersonas, LOCAL_PERSONAS, type PublisherPersona } from "@/lib/personas";
 import {
   getArchivedParcelLabel,
   getParcelDisplayName,
@@ -23,18 +24,21 @@ import {
   type Parcel
 } from "@/lib/parcels";
 
-const personas: MissionPersona[] = ["neutre", "conseiller marketing", "assistant commercial"];
-
 export function MissionPanel() {
   const [intent, setIntent] = useState("");
   const [parcel, setParcel] = useState<MissionParcel>("Yael Bali");
   const [parcels, setParcels] = useState<Parcel[]>([]);
   const [persona, setPersona] = useState<MissionPersona>("neutre");
+  const [personas, setPersonas] = useState<PublisherPersona[]>(LOCAL_PERSONAS);
   const [missions, setMissions] = useState<ClientMission[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setMissions(loadMissions());
+    void loadPublisherPersonas().then((loadedPersonas) => {
+      setPersonas(loadedPersonas);
+      setPersona((current) => loadedPersonas.some((item) => item.name === current) ? current : loadedPersonas[0]?.name ?? current);
+    });
 
     const refreshParcels = () => {
       const nextParcels = loadParcels();
@@ -161,8 +165,8 @@ export function MissionPanel() {
                 </SelectTrigger>
                 <SelectContent>
                   {personas.map((item) => (
-                    <SelectItem key={item} value={item}>
-                      {item}
+                    <SelectItem key={item.id} value={item.name}>
+                      {item.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
