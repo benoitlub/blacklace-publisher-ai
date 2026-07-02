@@ -7,13 +7,8 @@ export interface GeneratePostDraftInput {
   agentTone: string;
   platform: string;
   prompt?: string;
-  knowledgeContext?: Array<{
-    title: string;
-    universe?: string;
-    content: string;
-    tags?: string[];
-    isMock?: boolean;
-  }>;
+  knowledgeContext?: string;
+  knowledgeSource?: "notion" | "mock";
 }
 
 export interface GeneratedDraft {
@@ -21,9 +16,10 @@ export interface GeneratedDraft {
   content: string;
   hashtags: string;
   isMock: boolean;
-  provider?: string;
+  provider: string;
   model?: string;
-  knowledgeSources?: string[];
+  knowledgeSource: "notion" | "mock";
+  fallbackReason: string | null;
 }
 
 const MOCK_POSTS_BY_AGENT: Record<string, Array<{ title: string; content: string; hashtags: string }>> = {
@@ -113,54 +109,45 @@ const MOCK_POSTS_BY_AGENT: Record<string, Array<{ title: string; content: string
   ],
 };
 
-function getMockDraft(input: GeneratePostDraftInput): GeneratedDraft {
+function getMockDraft(input: GeneratePostDraftInput, fallbackReason: string | null): GeneratedDraft {
   const agentPosts = MOCK_POSTS_BY_AGENT[input.agentName];
+  const knowledgeSource = input.knowledgeSource ?? "mock";
   if (!agentPosts || agentPosts.length === 0) {
     return {
       title: `Publication — ${input.universe}`,
       content: `Contenu généré pour l'univers ${input.universe} par ${input.agentName}. Mode mock actif — configurez AI_PROVIDER et AI_API_KEY pour une génération réelle.`,
       hashtags: `#${input.universe.replace(/\s+/g, "")} #Blacklace #FeuchInstitute`,
       isMock: true,
-      knowledgeSources: input.knowledgeContext?.map((item) => item.title) ?? [],
+      provider: "mock",
+      knowledgeSource,
+      fallbackReason,
     };
   }
   const post = agentPosts[Math.floor(Math.random() * agentPosts.length)];
-  return { ...post, isMock: true, knowledgeSources: input.knowledgeContext?.map((item) => item.title) ?? [] };
-}
-
-function formatKnowledgeContext(input: GeneratePostDraftInput): string {
-  const items = input.knowledgeContext?.slice(0, 5) ?? [];
-  if (items.length === 0) {
-    return "Aucun contexte de connaissance fourni. Reste prudent et n'invente pas de détail précis.";
-  }
-
-  return items
-    .map((item, index) => {
-      const tags = item.tags?.length ? ` Tags: ${item.tags.join(", ")}.` : "";
-      const universe = item.universe ? ` Univers: ${item.universe}.` : "";
-      return `[${index + 1}] ${item.title}.${universe}${tags}\n${item.content}`;
-    })
-    .join("\n\n");
+  return { ...post, isMock: true, provider: "mock", knowledgeSource, fallbackReason };
 }
 
 export async function generatePostDraft(input: GeneratePostDraftInput): Promise<GeneratedDraft> {
   const provider = getAIProvider();
-  const knowledgeContext = formatKnowledgeContext(input);
+  const knowledgeSource = input.knowledgeSource ?? "mock";
+
+  if (provider.name === "mock") {
+    return getMockDraft(
+      input,
+      "Aucun fournisseur IA configuré (AI_PROVIDER/MISTRAL_API_KEY absents) — génération en mode mock.",
+    );
+  }
+
+  const knowledgeBlock = input.knowledgeContext
+    ? `\n\nContexte issu de la base de connaissances (${knowledgeSource}) :\n${input.knowledgeContext}`
+    : "";
 
   const systemPrompt = `Tu es ${input.agentName}, un agent éditorial du Feuch Institute.
 Ton ton est : ${input.agentTone}.
-Tu crées du contenu pour l'univers ${input.universe} destiné à la plateforme ${input.platform}.
+Tu crées du contenu pour l'univers ${input.universe} destiné à la plateforme ${input.platform}.${knowledgeBlock}
+Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "hashtags": "..." }`;
 
-Base de connaissance disponible :
-${knowledgeContext}
-
-Règles :
-- Utilise uniquement les faits présents dans la base de connaissance ou dans la demande utilisateur.
-- Si une information manque, reste général et n'invente pas.
-- Respecte le ton de l'agent.
-- Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "hashtags": "..." }`;
-
-  const userPrompt = input.prompt ?? `Rédige une publication pour ${input.universe} sur ${input.platform}, en t'appuyant sur la base de connaissance fournie.`;
+  const userPrompt = input.prompt ?? `Rédige une publication pour ${input.universe} sur ${input.platform}.`;
 
   try {
     const result = await provider.generateText({
@@ -168,13 +155,13 @@ Règles :
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
-      temperature: 0.75,
-      maxTokens: 700,
+      temperature: 0.8,
+      maxTokens: 600,
     });
 
     if (result.isMock) {
       logger.info({ agent: input.agentName, provider: provider.name }, "AI in mock mode — using curated draft");
-      return getMockDraft(input);
+      return getMockDraft(input, "Le fournisseur IA a répondu en mode mock.");
     }
 
     const json = result.content.replace(/```(?:json)?\n?/g, "").trim();
@@ -187,10 +174,12 @@ Règles :
       isMock: false,
       provider: result.provider,
       model: result.model,
-      knowledgeSources: input.knowledgeContext?.map((item) => item.title) ?? [],
+      knowledgeSource,
+      fallbackReason: null,
     };
   } catch (err) {
+    const message = err instanceof Error ? err.message : "Erreur inconnue lors de l'appel au fournisseur IA";
     logger.error({ err, provider: provider.name, agent: input.agentName }, "AI generation failed — falling back to mock");
-    return getMockDraft(input);
+    return getMockDraft(input, `Échec de l'appel au fournisseur IA (${message}) — repli sur le mode mock.`);
   }
 }

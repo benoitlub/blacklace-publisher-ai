@@ -14,7 +14,7 @@ const CONNECTOR_DEFS: ConnectorDef[] = [
   {
     name: "ai-provider",
     displayName: "AI Provider",
-    description: "Moteur IA interchangeable : mock, Mistral, OpenAI, Anthropic, Gemini, Ollama, OpenRouter ou API personnalisée.",
+    description: "Moteur IA interchangeable : mock, Mistral, OpenAI, Anthropic, Gemini, Ollama, OpenRouter ou API personnalisee.",
     requiredVars: ["AI_PROVIDER", "AI_API_KEY", "AI_MODEL"],
   },
   {
@@ -32,42 +32,57 @@ const CONNECTOR_DEFS: ConnectorDef[] = [
   {
     name: "mistral",
     displayName: "Mistral AI",
-    description: "Fournisseur IA optionnel. Le système peut aussi fonctionner avec d'autres providers.",
+    description: "Fournisseur IA optionnel. Le systeme peut aussi fonctionner avec d'autres providers.",
     requiredVars: ["MISTRAL_API_KEY"],
   },
   {
     name: "github",
     displayName: "GitHub",
-    description: "Lecture des dépôts, changelogs, builds et assets pour alimenter la mémoire éditoriale.",
+    description: "Lecture des depots, changelogs, builds et assets pour alimenter la memoire editoriale.",
     requiredVars: ["GITHUB_TOKEN", "GITHUB_REPO"],
   },
   {
     name: "meta",
     displayName: "Meta (Instagram / Facebook)",
-    description: "Publication sur Instagram et Facebook via Meta Graph API. Non activé en V1.",
+    description: "Publication sur Instagram et Facebook via Meta Graph API. Non active en V1.",
     requiredVars: ["META_ACCESS_TOKEN", "META_PAGE_ID", "META_IG_USER_ID"],
   },
   {
     name: "tiktok",
     displayName: "TikTok",
-    description: "Publication de vidéos et contenus courts via TikTok Content Posting API. Non activé en V1.",
+    description: "Publication de videos et contenus courts via TikTok Content Posting API. Non active en V1.",
     requiredVars: ["TIKTOK_CLIENT_KEY", "TIKTOK_CLIENT_SECRET", "TIKTOK_ACCESS_TOKEN"],
   },
   {
     name: "kdp",
     displayName: "KDP (Amazon)",
-    description: "Suivi éditorial et reporting autour des publications Kindle Direct Publishing. Non activé en V1.",
+    description: "Suivi editorial et reporting autour des publications Kindle Direct Publishing. Non active en V1.",
     requiredVars: ["KDP_ACCESS_KEY", "KDP_SECRET_KEY", "KDP_SELLER_ID"],
   },
 ];
 
-function getConnectorStatus(def: ConnectorDef): "connected" | "disconnected" | "mock" {
-  if (def.name === "ai-provider") {
-    return process.env.AI_PROVIDER && process.env.AI_PROVIDER !== "mock" ? "connected" : "mock";
-  }
+function isNotionConfigured(): boolean {
+  return !!process.env.NOTION_API_KEY && (!!process.env.NOTION_DATABASE_ID || !!process.env.NOTION_PAGE_ID);
+}
 
+function isMistralConfigured(): boolean {
+  const providerName = (process.env.AI_PROVIDER ?? "mock").toLowerCase();
+  return providerName === "mistral" && !!(process.env.AI_API_KEY ?? process.env.MISTRAL_API_KEY);
+}
+
+function isConnectorConfigured(def: ConnectorDef): boolean {
+  if (def.name === "notion") return isNotionConfigured();
+  if (def.name === "mistral") return isMistralConfigured();
+  if (def.name === "ai-provider") return !!process.env.AI_PROVIDER && process.env.AI_PROVIDER !== "mock";
   if (def.name === "knowledge-source") {
-    return process.env.KNOWLEDGE_CONNECTOR && process.env.KNOWLEDGE_CONNECTOR !== "mock" ? "connected" : "mock";
+    return !!process.env.KNOWLEDGE_CONNECTOR && process.env.KNOWLEDGE_CONNECTOR !== "mock";
+  }
+  return def.requiredVars.every((v) => !!process.env[v]);
+}
+
+function getConnectorStatus(def: ConnectorDef): "connected" | "disconnected" | "mock" {
+  if (def.name === "ai-provider" || def.name === "knowledge-source" || def.name === "notion" || def.name === "mistral") {
+    return isConnectorConfigured(def) ? "connected" : "mock";
   }
 
   const allSet = def.requiredVars.every((v) => !!process.env[v]);
@@ -84,10 +99,29 @@ router.get("/", (_req, res) => {
     description: def.description,
     status: getConnectorStatus(def),
     requiredVars: def.requiredVars,
-    isConfigured: def.requiredVars.every((v) => !!process.env[v]),
+    isConfigured: isConnectorConfigured(def),
     lastTestedAt: null,
   }));
   return res.json(connectors);
+});
+
+router.get("/knowledge-source/preview", async (_req, res) => {
+  const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics();
+  return res.json({
+    connected: diagnostics.connected,
+    source: diagnostics.source,
+    title: diagnostics.title,
+    charCount: diagnostics.charCount,
+    sectionCount: diagnostics.sectionCount,
+    error: diagnostics.error,
+    items: diagnostics.items.slice(0, 10).map((item) => ({
+      id: item.id,
+      title: item.title,
+      universe: item.universe,
+      excerpt: item.content.slice(0, 200),
+      isMock: item.isMock,
+    })),
+  });
 });
 
 router.post("/:name/test", async (req, res) => {
@@ -95,14 +129,13 @@ router.post("/:name/test", async (req, res) => {
   const def = CONNECTOR_DEFS.find((d) => d.name === name);
   if (!def) return res.status(404).json({ error: "Connector not found" });
 
-  const isConfigured = def.requiredVars.every((v) => !!process.env[v]);
   const testedAt = new Date().toISOString();
 
   if (name === "ai-provider") {
     const provider = process.env.AI_PROVIDER ?? "mock";
     return res.json({
       success: true,
-      message: `AI Provider actuel : ${provider}. Mode mock si aucune clé réelle n'est configurée.`,
+      message: `AI Provider actuel : ${provider}. Mode mock si aucune cle reelle n'est configuree.`,
       isMock: provider === "mock" || !process.env.AI_API_KEY,
       testedAt,
     });
@@ -112,33 +145,56 @@ router.post("/:name/test", async (req, res) => {
     const connector = process.env.KNOWLEDGE_CONNECTOR ?? "mock";
     return res.json({
       success: true,
-      message: `Knowledge Source actuelle : ${connector}. Mode mock si aucune source réelle n'est configurée.`,
+      message: `Knowledge Source actuelle : ${connector}. Mode mock si aucune source reelle n'est configuree.`,
       isMock: connector === "mock",
       testedAt,
     });
   }
 
   if (name === "notion") {
-    const result = await fetchBlacklaceKnowledgeWithDiagnostics();
-    const preview = result.items.slice(0, 8).map((item) => ({
+    const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics();
+    const preview = diagnostics.items.slice(0, 8).map((item) => ({
       id: item.id,
       title: item.title,
       universe: item.universe,
-      excerpt: item.content.length > 220 ? `${item.content.slice(0, 220)}…` : item.content,
+      excerpt: item.content.length > 220 ? `${item.content.slice(0, 220)}...` : item.content,
       tags: item.tags,
     }));
 
     return res.json({
-      success: !result.error,
-      message: result.error
-        ? `Notion configuré mais lecture impossible : ${result.error}`
-        : `Connexion Notion réussie — ${result.items.length} entrées trouvées. Aperçu affiché ci-dessous.`,
-      isMock: result.isMock,
+      success: true,
+      message: diagnostics.connected
+        ? `Connexion Notion reussie - ${diagnostics.sectionCount} section(s), ${diagnostics.charCount} caracteres depuis "${diagnostics.title}".`
+        : `Mode mock actif - ${diagnostics.sectionCount} entrees simulees retournees.${diagnostics.error ? ` Raison : ${diagnostics.error}` : ""}`,
+      isMock: !diagnostics.connected,
       testedAt,
+      source: diagnostics.source,
+      title: diagnostics.title,
+      charCount: diagnostics.charCount,
+      sectionCount: diagnostics.sectionCount,
+      error: diagnostics.error,
       preview,
     });
   }
 
+  if (name === "mistral") {
+    const configured = isMistralConfigured();
+    return res.json({
+      success: true,
+      message: configured
+        ? "Mistral configure (AI_PROVIDER=mistral) - generation reelle active."
+        : "Mode mock actif pour Mistral AI. Configurez AI_PROVIDER=mistral et MISTRAL_API_KEY pour une generation reelle.",
+      isMock: !configured,
+      testedAt,
+      source: configured ? "mistral" : "mock",
+      title: null,
+      charCount: null,
+      sectionCount: null,
+      error: configured ? null : "AI_PROVIDER n'est pas defini sur mistral, ou MISTRAL_API_KEY est absente.",
+    });
+  }
+
+  const isConfigured = def.requiredVars.every((v) => !!process.env[v]);
   if (!isConfigured) {
     return res.json({
       success: true,
@@ -150,7 +206,7 @@ router.post("/:name/test", async (req, res) => {
 
   return res.json({
     success: true,
-    message: `Variables configurées pour ${def.displayName}. Connexion prête.`,
+    message: `Variables configurees pour ${def.displayName}. Connexion prete.`,
     isMock: false,
     testedAt,
   });

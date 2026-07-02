@@ -11,4 +11,23 @@ export interface ConnectorTestResult {
   message: string;
   isMock: boolean;
   testedAt?: string;
+  /**
+     * Data source actually used: notion or mock
+     * @nullable
+     */
+  source?: string | null;
+  /**
+     * Title/page identifying the knowledge source used
+     * @nullable
+     */
+  title?: string | null;
+  /** @nullable */
+  charCount?: number | null;
+  /** @nullable */
+  sectionCount?: number | null;
+  /**
+     * Human-readable error explaining why a fallback occurred
+     * @nullable
+     */
+  error?: string | null;
 }

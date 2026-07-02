@@ -420,6 +420,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/ConnectorTestResult"
 
+  /connectors/knowledge-source/preview:
+    get:
+      operationId: previewKnowledgeSource
+      tags: [connectors]
+      summary: Preview the Blacklace knowledge source (Notion or mock) with diagnostics
+      responses:
+        "200":
+          description: Knowledge source preview and diagnostics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeSourcePreview"
+
   # ── SETTINGS ───────────────────────────────────────────────────────────────
 
   /settings:
@@ -654,6 +667,16 @@ components:
           type: ["string", "null"]
         createdAt:
           type: string
+        aiProvider:
+          type: ["string", "null"]
+          description: "Provider actually used to generate this draft: mistral or mock"
+        knowledgeSource:
+          type: ["string", "null"]
+          description: "Knowledge source used for context: notion or mock"
+        isMock:
+          type: ["boolean", "null"]
+        fallbackReason:
+          type: ["string", "null"]
 
     PostInput:
       type: object
@@ -805,6 +828,53 @@ components:
           type: boolean
         testedAt:
           type: string
+        source:
+          type: ["string", "null"]
+          description: "Data source actually used: notion or mock"
+        title:
+          type: ["string", "null"]
+          description: "Title/page identifying the knowledge source used"
+        charCount:
+          type: ["integer", "null"]
+        sectionCount:
+          type: ["integer", "null"]
+        error:
+          type: ["string", "null"]
+          description: "Human-readable error explaining why a fallback occurred"
+
+    KnowledgeSourcePreview:
+      type: object
+      required: [connected, source, charCount, sectionCount, items]
+      properties:
+        connected:
+          type: boolean
+        source:
+          type: string
+          enum: [notion, mock]
+        title:
+          type: ["string", "null"]
+        charCount:
+          type: integer
+        sectionCount:
+          type: integer
+        error:
+          type: ["string", "null"]
+        items:
+          type: array
+          items:
+            type: object
+            required: [id, title, universe, excerpt, isMock]
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              universe:
+                type: string
+              excerpt:
+                type: string
+              isMock:
+                type: boolean
 
     # ── SETTINGS ──────────────────────────────────────────────────────────
 

@@ -1,0 +1,1 @@
+- [Real/mock/error UI status semantics](real-mock-error-status.md) — mock fallback (no API key/config) is a 🟡 expected state, not a 🔴 error; reserve red for genuine failed calls.
