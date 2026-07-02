@@ -281,12 +281,14 @@ export function prepareHarvestDraft(parcel: MissionParcel): HarvestDraft | null 
 
   saveMissions(nextMissions);
 
-  if (preparedDraft) {
-    saveHarvestDrafts([preparedDraft, ...loadHarvestDrafts()]);
+  const draft = preparedDraft as HarvestDraft | null;
+
+  if (draft !== null) {
+    saveHarvestDrafts([draft, ...loadHarvestDrafts()]);
     recordActivity({
       type: "harvest-draft-created",
       label: "HarvestDraft cree",
-      detail: preparedDraft.title
+      detail: draft.title
     });
   }
 
