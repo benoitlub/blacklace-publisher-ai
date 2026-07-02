@@ -32,6 +32,7 @@ import type {
   GenerateMonthResult,
   GeneratePostInput,
   HealthStatus,
+  KnowledgeSourcePreview,
   ListPostsParams,
   Post,
   PostInput,
@@ -1616,6 +1617,83 @@ export const useTestConnector = <TError = ErrorType<unknown>,
       > => {
       return useMutation(getTestConnectorMutationOptions(options));
     }
+
+export const getPreviewKnowledgeSourceUrl = () => {
+
+
+
+
+  return `/api/connectors/knowledge-source/preview`
+}
+
+/**
+ * @summary Preview the Blacklace knowledge source (Notion or mock) with diagnostics
+ */
+export const previewKnowledgeSource = async ( options?: RequestInit): Promise<KnowledgeSourcePreview> => {
+
+  return customFetch<KnowledgeSourcePreview>(getPreviewKnowledgeSourceUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getPreviewKnowledgeSourceQueryKey = () => {
+    return [
+    `/api/connectors/knowledge-source/preview`
+    ] as const;
+    }
+
+
+export const getPreviewKnowledgeSourceQueryOptions = <TData = Awaited<ReturnType<typeof previewKnowledgeSource>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewKnowledgeSource>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getPreviewKnowledgeSourceQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof previewKnowledgeSource>>> = ({ signal }) => previewKnowledgeSource({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof previewKnowledgeSource>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type PreviewKnowledgeSourceQueryResult = NonNullable<Awaited<ReturnType<typeof previewKnowledgeSource>>>
+export type PreviewKnowledgeSourceQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary Preview the Blacklace knowledge source (Notion or mock) with diagnostics
+ */
+
+export function usePreviewKnowledgeSource<TData = Awaited<ReturnType<typeof previewKnowledgeSource>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof previewKnowledgeSource>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getPreviewKnowledgeSourceQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetSettingsUrl = () => {
 

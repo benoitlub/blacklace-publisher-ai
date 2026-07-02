@@ -28,4 +28,18 @@ export interface Post {
   /** @nullable */
   universe?: string | null;
   createdAt: string;
+  /**
+     * Provider actually used to generate this draft: mistral or mock
+     * @nullable
+     */
+  aiProvider?: string | null;
+  /**
+     * Knowledge source used for context: notion or mock
+     * @nullable
+     */
+  knowledgeSource?: string | null;
+  /** @nullable */
+  isMock?: boolean | null;
+  /** @nullable */
+  fallbackReason?: string | null;
 }

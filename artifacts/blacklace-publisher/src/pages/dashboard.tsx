@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MissionPanel } from "@/components/mission-panel";
 import { GardenReportPanel } from "@/components/garden-report-panel";
+import { KnowledgeSourceStatus } from "@/components/knowledge-source-status";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -22,6 +23,8 @@ export default function Dashboard() {
         <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Rapport d'Opérations</h1>
         <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Résumé du mois en cours</p>
       </div>
+
+      <KnowledgeSourceStatus />
 
       <MissionPanel />
 

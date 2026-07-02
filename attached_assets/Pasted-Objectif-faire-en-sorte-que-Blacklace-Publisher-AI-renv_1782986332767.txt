@@ -1,0 +1,103 @@
+Objectif : faire en sorte que Blacklace Publisher AI renvoie de vraies données utiles via Octopus, sans réinventer l’architecture.
+
+Contexte :
+
+* La Constitution Octopus fait foi.
+* Octopus est l’interlocuteur visible.
+* Les tentacules/modules restent internes.
+* Les connecteurs ne décident rien.
+* Les capacités font le lien entre modules et connecteurs.
+* La mémoire reste cloisonnée par application.
+* Ne pas recréer un nouveau runtime Octopus.
+* Ne pas supprimer le mode mock : il doit rester fallback si les clés API manquent.
+
+À faire :
+
+1. Partir du dépôt GitHub comme source principale, pas de la copie Replit.
+   Le diagnostic montre que GitHub contient déjà :
+
+   * MissionPanel
+   * GardenReportPanel
+   * AI Gateway
+   * contexte Notion dans la génération
+   * connecteurs enrichis
+   * routes generate/connectors plus avancées
+
+2. Vérifier les variables d’environnement :
+
+   * NOTION_API_KEY
+   * NOTION_DATABASE_ID ou NOTION_PAGE_ID selon l’implémentation actuelle
+   * MISTRAL_API_KEY
+   * DATABASE_URL
+
+3. Brancher réellement Notion :
+
+   * Lire la Bible Blacklace / Octopus depuis Notion.
+   * Retourner un diagnostic clair :
+
+     * connected: true/false
+     * source: "notion" ou "mock"
+     * title/page utilisée
+     * nombre de caractères ou sections récupérées
+     * erreur lisible si échec
+   * Ne jamais planter si Notion échoue : fallback mock.
+
+4. Brancher réellement Mistral :
+
+   * La génération doit inclure le contexte Notion réel quand disponible.
+   * Si Mistral manque ou échoue, utiliser le mock existant.
+   * Retourner dans la réponse :
+
+     * provider: "mistral" ou "mock"
+     * knowledgeSource: "notion" ou "mock"
+     * model utilisé
+     * raison du fallback si fallback.
+
+5. Rendre les données visibles côté interface :
+
+   * Dans Connecteurs, afficher clairement si Notion et Mistral utilisent du réel ou du mock.
+   * Dans Dashboard / GardenReportPanel, afficher :
+
+     * dernière source utilisée
+     * dernier contexte récupéré
+     * recommandations générées
+     * harvestDraft créé après application d’une recommandation.
+   * Quand l’utilisateur clique “Appliquer la recommandation”, le résultat doit être visible immédiatement.
+
+6. Respecter la boucle produit :
+   Intent → Seed → Garden → Recommendation → HarvestDraft → PublicationDraft.
+
+7. Ajouter ou vérifier les endpoints nécessaires :
+
+   * GET /api/connectors
+   * GET /api/connectors/knowledge-source/preview
+   * POST /api/generate/month
+   * POST /api/generate/post
+   * endpoints Octopus existants si déjà présents, sans en créer un doublon inutile.
+
+8. Ajouter des tests simples :
+
+   * Notion absent → fallback mock.
+   * Mistral absent → fallback mock.
+   * Notion présent + Mistral présent → génération enrichie avec vraie Bible.
+   * Application d’une recommandation → harvestDraft visible et persisté.
+
+9. Ne pas toucher :
+
+   * au package externe octopus-engine sauf nécessité absolue ;
+   * à l’architecture Event Bus / Coordinator / Capabilities ;
+   * aux ADR ;
+   * aux fichiers exclus dans le diagnostic ;
+   * au runtime pour “faire simple”.
+
+Livrable attendu :
+
+* Une PR propre.
+* Typecheck vert.
+* Build vert.
+* Résumé clair :
+
+  * ce qui utilise de vraies données ;
+  * ce qui reste mock ;
+  * quelles variables d’environnement sont nécessaires ;
+  * comment tester localement.

@@ -98,6 +98,20 @@ export interface Post {
   /** @nullable */
   universe?: string | null;
   createdAt: string;
+  /**
+     * Provider actually used to generate this draft: mistral or mock
+     * @nullable
+     */
+  aiProvider?: string | null;
+  /**
+     * Knowledge source used for context: notion or mock
+     * @nullable
+     */
+  knowledgeSource?: string | null;
+  /** @nullable */
+  isMock?: boolean | null;
+  /** @nullable */
+  fallbackReason?: string | null;
 }
 
 export interface PostInput {
@@ -203,6 +217,53 @@ export interface ConnectorTestResult {
   message: string;
   isMock: boolean;
   testedAt?: string;
+  /**
+     * Data source actually used: notion or mock
+     * @nullable
+     */
+  source?: string | null;
+  /**
+     * Title/page identifying the knowledge source used
+     * @nullable
+     */
+  title?: string | null;
+  /** @nullable */
+  charCount?: number | null;
+  /** @nullable */
+  sectionCount?: number | null;
+  /**
+     * Human-readable error explaining why a fallback occurred
+     * @nullable
+     */
+  error?: string | null;
+}
+
+export type KnowledgeSourcePreviewSource = typeof KnowledgeSourcePreviewSource[keyof typeof KnowledgeSourcePreviewSource];
+
+
+export const KnowledgeSourcePreviewSource = {
+  notion: 'notion',
+  mock: 'mock',
+} as const;
+
+export type KnowledgeSourcePreviewItemsItem = {
+  id: string;
+  title: string;
+  universe: string;
+  excerpt: string;
+  isMock: boolean;
+};
+
+export interface KnowledgeSourcePreview {
+  connected: boolean;
+  source: KnowledgeSourcePreviewSource;
+  /** @nullable */
+  title?: string | null;
+  charCount: number;
+  sectionCount: number;
+  /** @nullable */
+  error?: string | null;
+  items: KnowledgeSourcePreviewItemsItem[];
 }
 
 export type SettingsAutonomyLevel = typeof SettingsAutonomyLevel[keyof typeof SettingsAutonomyLevel];

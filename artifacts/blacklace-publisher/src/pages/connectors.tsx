@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { useListConnectors, getListConnectorsQueryKey, useTestConnector } from "@workspace/api-client-react";
+import type { ConnectorTestResult } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,7 +10,6 @@ import { Plug, Activity, Key, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
-import { useState } from "react";
 
 const STATUS_COLORS: Record<string, string> = {
   connected: "text-green-500",
@@ -17,27 +18,24 @@ const STATUS_COLORS: Record<string, string> = {
   mock: "text-amber-500",
 };
 
-interface ConnectorPreviewItem {
-  id: string;
-  title: string;
-  universe?: string;
-  excerpt?: string;
-  tags?: string[];
-}
-
-interface ConnectorPreviewResult {
-  connectorName: string;
-  message: string;
-  isMock: boolean;
-  testedAt?: string;
-  preview: ConnectorPreviewItem[];
+function RealMockIndicator({ result }: { readonly result: ConnectorTestResult | undefined }) {
+  if (!result) return null;
+  const isError = !result.success || (!!result.error && !result.source);
+  const dot = isError ? "bg-destructive" : result.isMock ? "bg-amber-500" : "bg-green-500";
+  const label = isError ? "Erreur" : result.isMock ? "Mock" : "Réel";
+  return (
+    <div className="flex items-center gap-1.5">
+      <span className={`inline-block w-2 h-2 rounded-full ${dot}`} />
+      <span className="font-mono text-[10px] uppercase text-muted-foreground">{label}</span>
+    </div>
+  );
 }
 
 export default function Connectors() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [previewResult, setPreviewResult] = useState<ConnectorPreviewResult | null>(null);
-  
+  const [lastResults, setLastResults] = useState<Record<string, ConnectorTestResult>>({});
+
   const { data: connectors, isLoading } = useListConnectors({
     query: { queryKey: getListConnectorsQueryKey() }
   });
@@ -46,19 +44,7 @@ export default function Connectors() {
     mutation: {
       onSuccess: (result, variables) => {
         queryClient.invalidateQueries({ queryKey: getListConnectorsQueryKey() });
-        const extended = result as typeof result & { preview?: ConnectorPreviewItem[] };
-        if (extended.preview?.length) {
-          setPreviewResult({
-            connectorName: variables.name,
-            message: result.message,
-            isMock: result.isMock,
-            testedAt: result.testedAt,
-            preview: extended.preview,
-          });
-        } else {
-          setPreviewResult(null);
-        }
-
+        setLastResults((prev) => ({ ...prev, [variables.name]: result }));
         if (result.success) {
           toast({ title: "Connexion établie", description: result.message });
         } else {
@@ -66,7 +52,6 @@ export default function Connectors() {
         }
       },
       onError: () => {
-        setPreviewResult(null);
         toast({ title: "Erreur système", description: "Le test a échoué lamentablement.", variant: "destructive" });
       }
     }
@@ -80,42 +65,6 @@ export default function Connectors() {
           <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Liaisons Extérieures</p>
         </div>
       </div>
-
-      {previewResult && (
-        <Card className="bg-card border-primary/30 shadow-md">
-          <CardHeader className="border-b border-border/50">
-            <CardTitle className="font-serif flex items-center gap-3">
-              Aperçu retourné par {previewResult.connectorName}
-              <Badge variant={previewResult.isMock ? "outline" : "default"} className="font-mono">
-                {previewResult.isMock ? "MOCK" : "RÉEL"}
-              </Badge>
-            </CardTitle>
-            <p className="text-xs font-mono text-muted-foreground">{previewResult.message}</p>
-          </CardHeader>
-          <CardContent className="pt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            {previewResult.preview.map((item) => (
-              <div key={item.id} className="p-4 border border-border rounded-md bg-secondary/20">
-                <div className="flex items-start justify-between gap-3 mb-2">
-                  <div>
-                    <h3 className="font-serif font-semibold text-lg">{item.title}</h3>
-                    {item.universe && <p className="font-mono text-[10px] uppercase text-muted-foreground">{item.universe}</p>}
-                  </div>
-                </div>
-                {item.excerpt && <p className="text-sm text-muted-foreground mb-3">{item.excerpt}</p>}
-                {item.tags?.length ? (
-                  <div className="flex flex-wrap gap-2">
-                    {item.tags.map((tag) => (
-                      <Badge key={tag} variant="outline" className="font-mono text-[10px] bg-background/50">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -150,6 +99,7 @@ export default function Connectors() {
                       </div>
                     </div>
                   </div>
+                  <RealMockIndicator result={lastResults[connector.name]} />
                 </div>
               </CardHeader>
               
@@ -157,7 +107,27 @@ export default function Connectors() {
                 <p className="text-sm text-muted-foreground min-h-[40px]">
                   {connector.description || "Liaison de données non documentée."}
                 </p>
-                
+
+                {lastResults[connector.name] && (
+                  <div className="rounded-md border border-border bg-secondary/20 p-3 space-y-1">
+                    <p className="text-xs text-foreground font-mono">{lastResults[connector.name].message}</p>
+                    {lastResults[connector.name].source && (
+                      <p className="text-[11px] font-mono text-muted-foreground">
+                        Source : {lastResults[connector.name].title ?? lastResults[connector.name].source}
+                        {typeof lastResults[connector.name].charCount === "number"
+                          ? ` · ${lastResults[connector.name].charCount} caractères`
+                          : ""}
+                        {typeof lastResults[connector.name].sectionCount === "number"
+                          ? ` · ${lastResults[connector.name].sectionCount} section(s)`
+                          : ""}
+                      </p>
+                    )}
+                    {lastResults[connector.name].error && (
+                      <p className="text-[11px] font-mono text-destructive">{lastResults[connector.name].error}</p>
+                    )}
+                  </div>
+                )}
+
                 <div className="space-y-3 pt-4 border-t border-border/50">
                   <div className="flex items-center gap-1.5 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
                     <Key className="w-3 h-3" /> Identifiants Requis

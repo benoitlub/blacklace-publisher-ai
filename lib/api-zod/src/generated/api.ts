@@ -48,7 +48,11 @@ export const GetRecentPostsResponseItem = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 export const GetRecentPostsResponse = zod.array(GetRecentPostsResponseItem)
 
@@ -191,7 +195,11 @@ export const ListPostsResponseItem = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 export const ListPostsResponse = zod.array(ListPostsResponseItem)
 
@@ -224,7 +232,11 @@ export const CreatePostResponse = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 
 
@@ -248,7 +260,11 @@ export const GetPostResponse = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 
 
@@ -284,7 +300,11 @@ export const UpdatePostResponse = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 
 
@@ -318,7 +338,11 @@ export const ApprovePostResponse = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 
 
@@ -457,7 +481,32 @@ export const TestConnectorResponse = zod.object({
   "success": zod.boolean(),
   "message": zod.string(),
   "isMock": zod.boolean(),
-  "testedAt": zod.string().optional()
+  "testedAt": zod.string().optional(),
+  "source": zod.string().nullish().describe('Data source actually used: notion or mock'),
+  "title": zod.string().nullish().describe('Title\/page identifying the knowledge source used'),
+  "charCount": zod.number().nullish(),
+  "sectionCount": zod.number().nullish(),
+  "error": zod.string().nullish().describe('Human-readable error explaining why a fallback occurred')
+})
+
+
+/**
+ * @summary Preview the Blacklace knowledge source (Notion or mock) with diagnostics
+ */
+export const PreviewKnowledgeSourceResponse = zod.object({
+  "connected": zod.boolean(),
+  "source": zod.enum(['notion', 'mock']),
+  "title": zod.string().nullish(),
+  "charCount": zod.number(),
+  "sectionCount": zod.number(),
+  "error": zod.string().nullish(),
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "universe": zod.string(),
+  "excerpt": zod.string(),
+  "isMock": zod.boolean()
+}))
 })
 
 
@@ -518,7 +567,11 @@ export const GetCalendarResponseItem = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 export const GetCalendarResponse = zod.array(GetCalendarResponseItem)
 
@@ -541,7 +594,11 @@ export const GenerateMonthResponse = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 }))
 })
 
@@ -570,7 +627,11 @@ export const GenerateSinglePostResponse = zod.object({
   "campaignId": zod.number().nullish(),
   "campaignName": zod.string().nullish(),
   "universe": zod.string().nullish(),
-  "createdAt": zod.string()
+  "createdAt": zod.string(),
+  "aiProvider": zod.string().nullish().describe('Provider actually used to generate this draft: mistral or mock'),
+  "knowledgeSource": zod.string().nullish().describe('Knowledge source used for context: notion or mock'),
+  "isMock": zod.boolean().nullish(),
+  "fallbackReason": zod.string().nullish()
 })
 
 

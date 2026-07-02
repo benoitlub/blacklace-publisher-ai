@@ -2,7 +2,7 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, postsTable, agentsTable, campaignsTable } from "@workspace/db";
 import { generatePostDraft } from "../services/mistral";
-import { fetchBlacklaceKnowledge, type BlacklaceKnowledgeItem } from "../services/notion";
+import { fetchBlacklaceKnowledgeWithDiagnostics, buildKnowledgeContext } from "../services/notion";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -16,36 +16,6 @@ function addDays(date: Date, days: number): Date {
   return d;
 }
 
-function scoreKnowledge(item: BlacklaceKnowledgeItem, universe: string, prompt?: string): number {
-  const normalizedUniverse = universe.toLowerCase();
-  const normalizedPrompt = prompt?.toLowerCase() ?? "";
-  const haystack = [item.title, item.universe, item.content, ...item.tags].join(" ").toLowerCase();
-
-  let score = 0;
-  if (item.universe.toLowerCase() === normalizedUniverse) score += 6;
-  if (haystack.includes(normalizedUniverse)) score += 3;
-
-  for (const term of normalizedPrompt.split(/\s+/).filter((t) => t.length > 3)) {
-    if (haystack.includes(term)) score += 1;
-  }
-
-  return score;
-}
-
-async function getKnowledgeContext(universe: string, prompt?: string) {
-  try {
-    const knowledge = await fetchBlacklaceKnowledge();
-    return knowledge
-      .map((item) => ({ ...item, score: scoreKnowledge(item, universe, prompt) }))
-      .filter((item) => item.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 5);
-  } catch (err) {
-    logger.error({ err, universe }, "Knowledge lookup failed before generation");
-    return [];
-  }
-}
-
 router.post("/month", async (_req, res) => {
   const agents = await db.select().from(agentsTable).where(eq(agentsTable.isActive, true));
   const campaigns = await db.select().from(campaignsTable);
@@ -54,9 +24,10 @@ router.post("/month", async (_req, res) => {
     return res.status(400).json({ error: "No active agents found. Please seed agents first." });
   }
 
+  const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
+
   const posts = [];
   const today = new Date();
-  const knowledgeCache = new Map<string, Awaited<ReturnType<typeof getKnowledgeContext>>>();
 
   for (let day = 0; day < 30; day++) {
     const scheduledDate = addDays(today, day + 1);
@@ -68,16 +39,13 @@ router.post("/month", async (_req, res) => {
       const platform = PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)];
       const campaign = campaigns.length > 0 ? campaigns[Math.floor(Math.random() * campaigns.length)] : null;
 
-      if (!knowledgeCache.has(universe)) {
-        knowledgeCache.set(universe, await getKnowledgeContext(universe));
-      }
-
       const draft = await generatePostDraft({
         universe,
         agentName: agent.name,
         agentTone: agent.tone,
         platform,
-        knowledgeContext: knowledgeCache.get(universe),
+        knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
+        knowledgeSource: knowledge.source,
       });
 
       posts.push({
@@ -95,7 +63,7 @@ router.post("/month", async (_req, res) => {
   }
 
   const inserted = await db.insert(postsTable).values(posts).returning();
-  logger.info({ count: inserted.length }, "Generated month of posts with knowledge context");
+  logger.info({ count: inserted.length, knowledgeSource: knowledge.source }, "Generated month of posts");
   return res.status(201).json({ count: inserted.length, posts: inserted });
 });
 
@@ -115,7 +83,7 @@ router.post("/post", async (req, res) => {
   const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, agentId));
   if (!agent) return res.status(404).json({ error: "Agent not found" });
 
-  const knowledgeContext = await getKnowledgeContext(universe, prompt);
+  const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
 
   const draft = await generatePostDraft({
     universe,
@@ -123,7 +91,8 @@ router.post("/post", async (req, res) => {
     agentTone: agent.tone,
     platform: platform ?? "Instagram",
     prompt,
-    knowledgeContext,
+    knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
+    knowledgeSource: knowledge.source,
   });
 
   const [post] = await db
@@ -140,7 +109,15 @@ router.post("/post", async (req, res) => {
     })
     .returning();
 
-  return res.status(201).json({ ...post, agentName: agent.name, campaignName: null, knowledgeSources: draft.knowledgeSources ?? [] });
+  return res.status(201).json({
+    ...post,
+    agentName: agent.name,
+    campaignName: null,
+    aiProvider: draft.provider,
+    knowledgeSource: draft.knowledgeSource,
+    isMock: draft.isMock,
+    fallbackReason: draft.fallbackReason,
+  });
 });
 
 export default router;
