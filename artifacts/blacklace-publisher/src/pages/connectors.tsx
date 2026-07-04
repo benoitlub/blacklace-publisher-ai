@@ -18,11 +18,44 @@ const STATUS_COLORS: Record<string, string> = {
   mock: "text-amber-500",
 };
 
+const CONNECTOR_FAMILIES = [
+  {
+    id: "knowledge",
+    label: "Memoire & connaissance",
+    description: "Sources de reference utilisees par Publisher AI.",
+    keywords: ["notion", "knowledge", "source", "memory"],
+  },
+  {
+    id: "ai",
+    label: "IA & generation",
+    description: "Gateway et providers de generation serveur.",
+    keywords: ["ai", "gateway", "mistral", "openai", "gemini", "groq", "huggingface"],
+  },
+  {
+    id: "publishing",
+    label: "Publication & reseaux",
+    description: "Canaux de diffusion et comptes sociaux.",
+    keywords: ["meta", "instagram", "facebook", "linkedin", "tiktok", "youtube", "kdp"],
+  },
+  {
+    id: "code",
+    label: "Code & automatisation",
+    description: "Depots, branches et automatisations techniques.",
+    keywords: ["github", "git"],
+  },
+  {
+    id: "other",
+    label: "Autres liaisons",
+    description: "Connecteurs disponibles sans famille specifique.",
+    keywords: [],
+  },
+] as const;
+
 function RealMockIndicator({ result }: { readonly result: ConnectorTestResult | undefined }) {
   if (!result) return null;
   const isError = !result.success || (!!result.error && !result.source);
   const dot = isError ? "bg-destructive" : result.isMock ? "bg-amber-500" : "bg-green-500";
-  const label = isError ? "Erreur" : result.isMock ? "Mock" : "Réel";
+  const label = isError ? "Erreur" : result.isMock ? "Mock" : "Reel";
   return (
     <div className="flex items-center gap-1.5">
       <span className={`inline-block w-2 h-2 rounded-full ${dot}`} />
@@ -46,23 +79,28 @@ export default function Connectors() {
         queryClient.invalidateQueries({ queryKey: getListConnectorsQueryKey() });
         setLastResults((prev) => ({ ...prev, [variables.name]: result }));
         if (result.success) {
-          toast({ title: "Connexion établie", description: result.message });
+          toast({ title: "Connexion etablie", description: result.message });
         } else {
-          toast({ title: "Échec de connexion", description: result.message, variant: "destructive" });
+          toast({ title: "Echec de connexion", description: result.message, variant: "destructive" });
         }
       },
       onError: () => {
-        toast({ title: "Erreur système", description: "Le test a échoué lamentablement.", variant: "destructive" });
+        toast({ title: "Erreur systeme", description: "Le test a echoue.", variant: "destructive" });
       }
     }
   });
 
+  const groupedConnectors = CONNECTOR_FAMILIES.map((family) => ({
+    ...family,
+    connectors: (connectors ?? []).filter((connector) => getConnectorFamilyId(connector) === family.id),
+  })).filter((family) => family.connectors.length > 0);
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Infrastructures</h1>
-          <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Liaisons Extérieures</p>
+        <div className="min-w-0">
+          <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight break-words">Infrastructures</h1>
+          <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider break-words">Liaisons exterieures</p>
         </div>
       </div>
 
@@ -73,105 +111,126 @@ export default function Connectors() {
           ))}
         </div>
       ) : connectors?.length ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-          {connectors.map((connector) => (
-            <Card key={connector.name} className="bg-card border-border hover:border-primary/30 transition-colors flex flex-col relative overflow-hidden group">
-              <div className={cn(
-                "absolute top-0 left-0 w-full h-1",
-                connector.status === 'connected' ? 'bg-green-500/50' : 
-                connector.status === 'error' ? 'bg-destructive/50' :
-                connector.status === 'mock' ? 'bg-amber-500/50' : 'bg-muted'
-              )}></div>
-              
-              <CardHeader className="pb-3">
-                <div className="flex justify-between items-start">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 bg-secondary rounded border border-border">
-                      <Plug className="w-5 h-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-xl font-serif">{connector.displayName}</CardTitle>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        <Activity className={cn("w-3 h-3", STATUS_COLORS[connector.status])} />
-                        <span className="font-mono text-[10px] uppercase text-muted-foreground">
-                          {connector.status}
-                        </span>
+        <div className="space-y-8">
+          {groupedConnectors.map((family) => (
+            <section key={family.id} className="space-y-3 min-w-0">
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                <div className="min-w-0">
+                  <h2 className="text-xl font-serif font-semibold text-foreground break-words">{family.label}</h2>
+                  <p className="text-sm text-muted-foreground break-words">{family.description}</p>
+                </div>
+                <Badge variant="outline" className="w-fit font-mono text-[10px] uppercase">
+                  {family.connectors.length} liaison{family.connectors.length > 1 ? "s" : ""}
+                </Badge>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {family.connectors.map((connector) => (
+                  <Card key={connector.name} className="bg-card border-border hover:border-primary/30 transition-colors flex flex-col relative overflow-hidden group min-w-0">
+                    <div className={cn(
+                      "absolute top-0 left-0 w-full h-1",
+                      connector.status === "connected" ? "bg-green-500/50" :
+                      connector.status === "error" ? "bg-destructive/50" :
+                      connector.status === "mock" ? "bg-amber-500/50" : "bg-muted"
+                    )}></div>
+
+                    <CardHeader className="pb-3">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-start">
+                        <div className="flex items-start gap-3 min-w-0">
+                          <div className="p-2 bg-secondary rounded border border-border shrink-0">
+                            <Plug className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <CardTitle className="text-xl font-serif break-words">{connector.displayName}</CardTitle>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <Activity className={cn("w-3 h-3 shrink-0", STATUS_COLORS[connector.status])} />
+                              <span className="font-mono text-[10px] uppercase text-muted-foreground break-words">
+                                {connector.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <RealMockIndicator result={lastResults[connector.name]} />
                       </div>
-                    </div>
-                  </div>
-                  <RealMockIndicator result={lastResults[connector.name]} />
-                </div>
-              </CardHeader>
-              
-              <CardContent className="flex-1 flex flex-col justify-between space-y-4">
-                <p className="text-sm text-muted-foreground min-h-[40px]">
-                  {connector.description || "Liaison de données non documentée."}
-                </p>
+                    </CardHeader>
 
-                {lastResults[connector.name] && (
-                  <div className="rounded-md border border-border bg-secondary/20 p-3 space-y-1">
-                    <p className="text-xs text-foreground font-mono">{lastResults[connector.name].message}</p>
-                    {lastResults[connector.name].source && (
-                      <p className="text-[11px] font-mono text-muted-foreground">
-                        Source : {lastResults[connector.name].title ?? lastResults[connector.name].source}
-                        {typeof lastResults[connector.name].charCount === "number"
-                          ? ` · ${lastResults[connector.name].charCount} caractères`
-                          : ""}
-                        {typeof lastResults[connector.name].sectionCount === "number"
-                          ? ` · ${lastResults[connector.name].sectionCount} section(s)`
-                          : ""}
+                    <CardContent className="flex-1 flex flex-col justify-between space-y-4 min-w-0">
+                      <p className="text-sm text-muted-foreground min-h-[40px] break-words">
+                        {connector.description || "Liaison de donnees non documentee."}
                       </p>
-                    )}
-                    {lastResults[connector.name].error && (
-                      <p className="text-[11px] font-mono text-destructive">{lastResults[connector.name].error}</p>
-                    )}
-                  </div>
-                )}
 
-                <div className="space-y-3 pt-4 border-t border-border/50">
-                  <div className="flex items-center gap-1.5 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
-                    <Key className="w-3 h-3" /> Identifiants Requis
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {connector.requiredVars.map(v => (
-                      <Badge key={v} variant="outline" className="font-mono text-[10px] bg-secondary/30">
-                        {v}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                
-                <div className="pt-4 flex items-center justify-between">
-                  <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {connector.lastTestedAt 
-                      ? format(parseISO(connector.lastTestedAt), "dd MMM yyyy HH:mm", { locale: fr })
-                      : "Jamais testé"
-                    }
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    className="font-mono text-xs border-primary/50 text-primary hover:bg-primary/20"
-                    onClick={() => testConnector.mutate({ name: connector.name })}
-                    disabled={testConnector.isPending}
-                  >
-                    {testConnector.isPending ? "Ping..." : "Ping"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+                      {lastResults[connector.name] && (
+                        <div className="rounded-md border border-border bg-secondary/20 p-3 space-y-1 min-w-0 overflow-hidden">
+                          <p className="text-xs text-foreground font-mono break-words">{lastResults[connector.name].message}</p>
+                          {lastResults[connector.name].source && (
+                            <p className="text-[11px] font-mono text-muted-foreground break-words">
+                              Source : {lastResults[connector.name].title ?? lastResults[connector.name].source}
+                              {typeof lastResults[connector.name].charCount === "number"
+                                ? ` - ${lastResults[connector.name].charCount} caracteres`
+                                : ""}
+                              {typeof lastResults[connector.name].sectionCount === "number"
+                                ? ` - ${lastResults[connector.name].sectionCount} section(s)`
+                                : ""}
+                            </p>
+                          )}
+                          {lastResults[connector.name].error && (
+                            <p className="text-[11px] font-mono text-destructive break-words">{lastResults[connector.name].error}</p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="space-y-3 pt-4 border-t border-border/50">
+                        <div className="flex items-center gap-1.5 text-muted-foreground font-mono text-[10px] uppercase tracking-wider">
+                          <Key className="w-3 h-3" /> Identifiants requis
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {connector.requiredVars.map((variable) => (
+                            <Badge key={variable} variant="outline" className="font-mono text-[10px] bg-secondary/30 max-w-full break-words">
+                              {variable}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="pt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="text-[10px] font-mono text-muted-foreground flex items-center gap-1 min-w-0 break-words">
+                          <Clock className="w-3 h-3 shrink-0" />
+                          {connector.lastTestedAt
+                            ? format(parseISO(connector.lastTestedAt), "dd MMM yyyy HH:mm", { locale: fr })
+                            : "Jamais teste"
+                          }
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto font-mono text-xs border-primary/50 text-primary hover:bg-primary/20"
+                          onClick={() => testConnector.mutate({ name: connector.name })}
+                          disabled={testConnector.isPending}
+                        >
+                          {testConnector.isPending ? "Ping..." : "Ping"}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       ) : (
         <div className="p-12 text-center border border-dashed border-border rounded-lg bg-card/50">
           <Plug className="w-8 h-8 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-serif mb-2">Aucune liaison</h3>
-          <p className="text-muted-foreground font-mono text-sm">Le système est isolé.</p>
+          <p className="text-muted-foreground font-mono text-sm">Le systeme est isole.</p>
         </div>
       )}
     </div>
   );
+}
+
+function getConnectorFamilyId(connector: { readonly name: string; readonly displayName: string; readonly description?: string | null }) {
+  const haystack = `${connector.name} ${connector.displayName} ${connector.description ?? ""}`.toLowerCase();
+  return CONNECTOR_FAMILIES.find((family) => family.id !== "other" && family.keywords.some((keyword) => haystack.includes(keyword)))?.id ?? "other";
 }
 
 function cn(...classes: (string | undefined | null | false)[]) {

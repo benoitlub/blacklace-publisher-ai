@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { db, postsTable, campaignsTable, agentsTable } from "@workspace/db";
+import { mergeAgentsWithFallbacks } from "../services/agents-fallback";
 
 const router = Router();
 
@@ -23,10 +24,8 @@ router.get("/stats", async (_req, res) => {
     .from(campaignsTable)
     .where(eq(campaignsTable.status, "active"));
 
-  const [activeAgents] = await db
-    .select({ count: sql<number>`count(*)` })
-    .from(agentsTable)
-    .where(eq(agentsTable.isActive, true));
+  const agents = await db.select().from(agentsTable).orderBy(agentsTable.id);
+  const activeAgents = mergeAgentsWithFallbacks(agents).filter((agent) => agent.isActive).length;
 
   const countByStatus = (status: string) =>
     statusCounts.find((s) => s.status === status)?.count ?? 0;
@@ -48,7 +47,7 @@ router.get("/stats", async (_req, res) => {
     publishedCount: Number(countByStatus("published")),
     failedCount: Number(countByStatus("failed")),
     activeCampaigns: Number(activeCampaigns?.count ?? 0),
-    activeAgents: Number(activeAgents?.count ?? 0),
+    activeAgents,
     connectorStatuses,
   });
 });
