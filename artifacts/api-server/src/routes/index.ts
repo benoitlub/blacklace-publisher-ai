@@ -15,6 +15,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/agents", agentsRouter);
+router.use("/personas", agentsRouter);
 router.use("/posts", postsRouter);
 router.use("/campaigns", campaignsRouter);
 router.use("/connectors", connectorsRouter);
