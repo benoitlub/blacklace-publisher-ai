@@ -20,8 +20,8 @@ export default function Dashboard() {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
-        <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Rapport d'Opérations</h1>
-        <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Résumé du mois en cours</p>
+        <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Cabane a outils du Poulpe</h1>
+        <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Missions, memoire, jardin et publications</p>
       </div>
 
       <KnowledgeSourceStatus />

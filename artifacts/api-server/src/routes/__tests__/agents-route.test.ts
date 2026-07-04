@@ -51,15 +51,17 @@ vi.mock("@workspace/db", () => ({
   }
 }));
 
-describe("GET /agents", () => {
+describe("agent and persona routes", () => {
   afterEach(() => {
     vi.resetModules();
   });
 
-  it("returns source agents plus missing base fallback agents", async () => {
+  it.each(["/agents", "/personas"])("%s returns source agents plus missing base fallback agents", async (path) => {
     const { default: agentsRouter } = await import("../agents");
+    const { default: personasRouter } = await import("../personas");
     const app = express();
     app.use("/agents", agentsRouter);
+    app.use("/personas", personasRouter);
 
     const server = app.listen(0);
     try {
@@ -68,7 +70,7 @@ describe("GET /agents", () => {
         throw new Error("Test server did not expose a port");
       }
 
-      const response = await fetch(`http://127.0.0.1:${address.port}/agents`);
+      const response = await fetch(`http://127.0.0.1:${address.port}${path}`);
       const agents = (await response.json()) as Array<{ readonly name: string }>;
 
       expect(response.ok).toBe(true);
