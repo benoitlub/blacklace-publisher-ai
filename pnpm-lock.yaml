@@ -90,7 +90,6 @@ overrides:
   esbuild>@esbuild/sunos-x64: '-'
   esbuild>@esbuild/win32-arm64: '-'
   esbuild>@esbuild/win32-ia32: '-'
-  esbuild>@esbuild/win32-x64: '-'
   esbuild>@esbuild/aix-ppc64: '-'
   esbuild>@esbuild/android-arm: '-'
   esbuild>@esbuild/android-arm64: '-'
@@ -105,7 +104,6 @@ overrides:
   lightningcss>lightningcss-linux-arm64-musl: '-'
   lightningcss>lightningcss-linux-x64-musl: '-'
   lightningcss>lightningcss-win32-arm64-msvc: '-'
-  lightningcss>lightningcss-win32-x64-msvc: '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-android-arm64': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-darwin-arm64': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-darwin-x64': '-'
@@ -114,7 +112,6 @@ overrides:
   '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-gnu': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-linux-arm64-musl': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-win32-arm64-msvc': '-'
-  '@tailwindcss/oxide>@tailwindcss/oxide-win32-x64-msvc': '-'
   '@tailwindcss/oxide>@tailwindcss/oxide-linux-x64-musl': '-'
   rollup>@rollup/rollup-android-arm-eabi: '-'
   rollup>@rollup/rollup-android-arm64: '-'
@@ -139,7 +136,6 @@ overrides:
   rollup>@rollup/rollup-win32-arm64-msvc: '-'
   rollup>@rollup/rollup-win32-ia32-msvc: '-'
   rollup>@rollup/rollup-win32-x64-gnu: '-'
-  rollup>@rollup/rollup-win32-x64-msvc: '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-arm64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-darwin-x64': '-'
   '@expo/ngrok-bin>@expo/ngrok-bin-freebsd-ia32': '-'
@@ -185,8 +181,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       octopus-engine:
-        specifier: file:/tmp/octopus-engine
-        version: file:../../../tmp/octopus-engine
+        specifier: github:benoitlub/octopus-engine
+        version: https://codeload.github.com/benoitlub/octopus-engine/tar.gz/9b14ca3759198334a65689c1c38b688bea27eec7
       pino:
         specifier: ^9.14.0
         version: 9.14.0
@@ -2664,8 +2660,8 @@ packages:
     resolution: {integrity: sha512-9miFgM2OFba7hB+pRgvtV84pYTBaoTHohvmIgiRt6dRIzbwEOIaNaP+dIlGs2fNFoB0SeISs0Jz5WFVRid6Xyg==}
     engines: {node: '>=12.20.0'}
 
-  octopus-engine@file:../../../tmp/octopus-engine:
-    resolution: {directory: ../../../tmp/octopus-engine, type: directory}
+  octopus-engine@https://codeload.github.com/benoitlub/octopus-engine/tar.gz/9b14ca3759198334a65689c1c38b688bea27eec7:
+    resolution: {gitHosted: true, integrity: sha512-VCOkKbyLSeJqY6yXhWjge7FwyT3zNr7gSif6ppwfLYYuuQoOmeu0npLsxsnbk7E/TfVQpj/dwOUa9ZtHziTilw==, tarball: https://codeload.github.com/benoitlub/octopus-engine/tar.gz/9b14ca3759198334a65689c1c38b688bea27eec7}
 
   on-exit-leak-free@2.1.2:
     resolution: {integrity: sha512-0eJJY6hXLGf1udHwfNftBqH+g73EU4B504nZeKpz1sYRKafAghwxEJunB2O7rDZkL4PGfsMVnTXZ2EjibbqcsA==}
@@ -5454,7 +5450,7 @@ snapshots:
 
   obug@2.1.3: {}
 
-  octopus-engine@file:../../../tmp/octopus-engine: {}
+  octopus-engine@https://codeload.github.com/benoitlub/octopus-engine/tar.gz/9b14ca3759198334a65689c1c38b688bea27eec7: {}
 
   on-exit-leak-free@2.1.2: {}
 
