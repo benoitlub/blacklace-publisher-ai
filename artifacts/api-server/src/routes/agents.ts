@@ -2,12 +2,13 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, agentsTable, insertAgentSchema } from "@workspace/db";
 import { logger } from "../lib/logger";
+import { mergeAgentsWithFallbacks } from "../services/agents-fallback";
 
 const router = Router();
 
 router.get("/", async (req, res) => {
   const agents = await db.select().from(agentsTable).orderBy(agentsTable.id);
-  return res.json(agents);
+  return res.json(mergeAgentsWithFallbacks(agents));
 });
 
 router.post("/", async (req, res) => {
