@@ -23,10 +23,10 @@ if (!connectionString) {
 
 export const pool = connectionString
   ? new Pool({ connectionString })
-  : undefined;
+  : null;
 
-export const db = connectionString
-  ? drizzle(pool, { schema })
-  : createMissingDatabaseProxy();
+const databasePool = pool ?? createMissingDatabaseProxy();
+
+export const db = drizzle(databasePool, { schema });
 
 export * from "./schema";
