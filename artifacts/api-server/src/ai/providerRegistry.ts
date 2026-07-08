@@ -15,8 +15,19 @@ function resolveApiKey(providerSpecificKey?: string): string {
   return process.env.AI_API_KEY ?? providerSpecificKey ?? "";
 }
 
+function resolveProviderName(): string {
+  const explicitProvider = process.env.AI_PROVIDER?.trim().toLowerCase();
+  if (explicitProvider) return explicitProvider;
+
+  // Setting only MISTRAL_API_KEY should activate real generation.
+  // Without any provider key, the app stays safely in mock mode.
+  if (process.env.MISTRAL_API_KEY?.trim()) return "mistral";
+
+  return "mock";
+}
+
 function buildProvider(): AIProvider {
-  const providerName = (process.env.AI_PROVIDER ?? "mock").toLowerCase();
+  const providerName = resolveProviderName();
   const model = process.env.AI_MODEL;
 
   switch (providerName) {
