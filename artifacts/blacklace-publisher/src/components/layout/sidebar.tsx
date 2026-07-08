@@ -11,11 +11,13 @@ import {
   Building2,
   X,
   Telescope,
+  Radar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/radar", label: "Radar", icon: Radar },
   { href: "/observatory", label: "Observatoire", icon: Telescope },
   { href: "/client", label: "Espace Client", icon: Building2 },
   { href: "/calendar", label: "Calendrier", icon: CalendarIcon },
