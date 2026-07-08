@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 
 import { Layout } from "@/components/layout/layout";
 import Dashboard from "@/pages/dashboard";
+import Radar from "@/pages/radar";
 import Observatory from "@/pages/observatory";
 import ClientSpace from "@/pages/client-space";
 import Calendar from "@/pages/calendar";
@@ -26,6 +27,7 @@ function Router() {
     <Layout>
       <Switch>
         <Route path="/" component={Dashboard} />
+        <Route path="/radar" component={Radar} />
         <Route path="/observatory" component={Observatory} />
         <Route path="/client" component={ClientSpace} />
         <Route path="/calendar" component={Calendar} />
