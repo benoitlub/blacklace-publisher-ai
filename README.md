@@ -1,19 +1,129 @@
-# Feuch Institute — Blacklace Publisher AI V1
+# Feuch Institute — Blacklace Publisher AI
 
-Tableau de bord éditorial IA pour les univers Blacklace. Un assistant de community management qui libère Benoît de la charge éditoriale.
+Publisher Studio est en cours de pivot : il passe d'un assistant de rédaction/publication à un **Knowledge Observatory** pour Octopus Engine.
 
-> **La règle produit** : Créer. Le reste est pris en charge.
+Sa nouvelle mission : observer des sources, extraire des connaissances structurées, les transformer en Knowledge Packs, puis les préparer pour Octopus Engine.
+
+> **Règle produit** : Publisher observe. Octopus décide. Gérard jardine.
 
 ---
 
-## Description
+## Positionnement
 
-Blacklace Publisher AI est une application web modulaire permettant de :
-- Gérer des agents éditoriaux (Natasha, Marty, Feuch, Birdy, Clochette, Sofia)
-- Planifier et approuver des publications sur Instagram, Facebook, TikTok, KDP, site web
-- Organiser des campagnes éditoriales par univers
-- Connecter Notion (base de connaissances) et Mistral AI (génération de contenu)
-- Générer automatiquement un mois de contenu en mode mock ou via Mistral
+### Octopus Engine
+
+Octopus Engine reste le cerveau commun :
+
+- planification ;
+- orchestration ;
+- coordination ;
+- exécution contrôlée ;
+- Guardian / Capabilities / EventBus.
+
+Publisher ne doit pas réinventer Octopus Engine.
+
+### Publisher Studio
+
+Publisher devient les yeux et les oreilles :
+
+- observatoire ;
+- curateur ;
+- laboratoire d'analyse ;
+- producteur de connaissances ;
+- interface de préparation des Seeds, Harvests et Knowledge Packs.
+
+Publisher ne prend pas de décision métier finale. Il prépare des connaissances exploitables.
+
+---
+
+## Etat actuel
+
+Production Render : opérationnelle.
+
+Services attendus :
+
+- `blacklace-publisher-web` : frontend statique ;
+- `blacklace-publisher-api` : backend Node / Express ;
+- `blacklace-publisher-db` : PostgreSQL.
+
+Correctifs récents appliqués :
+
+- `pnpm-workspace.yaml` autorise maintenant le build `octopus-engine` par nom de package ;
+- `MISTRAL_API_KEY` active automatiquement le provider Mistral si `AI_PROVIDER` n'est pas explicitement défini ;
+- si aucune clé IA n'est présente, le système reste en mode mock.
+
+Voir aussi : `docs/REPO_STATUS_2026-07-08.md`.
+
+---
+
+## Pivot Observatory attendu
+
+Le pivot cible le flux suivant :
+
+```txt
+Source
+↓
+Observation
+↓
+Extraction
+↓
+Knowledge
+↓
+Knowledge Pack
+↓
+Export Octopus mock
+```
+
+Sources prévues côté UI :
+
+- URL ;
+- dépôt GitHub ;
+- texte ;
+- Markdown ;
+- PDF en placeholder.
+
+Aucun vrai scraping, aucun LLM obligatoire, aucun connecteur externe nécessaire pour la première fondation.
+
+---
+
+## Ce qui doit rester séparé
+
+Ne pas toucher à Octopus Engine depuis Publisher pour une simple évolution UI.
+
+Ne pas modifier sans raison :
+
+- Coordinator ;
+- EventBus ;
+- Guardian ;
+- Capabilities ;
+- runtime Octopus Engine.
+
+Publisher produit des objets exportables. Octopus décide quoi en faire.
+
+---
+
+## Fonctionnalités historiques encore présentes
+
+L'application conserve ses fonctions éditoriales existantes :
+
+- agents éditoriaux ;
+- missions client ;
+- publications ;
+- campagnes ;
+- calendrier ;
+- connecteurs ;
+- mémoire / source de connaissance ;
+- Garden Report ;
+- Publisher Loop.
+
+Ces éléments doivent être réinterprétés progressivement, pas dupliqués.
+
+Exemples :
+
+- une analyse terminée peut devenir un HarvestDraft ;
+- une connaissance validée peut devenir un Seed ;
+- un rapport peut devenir un Knowledge Report ;
+- le Garden devient un jardin de connaissances.
 
 ---
 
@@ -21,13 +131,13 @@ Blacklace Publisher AI est une application web modulaire permettant de :
 
 | Couche | Technologie |
 |--------|-------------|
-| Frontend | React 18 + Vite + TypeScript |
+| Frontend | React + Vite + TypeScript |
 | Styling | Tailwind CSS v4 |
 | Routing | Wouter |
-| API client | TanStack Query + Orval (codegen) |
+| API client | TanStack Query + Orval |
 | Backend | Express 5 + Node.js 24 |
 | Base de données | PostgreSQL + Drizzle ORM |
-| Validation | Zod v4 + drizzle-zod |
+| Validation | Zod + drizzle-zod |
 | Logging | Pino |
 | Monorepo | pnpm workspaces |
 
@@ -36,49 +146,53 @@ Blacklace Publisher AI est une application web modulaire permettant de :
 ## Installation locale
 
 ```bash
-# 1. Cloner le repo
 git clone https://github.com/benoitlub/blacklace-publisher-ai
 cd blacklace-publisher-ai
 
-# 2. Installer les dépendances
 pnpm install
-
-# 3. Configurer les variables d'environnement
 cp .env.example .env
-# Éditer .env et compléter DATABASE_URL
 
-# 4. Pousser le schéma de base de données
 pnpm --filter @workspace/db run push
-
-# 5. Lancer le serveur API
 pnpm --filter @workspace/api-server run dev
-
-# 6. Dans un autre terminal, lancer le frontend
 pnpm --filter @workspace/blacklace-publisher run dev
 ```
 
-L'application sera accessible sur http://localhost:3000 (frontend) et http://localhost:5000/api (backend).
+Frontend local :
+
+```txt
+http://localhost:3000
+```
+
+API locale :
+
+```txt
+http://localhost:5000/api
+```
 
 ---
 
 ## Variables d'environnement
 
-Voir `.env.example` pour la liste complète. Les variables marquées comme optionnelles activent le mode mock si absentes — l'application ne plante jamais si une clé API manque.
+Voir `.env.example` pour la liste complète.
 
 | Variable | Requis | Description |
 |----------|--------|-------------|
-| `DATABASE_URL` | Oui (prod) | PostgreSQL connection string |
-| `MISTRAL_API_KEY` | Non | Active la génération IA réelle |
-| `NOTION_API_KEY` | Non | Synchronise la Bible Blacklace |
-| `NOTION_DATABASE_ID` | Non | ID de la base Notion |
-| `GITHUB_TOKEN` | Non | V2 — publication builds |
-| `META_ACCESS_TOKEN` | Non | V2 — Meta Graph API |
-| `TIKTOK_CLIENT_KEY` | Non | V2 — TikTok Content Posting API |
-| `KDP_ACCESS_KEY` | Non | V2 — Amazon KDP reporting |
+| `DATABASE_URL` | Oui en prod | Connexion PostgreSQL |
+| `MISTRAL_API_KEY` | Non | Active Mistral si `AI_PROVIDER` absent |
+| `AI_PROVIDER` | Non | Force `mock`, `mistral`, `openai`, `anthropic`, `gemini`, `ollama`, `openrouter` ou `custom` |
+| `AI_MODEL` | Non | Modèle à utiliser selon provider |
+| `NOTION_API_KEY` | Non | Connecteur Notion si configuré |
+| `NOTION_DATABASE_ID` | Non | Base Notion |
+| `GITHUB_TOKEN` | Non | Prévu pour évolutions futures |
+| `META_ACCESS_TOKEN` | Non | Prévu pour publication future |
+| `TIKTOK_CLIENT_KEY` | Non | Prévu pour publication future |
+| `KDP_ACCESS_KEY` | Non | Prévu pour reporting futur |
+
+Sans clé externe, l'application doit rester utilisable en mode mock.
 
 ---
 
-## Scripts disponibles
+## Scripts utiles
 
 ```bash
 # Typecheck complet
@@ -87,16 +201,16 @@ pnpm run typecheck
 # Build complet
 pnpm run build
 
-# Régénérer les hooks API depuis la spec OpenAPI
+# Regenerer les hooks API depuis OpenAPI
 pnpm --filter @workspace/api-spec run codegen
 
-# Pousser les changements de schéma DB (dev uniquement)
+# Pousser le schema DB en dev
 pnpm --filter @workspace/db run push
 
-# Lancer le serveur API
+# API
 pnpm --filter @workspace/api-server run dev
 
-# Lancer le frontend
+# Frontend
 pnpm --filter @workspace/blacklace-publisher run dev
 ```
 
@@ -104,64 +218,83 @@ pnpm --filter @workspace/blacklace-publisher run dev
 
 ## Architecture des dossiers
 
-```
+```txt
 blacklace-publisher-ai/
 ├── artifacts/
-│   ├── api-server/          # Backend Express 5
+│   ├── api-server/          # Backend Express
 │   │   └── src/
-│   │       ├── routes/      # agents, posts, campaigns, connectors, settings, dashboard, calendar, generate
-│   │       ├── services/    # mistral.ts, notion.ts
-│   │       └── lib/         # logger.ts
+│   │       ├── routes/
+│   │       ├── services/
+│   │       ├── ai/
+│   │       └── lib/
 │   └── blacklace-publisher/ # Frontend React + Vite
 │       └── src/
-│           ├── pages/       # Dashboard, Calendar, Posts, Campaigns, Agents, Connectors, Settings
-│           └── components/  # UI partagés
+│           ├── pages/
+│           ├── components/
+│           └── lib/
 ├── lib/
-│   ├── api-spec/            # openapi.yaml — source de vérité API
-│   ├── api-client-react/    # Hooks React Query générés (Orval)
-│   ├── api-zod/             # Schémas Zod générés (Orval)
+│   ├── api-spec/            # OpenAPI
+│   ├── api-client-react/    # Hooks React Query générés
+│   ├── api-zod/             # Schémas Zod générés
 │   └── db/                  # Schéma Drizzle PostgreSQL
-├── docs/                    # Documentation complète
-│   ├── PRD.md
-│   ├── ARCHITECTURE.md
-│   ├── AGENTS.md
-│   └── CODEX_HANDOFF.md
+├── docs/
 ├── .env.example
 ├── pnpm-workspace.yaml
 └── README.md
 ```
 
+Le pivot Observatory ajoutera probablement, côté frontend, des dossiers du type :
+
+```txt
+src/observation/
+src/knowledge/
+src/extractors/
+src/connectors/
+src/export/
+src/models/
+src/services/
+```
+
+Seulement si aucun équivalent n'existe déjà.
+
 ---
 
-## Limites de la V1
+## Pull requests et prudence
 
-- Pas de publication automatique réelle sur les réseaux sociaux
-- Meta API, TikTok API et KDP non intégrés (structure préparée)
-- Génération de contenu en mode mock si `MISTRAL_API_KEY` absent
-- Synchronisation Notion en mode mock si clés absentes
-- Pas d'authentification utilisateur (V2)
-- Pas d'export ZIP intégré (utiliser `git archive`)
+- Ne pas merger la PR `Sprint 2 lite — Generic knowledge engine foundation` avant le pivot Observatory.
+- Elle contient des briques Knowledge intéressantes, mais peut créer une architecture parallèle si elle est fusionnée trop tôt.
+- Le pivot doit d'abord rendre visible `/observatory` et le pipeline Source → Observation → Extraction → Knowledge → Knowledge Pack.
 
 ---
 
-## Roadmap
+## Limites actuelles
 
-### V2
-- Intégration Meta Graph API (publication Instagram/Facebook)
-- Intégration TikTok Content Posting API
-- Authentification utilisateur (Clerk ou Replit Auth)
-- Notifications email sur approvals
-- Dashboard analytics avancé
-
-### V3
-- Publication automatique avec validation humaine optionnelle
-- Mémoire éditoriale (historique des publications par univers)
-- Synchronisation bidirectionnelle Notion
-- Multi-utilisateurs / rôles
-- Export PDF des rapports mensuels
+- Pas de publication automatique réelle sur les réseaux sociaux.
+- Meta API, TikTok API et KDP non intégrés.
+- Pas d'authentification utilisateur.
+- La génération reste mock si aucune clé IA n'est configurée.
+- Le pivot Observatory n'est pas considéré complet tant que la route `/observatory` n'est pas visible en production.
 
 ---
 
 ## Pour Codex
 
-Voir `docs/CODEX_HANDOFF.md` pour les instructions de reprise détaillées.
+Priorité immédiate : pousser le travail Observatory déjà annoncé, sans le recoder.
+
+```md
+Tu as implémenté le pivot Observatory mais il n'est pas visible sur GitHub ni sur Render.
+
+Fais maintenant uniquement ceci :
+
+1. Vérifie les fichiers modifiés/créés.
+2. Commit tous les fichiers Observatory listés.
+3. Push sur GitHub, branche `feature/knowledge-observatory-pivot`.
+4. Ouvre une PR vers `main`.
+
+Ne modifie rien d'autre.
+Ne recode rien.
+Ne refais pas le pivot.
+Pousse simplement le travail déjà fait.
+```
+
+Voir aussi `docs/CODEX_HANDOFF.md` et `docs/REPO_STATUS_2026-07-08.md`.
