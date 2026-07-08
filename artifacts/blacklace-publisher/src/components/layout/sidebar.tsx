@@ -14,6 +14,7 @@ import {
   Radar,
   Database,
   Sprout,
+  Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,15 +22,16 @@ const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/radar", label: "Radar", icon: Radar },
   { href: "/observatory", label: "Observatoire", icon: Telescope },
-  { href: "/memory", label: "Mémoire", icon: Database },
+  { href: "/memory", label: "Memoire", icon: Database },
   { href: "/greenhouse", label: "Serre", icon: Sprout },
+  { href: "/autonomy", label: "Routine", icon: Bot },
   { href: "/client", label: "Espace Client", icon: Building2 },
   { href: "/calendar", label: "Calendrier", icon: CalendarIcon },
   { href: "/posts", label: "Publications", icon: FileText },
   { href: "/campaigns", label: "Campagnes", icon: Megaphone },
   { href: "/agents", label: "Agents", icon: Users },
   { href: "/connectors", label: "Connecteurs", icon: Plug },
-  { href: "/settings", label: "Paramètres", icon: SettingsIcon },
+  { href: "/settings", label: "Parametres", icon: SettingsIcon },
 ];
 
 interface SidebarProps {
@@ -92,7 +94,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <div className="p-4 border-t border-border">
         <div className="text-xs font-mono text-muted-foreground flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
-          Système Opérationnel
+          Systeme Operationnel
         </div>
       </div>
     </aside>
