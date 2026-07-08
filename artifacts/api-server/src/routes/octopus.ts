@@ -4,6 +4,9 @@ import type { UserIntent } from "octopus-engine";
 import { MissionPlanner } from "../octopus/mission-planner/planner";
 import { draftArticleOutlineWorkflow } from "../octopus/workflows/draft_article_outline";
 import { analyzeClientProfileWorkflow } from "../octopus/workflows/analyze_client_profile";
+import { GraftManager } from "../octopus/grafts/graft-manager";
+import { localPublisherGreenhouseResource } from "../octopus/grafts/publisher-greenhouse-resource";
+import type { GraftRequest } from "../octopus/grafts/types";
 
 const router = Router();
 
@@ -67,6 +70,7 @@ const MODULES = [
 
 const planner = new MissionPlanner();
 const coordinator = new Coordinator(MODULES);
+const graftManager = new GraftManager();
 
 router.post("/mission", async (req, res) => {
   const { text, workspaceId, userId, context } = req.body as Partial<UserIntent>;
@@ -111,6 +115,26 @@ router.post("/mission", async (req, res) => {
 
     return res.status(isClientError ? 400 : 500).json({ error: message });
   }
+});
+
+router.post("/grafts/select", (req, res) => {
+  const body = req.body as Partial<GraftRequest>;
+  const requiredCapabilities = Array.isArray(body.requiredCapabilities)
+    ? body.requiredCapabilities.filter((capability): capability is string => typeof capability === "string" && capability.trim() !== "")
+    : [];
+
+  if (!requiredCapabilities.length) {
+    return res.status(400).json({ error: "Le champ `requiredCapabilities` doit contenir au moins une capacité." });
+  }
+
+  const result = graftManager.selectGrafts(localPublisherGreenhouseResource, {
+    missionId: typeof body.missionId === "string" ? body.missionId : undefined,
+    requiredCapabilities,
+    preferredTools: Array.isArray(body.preferredTools) ? body.preferredTools.filter((tool): tool is string => typeof tool === "string") : undefined,
+    maxGrafts: typeof body.maxGrafts === "number" ? body.maxGrafts : undefined,
+  });
+
+  return res.status(200).json(result);
 });
 
 export default router;
