@@ -78,7 +78,7 @@ onlyBuiltDependencies:
 
 allowBuilds:
   esbuild: true
-  octopus-engine@https://codeload.github.com/benoitlub/octopus-engine/tar.gz/9b14ca3759198334a65689c1c38b688bea27eec7: true
+  octopus-engine: true
 
 overrides:
   # replit uses linux-x64 only, we can exclude all other platforms
