@@ -13,6 +13,7 @@ import {
   Telescope,
   Radar,
   Database,
+  Sprout,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ const NAV_ITEMS = [
   { href: "/radar", label: "Radar", icon: Radar },
   { href: "/observatory", label: "Observatoire", icon: Telescope },
   { href: "/memory", label: "Mémoire", icon: Database },
+  { href: "/greenhouse", label: "Serre", icon: Sprout },
   { href: "/client", label: "Espace Client", icon: Building2 },
   { href: "/calendar", label: "Calendrier", icon: CalendarIcon },
   { href: "/posts", label: "Publications", icon: FileText },
