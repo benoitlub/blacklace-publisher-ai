@@ -11,10 +11,12 @@ import calendarRouter from "./calendar";
 import generateRouter from "./generate";
 import octopusRouter from "./octopus";
 import aiGatewayRouter from "./ai-gateway";
+import greenhouseRouter from "./greenhouse";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(greenhouseRouter);
 router.use("/agents", agentsRouter);
 router.use("/personas", personasRouter);
 router.use("/posts", postsRouter);
