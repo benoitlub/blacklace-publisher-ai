@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { BrainCircuit, CheckCircle2, Clipboard, FlaskConical, PackageCheck, RadioTower, Send, Telescope } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ const SOURCE_KINDS: Array<{ value: SourceKind; label: string }> = [
 
 const DEFAULT_SOURCE = "Lovable est un outil de creation d'applications web a partir de prompts. Il combine generation UI, composants React, publication rapide et iteration produit.";
 
-function StepCard({ icon: Icon, title, children, done = true }: { icon: typeof Telescope; title: string; children: React.ReactNode; done?: boolean }) {
+function StepCard({ icon: Icon, title, children, done = true }: { icon: typeof Telescope; title: string; children: ReactNode; done?: boolean }) {
   return (
     <Card className="border-border bg-card shadow-sm">
       <CardHeader className="pb-3">
