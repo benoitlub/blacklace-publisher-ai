@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Radar from "@/pages/radar";
 import Observatory from "@/pages/observatory";
 import Memory from "@/pages/memory";
+import Greenhouse from "@/pages/greenhouse";
 import ClientSpace from "@/pages/client-space";
 import Calendar from "@/pages/calendar";
 import Posts from "@/pages/posts";
@@ -31,6 +32,7 @@ function Router() {
         <Route path="/radar" component={Radar} />
         <Route path="/observatory" component={Observatory} />
         <Route path="/memory" component={Memory} />
+        <Route path="/greenhouse" component={Greenhouse} />
         <Route path="/client" component={ClientSpace} />
         <Route path="/calendar" component={Calendar} />
         <Route path="/posts" component={Posts} />
