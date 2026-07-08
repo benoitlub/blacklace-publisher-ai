@@ -10,11 +10,13 @@ import {
   Tent,
   Building2,
   X,
+  Telescope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/observatory", label: "Observatoire", icon: Telescope },
   { href: "/client", label: "Espace Client", icon: Building2 },
   { href: "/calendar", label: "Calendrier", icon: CalendarIcon },
   { href: "/posts", label: "Publications", icon: FileText },
@@ -45,7 +47,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             <Tent className="w-6 h-6" />
             <div>
               <h1 className="font-serif font-bold text-lg leading-none tracking-tight">Feuch Institute</h1>
-              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Blacklace Publisher</span>
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Knowledge Observatory</span>
             </div>
           </div>
           <button
