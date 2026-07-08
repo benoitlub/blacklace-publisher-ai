@@ -1,10 +1,12 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { BrainCircuit, CheckCircle2, Clipboard, FlaskConical, PackageCheck, RadioTower, Send, Telescope } from "lucide-react";
+import { BrainCircuit, CheckCircle2, Clipboard, Database, FlaskConical, PackageCheck, RadioTower, Send, Telescope } from "lucide-react";
+import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { KnowledgeObservatoryResult, SourceKind } from "@/models/knowledge-observatory";
 import { runKnowledgeObservatory } from "@/services/knowledge-observatory";
+import { rememberObservation } from "@/memory/observation-memory";
 
 const SOURCE_KINDS: Array<{ value: SourceKind; label: string }> = [
   { value: "url", label: "URL" },
@@ -15,6 +17,17 @@ const SOURCE_KINDS: Array<{ value: SourceKind; label: string }> = [
 ];
 
 const DEFAULT_SOURCE = "Lovable est un outil de creation d'applications web a partir de prompts. Il combine generation UI, composants React, publication rapide et iteration produit.";
+
+function getInitialSource(): { kind: SourceKind; value: string } {
+  if (typeof window === "undefined") return { kind: "text", value: DEFAULT_SOURCE };
+
+  const params = new URLSearchParams(window.location.search);
+  const rawKind = params.get("kind") as SourceKind | null;
+  const value = params.get("value") || DEFAULT_SOURCE;
+  const kind = SOURCE_KINDS.some((sourceKind) => sourceKind.value === rawKind) ? rawKind! : "text";
+
+  return { kind, value };
+}
 
 function StepCard({ icon: Icon, title, children, done = true }: { icon: typeof Telescope; title: string; children: ReactNode; done?: boolean }) {
   return (
@@ -47,17 +60,22 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
 }
 
 export default function Observatory() {
-  const [kind, setKind] = useState<SourceKind>("text");
-  const [value, setValue] = useState(DEFAULT_SOURCE);
+  const initialSource = getInitialSource();
+  const [kind, setKind] = useState<SourceKind>(initialSource.kind);
+  const [value, setValue] = useState(initialSource.value);
   const [result, setResult] = useState<KnowledgeObservatoryResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [remembered, setRemembered] = useState(false);
 
   const packJson = useMemo(() => (result ? JSON.stringify(result.pack, null, 2) : ""), [result]);
 
   const runAnalysis = () => {
     const safeValue = value.trim() || DEFAULT_SOURCE;
-    setResult(runKnowledgeObservatory({ kind, value: safeValue }));
+    const nextResult = runKnowledgeObservatory({ kind, value: safeValue });
+    rememberObservation(nextResult);
+    setResult(nextResult);
     setCopied(false);
+    setRemembered(true);
   };
 
   const copyPack = async () => {
@@ -73,11 +91,11 @@ export default function Observatory() {
           <Badge variant="outline" className="mb-3 font-mono uppercase tracking-widest">Knowledge Observatory</Badge>
           <h1 className="text-4xl font-serif font-bold text-foreground tracking-tight">Observatoire</h1>
           <p className="mt-2 max-w-3xl text-sm font-mono uppercase tracking-wider text-muted-foreground">
-            Source → Observation → Extraction → Knowledge → Knowledge Pack → Export Octopus mock
+            Source → Observation → Extraction → Knowledge → Knowledge Pack → Mémoire
           </p>
         </div>
         <div className="rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary">
-          Publisher observe. Octopus decide. Gerard jardine.
+          Publisher observe. Le Poulpe apprend. Octopus decide.
         </div>
       </div>
 
@@ -115,12 +133,26 @@ export default function Observatory() {
           <div className="flex flex-wrap items-center gap-3">
             <Button onClick={runAnalysis} className="gap-2">
               <RadioTower className="h-4 w-4" />
-              Lancer l'analyse locale
+              Observer et mémoriser
             </Button>
-            <span className="text-xs font-mono text-muted-foreground">Aucun appel reseau. Aucun LLM. Export Octopus simule.</span>
+            <span className="text-xs font-mono text-muted-foreground">Aucun appel reseau. Aucun LLM. Memoire locale.</span>
           </div>
         </CardContent>
       </Card>
+
+      {remembered ? (
+        <Card className="border-primary/20 bg-primary/10">
+          <CardContent className="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-3 text-sm text-primary">
+              <Database className="h-4 w-4" />
+              Observation mémorisée dans la mémoire locale du Poulpe.
+            </div>
+            <Link href="/memory">
+              <Button variant="outline" size="sm">Voir la mémoire</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {result ? (
         <>
@@ -141,9 +173,9 @@ export default function Observatory() {
               <p>{result.knowledge.length} themes regroupes</p>
               <p>{result.pack.patterns.length} patterns</p>
             </StepCard>
-            <StepCard icon={PackageCheck} title="Export">
-              <p>{result.exportResult.message}</p>
-              <Badge className="font-mono text-[10px] uppercase">{result.exportResult.mode}</Badge>
+            <StepCard icon={PackageCheck} title="Mémoire">
+              <p>Pack enregistré localement.</p>
+              <Badge className="font-mono text-[10px] uppercase">local</Badge>
             </StepCard>
           </div>
 
