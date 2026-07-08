@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "wouter";
 import { useGetDashboardStats, getGetDashboardStatsQueryKey, useGetRecentPosts, getGetRecentPostsQueryKey } from "@workspace/api-client-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MissionPanel } from "@/components/mission-panel";
 import { GardenReportPanel } from "@/components/garden-report-panel";
@@ -34,9 +36,15 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Cabane a outils du Poulpe</h1>
-        <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Missions, memoire, jardin et publications</p>
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <Badge variant="outline" className="mb-3 font-mono uppercase tracking-widest">Knowledge Observatory</Badge>
+          <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Cabane a connaissances du Poulpe</h1>
+          <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Missions, memoire, jardin, observations et publications</p>
+        </div>
+        <Link href="/observatory">
+          <Button className="w-fit">Ouvrir l'Observatoire</Button>
+        </Link>
       </div>
 
       <KnowledgeSourceStatus />
