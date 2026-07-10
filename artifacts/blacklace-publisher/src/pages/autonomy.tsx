@@ -15,6 +15,9 @@ const TIME_ICON = {
 } as const;
 
 const KIND_LABEL: Record<PublisherAutonomyTask["kind"], string> = {
+  sell: "Récolter",
+  improve: "Améliorer",
+  automate: "Automatiser",
   observe: "Observer",
   compare: "Comparer",
   greenhouse: "Jardiner",
@@ -46,6 +49,7 @@ function TaskCard({ task }: { task: PublisherAutonomyTask }) {
           <Badge className="bg-secondary text-secondary-foreground hover:bg-secondary">{KIND_LABEL[task.kind]}</Badge>
           <Badge variant="outline">confiance {Math.round(task.confidence * 100)}%</Badge>
           <Badge variant="outline">{task.status}</Badge>
+          <Badge variant="outline">réduit le travail humain</Badge>
         </div>
         {task.targetHref ? (
           <Link href={task.targetHref}>
@@ -65,10 +69,10 @@ export default function Autonomy() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <Badge variant="outline" className="mb-3 font-mono uppercase tracking-widest">Autonomie locale</Badge>
-          <h1 className="text-4xl font-serif font-bold text-foreground tracking-tight">Routine du Publisher</h1>
+          <Badge variant="outline" className="mb-3 font-mono uppercase tracking-widest">Mode Survivor</Badge>
+          <h1 className="text-4xl font-serif font-bold text-foreground tracking-tight">Routine de Gérard</h1>
           <p className="mt-2 max-w-3xl text-sm font-mono uppercase tracking-wider text-muted-foreground">
-            Planning quotidien → veille → comparaison → serre → rapport
+            Vendre l'existant → améliorer → automatiser → faire valider
           </p>
         </div>
         <Button variant="outline" onClick={() => setRefreshKey((value) => value + 1)} className="gap-2">
@@ -82,7 +86,7 @@ export default function Autonomy() {
           <div className="space-y-2">
             <div className="flex items-center gap-2 font-serif text-xl text-primary">
               <Bot className="h-5 w-5" />
-              Publisher prépare. L'humain valide. Octopus Engine reste neutre.
+              Gérard prépare. Benoît valide seulement ce qui exige son accord.
             </div>
             <p className="text-sm text-muted-foreground">{plan.summary}</p>
           </div>
@@ -104,7 +108,7 @@ export default function Autonomy() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-mono uppercase tracking-widest text-muted-foreground">
               <CheckCircle2 className="h-4 w-4 text-primary" />
-              Tâches
+              Tâches utiles
             </CardTitle>
           </CardHeader>
           <CardContent><div className="text-4xl font-serif text-foreground">{plan.tasks.length}</div></CardContent>
@@ -113,10 +117,10 @@ export default function Autonomy() {
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-sm font-mono uppercase tracking-widest text-muted-foreground">
               <ShieldCheck className="h-4 w-4 text-primary" />
-              Sécurité
+              Indice de survie
             </CardTitle>
           </CardHeader>
-          <CardContent><div className="text-lg font-serif text-foreground">Sans action externe</div></CardContent>
+          <CardContent><div className="text-4xl font-serif text-foreground">{plan.survivalIndex}/100</div></CardContent>
         </Card>
       </div>
 
@@ -131,9 +135,9 @@ export default function Autonomy() {
 
       <div className="space-y-4">
         <div className="border-b border-border pb-2">
-          <h2 className="text-xl font-serif font-semibold">Planning proposé</h2>
+          <h2 className="text-xl font-serif font-semibold">Travail préparé par Gérard</h2>
           <p className="mt-1 text-xs font-mono uppercase tracking-widest text-muted-foreground">
-            Ce planning ne lance rien tout seul : il prépare la veille.
+            Une tâche qui ajoute une corvée à Benoît est rejetée.
           </p>
         </div>
         {plan.tasks.map((task) => (
