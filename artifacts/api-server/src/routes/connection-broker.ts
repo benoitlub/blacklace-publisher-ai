@@ -41,7 +41,9 @@ router.post("/plan", async (req, res) => {
     const observations = (await listGlobalState<ProviderObservation | ProviderObservation[]>("observations"))
       .flatMap((record) => Array.isArray(record.value) ? record.value : [record.value]);
     const connectionRecords = await listGlobalState<ConnectionRecord>("connections");
-    const connections = new Map(connectionRecords.map((record) => [normalize(record.key), record.value]));
+    const connections = new Map<string, ConnectionRecord>(
+      connectionRecords.map((record) => [normalize(record.key), record.value] as const),
+    );
 
     const preferred = Array.isArray(step.providers) ? step.providers.map(String) : [];
     const candidates = uniqueProviders([
