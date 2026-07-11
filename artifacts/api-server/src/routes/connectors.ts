@@ -1,5 +1,13 @@
 import { Router } from "express";
 import { fetchBlacklaceKnowledgeWithDiagnostics } from "../services/notion";
+import { writeGlobalState } from "../services/global-state";
+import {
+  findComposioAuthConfig,
+  initiateComposioConnection,
+  isActiveComposioStatus,
+  isComposioConfigured,
+  listComposioConnectedAccounts,
+} from "../services/composio";
 
 const router = Router();
 
@@ -9,6 +17,15 @@ interface ConnectorDef {
   description: string;
   requiredVars: string[];
 }
+
+const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
+const COMPOSIO_TARGETS = [
+  { id: "canva", label: "Canva", toolkitSlugs: ["canva"], capability: "visual" },
+  { id: "elevenlabs", label: "ElevenLabs", toolkitSlugs: ["elevenlabs"], capability: "voice" },
+  { id: "metricool", label: "Metricool", toolkitSlugs: ["metricool"], capability: "publish" },
+  { id: "runway", label: "Runway", toolkitSlugs: ["runway", "runwayml"], capability: "video" },
+  { id: "kling", label: "Kling", toolkitSlugs: ["kling", "klingai"], capability: "video" },
+] as const;
 
 const CONNECTOR_DEFS: ConnectorDef[] = [
   {
@@ -32,8 +49,14 @@ const CONNECTOR_DEFS: ConnectorDef[] = [
   {
     name: "mistral",
     displayName: "Mistral AI",
-    description: "Fournisseur IA optionnel. Le systeme peut aussi fonctionner avec d'autres providers.",
+    description: "Fournisseur IA operationnel utilise comme pont de decision.",
     requiredVars: ["MISTRAL_API_KEY"],
+  },
+  {
+    name: "composio",
+    displayName: "Composio",
+    description: "Pont OAuth et actions pour connecter les outils externes depuis le Garden.",
+    requiredVars: ["COMPOSIO_API_KEY"],
   },
   {
     name: "github",
@@ -66,13 +89,14 @@ function isNotionConfigured(): boolean {
 }
 
 function isMistralConfigured(): boolean {
-  const providerName = (process.env.AI_PROVIDER ?? "mock").toLowerCase();
+  const providerName = (process.env.AI_PROVIDER ?? "mistral").toLowerCase();
   return providerName === "mistral" && !!(process.env.AI_API_KEY ?? process.env.MISTRAL_API_KEY);
 }
 
 function isConnectorConfigured(def: ConnectorDef): boolean {
   if (def.name === "notion") return isNotionConfigured();
   if (def.name === "mistral") return isMistralConfigured();
+  if (def.name === "composio") return isComposioConfigured();
   if (def.name === "ai-provider") return !!process.env.AI_PROVIDER && process.env.AI_PROVIDER !== "mock";
   if (def.name === "knowledge-source") {
     return !!process.env.KNOWLEDGE_CONNECTOR && process.env.KNOWLEDGE_CONNECTOR !== "mock";
@@ -81,10 +105,9 @@ function isConnectorConfigured(def: ConnectorDef): boolean {
 }
 
 function getConnectorStatus(def: ConnectorDef): "connected" | "disconnected" | "mock" {
-  if (def.name === "ai-provider" || def.name === "knowledge-source" || def.name === "notion" || def.name === "mistral") {
+  if (["ai-provider", "knowledge-source", "notion", "mistral", "composio"].includes(def.name)) {
     return isConnectorConfigured(def) ? "connected" : "mock";
   }
-
   const allSet = def.requiredVars.every((v) => !!process.env[v]);
   if (allSet) return "connected";
   const someSet = def.requiredVars.some((v) => !!process.env[v]);
@@ -103,6 +126,91 @@ router.get("/", (_req, res) => {
     lastTestedAt: null,
   }));
   return res.json(connectors);
+});
+
+router.get("/composio/catalog", async (_req, res) => {
+  if (!isComposioConfigured()) {
+    return res.json({ configured: false, userId: COMPOSIO_USER_ID, providers: COMPOSIO_TARGETS.map((target) => ({ ...target, status: "not-configured", connectedAccountId: null })) });
+  }
+  try {
+    const accounts = await listComposioConnectedAccounts(COMPOSIO_USER_ID);
+    const providers = COMPOSIO_TARGETS.map((target) => {
+      const account = accounts.find((item) => target.toolkitSlugs.includes(item.toolkitSlug as never));
+      return {
+        ...target,
+        status: account && isActiveComposioStatus(account.status) ? "connected" : account ? "authorization-required" : "available",
+        connectedAccountId: account?.id ?? null,
+        remoteStatus: account?.status ?? null,
+      };
+    });
+    return res.json({ configured: true, userId: COMPOSIO_USER_ID, providers });
+  } catch (error) {
+    return res.status(502).json({ configured: true, userId: COMPOSIO_USER_ID, providers: [], error: error instanceof Error ? error.message : "Composio unavailable" });
+  }
+});
+
+router.post("/composio/connect", async (req, res) => {
+  if (!isComposioConfigured()) return res.status(503).json({ error: "COMPOSIO_API_KEY is not configured" });
+  const providerId = String(req.body?.provider ?? "").trim().toLowerCase();
+  const callbackUrl = String(req.body?.callbackUrl ?? "").trim();
+  const target = COMPOSIO_TARGETS.find((item) => item.id === providerId);
+  if (!target || !callbackUrl) return res.status(400).json({ error: "provider and callbackUrl are required" });
+
+  try {
+    let authConfigId: string | null = null;
+    let toolkitSlug: string | null = null;
+    for (const slug of target.toolkitSlugs) {
+      authConfigId = await findComposioAuthConfig(slug);
+      if (authConfigId) { toolkitSlug = slug; break; }
+    }
+    if (!authConfigId || !toolkitSlug) {
+      return res.status(404).json({ error: `Aucune configuration OAuth Composio active trouvee pour ${target.label}.` });
+    }
+
+    const request = await initiateComposioConnection({ userId: COMPOSIO_USER_ID, authConfigId, callbackUrl });
+    await writeGlobalState("connections", target.id, {
+      provider: target.label,
+      status: "authorization-required",
+      route: "composio",
+      authorization: "required",
+      creditStatus: "unknown",
+      checkedAt: new Date().toISOString(),
+      notes: `Composio ${request.status}; toolkit=${toolkitSlug}; account=${request.id ?? "pending"}`,
+      connectedAccountId: request.id,
+      toolkitSlug,
+    });
+    return res.json({ provider: target.id, status: request.status, connectedAccountId: request.id, redirectUrl: request.redirectUrl });
+  } catch (error) {
+    return res.status(502).json({ error: error instanceof Error ? error.message : "Unable to initiate Composio connection" });
+  }
+});
+
+router.post("/composio/refresh", async (_req, res) => {
+  if (!isComposioConfigured()) return res.status(503).json({ error: "COMPOSIO_API_KEY is not configured" });
+  try {
+    const accounts = await listComposioConnectedAccounts(COMPOSIO_USER_ID);
+    const providers = [];
+    for (const target of COMPOSIO_TARGETS) {
+      const account = accounts.find((item) => target.toolkitSlugs.includes(item.toolkitSlug as never));
+      const connected = Boolean(account && isActiveComposioStatus(account.status));
+      const record = {
+        provider: target.label,
+        status: connected ? "connected" : account ? "authorization-required" : "not-configured",
+        route: "composio",
+        authorization: connected ? "granted" : "required",
+        creditStatus: "unknown",
+        checkedAt: new Date().toISOString(),
+        notes: account ? `Composio ${account.status}` : "No Composio connected account",
+        connectedAccountId: account?.id ?? null,
+        toolkitSlug: account?.toolkitSlug ?? target.toolkitSlugs[0],
+      };
+      await writeGlobalState("connections", target.id, record);
+      providers.push({ id: target.id, label: target.label, ...record });
+    }
+    return res.json({ configured: true, userId: COMPOSIO_USER_ID, providers });
+  } catch (error) {
+    return res.status(502).json({ error: error instanceof Error ? error.message : "Unable to refresh Composio connections" });
+  }
 });
 
 router.get("/knowledge-source/preview", async (_req, res) => {
@@ -128,88 +236,38 @@ router.post("/:name/test", async (req, res) => {
   const { name } = req.params;
   const def = CONNECTOR_DEFS.find((d) => d.name === name);
   if (!def) return res.status(404).json({ error: "Connector not found" });
-
   const testedAt = new Date().toISOString();
 
   if (name === "ai-provider") {
-    const provider = process.env.AI_PROVIDER ?? "mock";
-    return res.json({
-      success: true,
-      message: `AI Provider actuel : ${provider}. Mode mock si aucune cle reelle n'est configuree.`,
-      isMock: provider === "mock" || !process.env.AI_API_KEY,
-      testedAt,
-    });
+    const provider = process.env.AI_PROVIDER ?? (process.env.MISTRAL_API_KEY ? "mistral" : "mock");
+    return res.json({ success: true, message: `AI Provider actuel : ${provider}.`, isMock: provider === "mock", testedAt });
   }
-
   if (name === "knowledge-source") {
     const connector = process.env.KNOWLEDGE_CONNECTOR ?? "mock";
-    return res.json({
-      success: true,
-      message: `Knowledge Source actuelle : ${connector}. Mode mock si aucune source reelle n'est configuree.`,
-      isMock: connector === "mock",
-      testedAt,
-    });
+    return res.json({ success: true, message: `Knowledge Source actuelle : ${connector}.`, isMock: connector === "mock", testedAt });
   }
-
   if (name === "notion") {
     const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics();
-    const preview = diagnostics.items.slice(0, 8).map((item) => ({
-      id: item.id,
-      title: item.title,
-      universe: item.universe,
-      excerpt: item.content.length > 220 ? `${item.content.slice(0, 220)}...` : item.content,
-      tags: item.tags,
-    }));
-
-    return res.json({
-      success: true,
-      message: diagnostics.connected
-        ? `Connexion Notion reussie - ${diagnostics.sectionCount} section(s), ${diagnostics.charCount} caracteres depuis "${diagnostics.title}".`
-        : `Mode mock actif - ${diagnostics.sectionCount} entrees simulees retournees.${diagnostics.error ? ` Raison : ${diagnostics.error}` : ""}`,
-      isMock: !diagnostics.connected,
-      testedAt,
-      source: diagnostics.source,
-      title: diagnostics.title,
-      charCount: diagnostics.charCount,
-      sectionCount: diagnostics.sectionCount,
-      error: diagnostics.error,
-      preview,
-    });
+    const preview = diagnostics.items.slice(0, 8).map((item) => ({ id: item.id, title: item.title, universe: item.universe, excerpt: item.content.length > 220 ? `${item.content.slice(0, 220)}...` : item.content, tags: item.tags }));
+    return res.json({ success: true, message: diagnostics.connected ? `Connexion Notion reussie - ${diagnostics.sectionCount} section(s).` : `Mode mock actif.${diagnostics.error ? ` Raison : ${diagnostics.error}` : ""}`, isMock: !diagnostics.connected, testedAt, source: diagnostics.source, title: diagnostics.title, charCount: diagnostics.charCount, sectionCount: diagnostics.sectionCount, error: diagnostics.error, preview });
   }
-
   if (name === "mistral") {
     const configured = isMistralConfigured();
-    return res.json({
-      success: true,
-      message: configured
-        ? "Mistral configure (AI_PROVIDER=mistral) - generation reelle active."
-        : "Mode mock actif pour Mistral AI. Configurez AI_PROVIDER=mistral et MISTRAL_API_KEY pour une generation reelle.",
-      isMock: !configured,
-      testedAt,
-      source: configured ? "mistral" : "mock",
-      title: null,
-      charCount: null,
-      sectionCount: null,
-      error: configured ? null : "AI_PROVIDER n'est pas defini sur mistral, ou MISTRAL_API_KEY est absente.",
-    });
+    return res.json({ success: configured, message: configured ? "Mistral est configure et deja operationnel." : "MISTRAL_API_KEY absente.", isMock: !configured, testedAt, source: configured ? "mistral" : "mock", error: configured ? null : "MISTRAL_API_KEY absente." });
+  }
+  if (name === "composio") {
+    if (!isComposioConfigured()) return res.json({ success: false, message: "COMPOSIO_API_KEY absente dans Render.", isMock: true, testedAt, error: "COMPOSIO_API_KEY absente." });
+    try {
+      const accounts = await listComposioConnectedAccounts(COMPOSIO_USER_ID);
+      return res.json({ success: true, message: `Composio repond. ${accounts.length} compte(s) connecte(s) detecte(s).`, isMock: false, testedAt, source: "composio", sectionCount: accounts.length });
+    } catch (error) {
+      return res.json({ success: false, message: "La cle Composio est presente mais l'API ne repond pas correctement.", isMock: false, testedAt, source: "composio", error: error instanceof Error ? error.message : "Composio unavailable" });
+    }
   }
 
   const isConfigured = def.requiredVars.every((v) => !!process.env[v]);
-  if (!isConfigured) {
-    return res.json({
-      success: true,
-      message: `Mode mock actif pour ${def.displayName}. Variables requises : ${def.requiredVars.join(", ")}`,
-      isMock: true,
-      testedAt,
-    });
-  }
-
-  return res.json({
-    success: true,
-    message: `Variables configurees pour ${def.displayName}. Connexion prete.`,
-    isMock: false,
-    testedAt,
-  });
+  if (!isConfigured) return res.json({ success: true, message: `Mode mock actif pour ${def.displayName}. Variables requises : ${def.requiredVars.join(", ")}`, isMock: true, testedAt });
+  return res.json({ success: true, message: `Variables configurees pour ${def.displayName}. Connexion prete.`, isMock: false, testedAt });
 });
 
 export default router;
