@@ -4,6 +4,9 @@ import { listGlobalState, readGlobalState } from "../services/global-state";
 const router = Router();
 
 type ConnectionStatus = "connected" | "authorization-required" | "not-configured" | "unavailable";
+type ConnectionRoute = "composio" | "direct-api" | "manual";
+type AuthorizationStatus = "granted" | "required" | "not-supported";
+type CreditStatus = "available" | "limited" | "exhausted" | "unknown";
 
 interface ProviderObservation {
   id?: string;
@@ -23,44 +26,77 @@ interface ProviderObservation {
 interface ConnectionRecord {
   provider?: string;
   status?: ConnectionStatus;
-  route?: "composio" | "direct-api" | "manual";
-  authorization?: "granted" | "required" | "not-supported";
-  creditStatus?: "available" | "limited" | "exhausted" | "unknown";
+  route?: ConnectionRoute;
+  authorization?: AuthorizationStatus;
+  creditStatus?: CreditStatus;
   checkedAt?: string;
   notes?: string;
 }
 
+interface ProductionStepInput {
+  id: string;
+  role: string;
+  providers?: string[];
+}
+
+interface BrokerCandidate {
+  id: string;
+  name: string;
+  role: string;
+  route: ConnectionRoute;
+  connectionStatus: ConnectionStatus;
+  authorization: AuthorizationStatus;
+  creditStatus: CreditStatus;
+  freeTier: { available?: boolean; credits?: string; checkedAt?: string };
+  trial: { available?: boolean; details?: string; checkedAt?: string };
+  recipe: string | null;
+  reason: string;
+  source: string;
+  score: number;
+  checkedAt: string | null;
+  notes: string | null;
+}
+
 router.post("/plan", async (req, res) => {
-  const seedId = String(req.body?.seedId || "").trim();
-  const step = req.body?.step;
-  if (!seedId || !step?.id || !step?.role) {
+  const seedId = String(req.body?.seedId ?? "").trim();
+  const rawStep = req.body?.step as Partial<ProductionStepInput> | undefined;
+  if (!seedId || !rawStep?.id || !rawStep?.role) {
     return res.status(400).json({ error: "seedId and step{id, role} are required" });
   }
+  const step: ProductionStepInput = {
+    id: String(rawStep.id),
+    role: String(rawStep.role),
+    providers: Array.isArray(rawStep.providers) ? rawStep.providers.map(String) : [],
+  };
 
   try {
-    const observations = (await listGlobalState<ProviderObservation | ProviderObservation[]>("observations"))
-      .flatMap((record) => Array.isArray(record.value) ? record.value : [record.value]);
-    const connectionRecords = await listGlobalState<ConnectionRecord>("connections");
-    const connections = new Map<string, ConnectionRecord>(
-      connectionRecords.map((record) => [normalize(record.key), record.value] as const),
-    );
+    const observationRecords = await listGlobalState<ProviderObservation | ProviderObservation[]>("observations");
+    const observations: ProviderObservation[] = [];
+    for (const record of observationRecords) {
+      if (Array.isArray(record.value)) observations.push(...record.value);
+      else observations.push(record.value);
+    }
 
-    const preferred = Array.isArray(step.providers) ? step.providers.map(String) : [];
+    const connectionRecords = await listGlobalState<ConnectionRecord>("connections");
+    const connections = new Map<string, ConnectionRecord>();
+    for (const record of connectionRecords) connections.set(normalize(record.key), record.value);
+
+    const preferred = step.providers ?? [];
     const candidates = uniqueProviders([
-      ...preferred.map((name) => ({ name, source: "production-plan" } as ProviderObservation)),
+      ...preferred.map((name): ProviderObservation => ({ name, source: "production-plan" })),
       ...observations,
     ])
-      .map((provider) => buildCandidate(provider, String(step.role), connections))
+      .map((provider) => buildCandidate(provider, step.role, connections))
       .filter((candidate) => candidate.score > 0)
       .sort(compareCandidates)
       .slice(0, 8);
 
-    const selected = candidates[0] || null;
+    const selected: BrokerCandidate | null = candidates[0] ?? null;
     return res.json({
       version: 1,
       seedId,
-      stepId: String(step.id),
-      capability: String(step.role),
+      stepId: step.id,
+      capability: step.role,
       plannedAt: new Date().toISOString(),
       decisionMode: process.env.MISTRAL_API_KEY ? "mistral-ready-deterministic-safe-mode" : "deterministic-fallback",
       bridge: {
@@ -69,8 +105,8 @@ router.post("/plan", async (req, res) => {
       },
       selected,
       alternatives: selected ? candidates.slice(1) : candidates,
-      executable: selected?.connectionStatus === "connected" && selected?.creditStatus !== "exhausted",
-      requiresHumanAuthorization: selected?.authorization === "required",
+      executable: Boolean(selected && selected.connectionStatus === "connected" && selected.creditStatus !== "exhausted"),
+      requiresHumanAuthorization: Boolean(selected && selected.authorization === "required"),
       note: "A recommendation never implies that an adapter is connected. Execution remains blocked until the connection registry confirms it.",
     });
   } catch (error) {
@@ -80,11 +116,17 @@ router.post("/plan", async (req, res) => {
 
 router.get("/providers/:provider", async (req, res) => {
   try {
-    const key = normalize(req.params.provider);
+    const provider = String(req.params.provider ?? "");
+    const key = normalize(provider);
     const record = await readGlobalState<ConnectionRecord>("connections", key);
+    const fallback: ConnectionRecord = {
+      status: "not-configured",
+      authorization: "required",
+      creditStatus: "unknown",
+    };
     return res.json({
-      provider: req.params.provider,
-      connection: record?.value || { status: "not-configured", authorization: "required", creditStatus: "unknown" },
+      provider,
+      connection: record?.value ?? fallback,
       bridge: {
         mistral: process.env.MISTRAL_API_KEY ? "configured" : "not-configured",
         composio: process.env.COMPOSIO_API_KEY ? "configured" : "not-configured",
@@ -95,16 +137,22 @@ router.get("/providers/:provider", async (req, res) => {
   }
 });
 
-function buildCandidate(provider: ProviderObservation, role: string, connections: Map<string, ConnectionRecord>) {
-  const name = provider.name || provider.title || provider.id || "Outil observé";
-  const key = normalize(provider.id || name);
+function buildCandidate(provider: ProviderObservation, role: string, connections: Map<string, ConnectionRecord>): BrokerCandidate {
+  const name = provider.name ?? provider.title ?? provider.id ?? "Outil observé";
+  const key = normalize(provider.id ?? name);
   const connection = connections.get(key);
-  const text = normalize([name, provider.description, provider.category, ...(provider.roles || []), ...(provider.capabilities || [])].filter(Boolean).join(" "));
+  const text = normalize([
+    name,
+    provider.description,
+    provider.category,
+    ...(provider.roles ?? []),
+    ...(provider.capabilities ?? []),
+  ].filter(Boolean).join(" "));
   const roleMatch = text.includes(normalize(role));
-  const route = connection?.route || inferRoute(provider);
-  const connectionStatus: ConnectionStatus = connection?.status || inferStatus(route, key);
-  const authorization = connection?.authorization || (connectionStatus === "connected" ? "granted" : "required");
-  const creditStatus = connection?.creditStatus || inferCreditStatus(provider);
+  const route: ConnectionRoute = connection?.route ?? inferRoute(provider);
+  const connectionStatus: ConnectionStatus = connection?.status ?? inferStatus(route, key);
+  const authorization: AuthorizationStatus = connection?.authorization ?? (connectionStatus === "connected" ? "granted" : "required");
+  const creditStatus: CreditStatus = connection?.creditStatus ?? inferCreditStatus(provider);
   const score = (roleMatch ? 30 : 1)
     + (connectionStatus === "connected" ? 50 : connectionStatus === "authorization-required" ? 15 : 0)
     + (creditStatus === "available" ? 20 : creditStatus === "limited" ? 10 : creditStatus === "exhausted" ? -50 : 0)
@@ -119,24 +167,24 @@ function buildCandidate(provider: ProviderObservation, role: string, connections
     connectionStatus,
     authorization,
     creditStatus,
-    freeTier: provider.freeTier || { available: false, checkedAt: null },
-    trial: provider.trial || { available: false, checkedAt: null },
-    recipe: provider.recipe || null,
-    reason: provider.description || `Candidat pour la capacité ${role}`,
-    source: provider.source || "publisher-memory",
+    freeTier: provider.freeTier ?? { available: false },
+    trial: provider.trial ?? { available: false },
+    recipe: provider.recipe ?? null,
+    reason: provider.description ?? `Candidat pour la capacité ${role}`,
+    source: provider.source ?? "publisher-memory",
     score,
-    checkedAt: connection?.checkedAt || provider.freeTier?.checkedAt || provider.trial?.checkedAt || null,
-    notes: connection?.notes || null,
+    checkedAt: connection?.checkedAt ?? provider.freeTier?.checkedAt ?? provider.trial?.checkedAt ?? null,
+    notes: connection?.notes ?? null,
   };
 }
 
-function inferRoute(provider: ProviderObservation): "composio" | "direct-api" | "manual" {
+function inferRoute(provider: ProviderObservation): ConnectionRoute {
   if (provider.access?.viaComposio) return "composio";
   if (provider.access?.directApi) return "direct-api";
   return "manual";
 }
 
-function inferStatus(route: string, key: string): ConnectionStatus {
+function inferStatus(route: ConnectionRoute, key: string): ConnectionStatus {
   if (route === "composio" && process.env.COMPOSIO_API_KEY) return "authorization-required";
   if (route === "direct-api" && providerApiKeyConfigured(key)) return "authorization-required";
   return "not-configured";
@@ -147,28 +195,28 @@ function providerApiKeyConfigured(key: string): boolean {
   return Boolean(process.env[envName]);
 }
 
-function inferCreditStatus(provider: ProviderObservation): "available" | "limited" | "unknown" {
+function inferCreditStatus(provider: ProviderObservation): CreditStatus {
   if (provider.freeTier?.available) return "available";
   if (provider.trial?.available) return "limited";
   return "unknown";
 }
 
-function compareCandidates(a: ReturnType<typeof buildCandidate>, b: ReturnType<typeof buildCandidate>) {
+function compareCandidates(a: BrokerCandidate, b: BrokerCandidate): number {
   return b.score - a.score || a.name.localeCompare(b.name);
 }
 
 function uniqueProviders(values: ProviderObservation[]): ProviderObservation[] {
   const seen = new Set<string>();
   return values.filter((value) => {
-    const key = normalize(value.id || value.name || value.title || "");
+    const key = normalize(value.id ?? value.name ?? value.title ?? "");
     if (!key || seen.has(key)) return false;
     seen.add(key);
     return true;
   });
 }
 
-function normalize(value: string): string {
-  return String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+function normalize(value: unknown): string {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 export default router;
