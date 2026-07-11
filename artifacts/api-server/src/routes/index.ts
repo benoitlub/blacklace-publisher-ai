@@ -12,11 +12,13 @@ import generateRouter from "./generate";
 import octopusRouter from "./octopus";
 import aiGatewayRouter from "./ai-gateway";
 import greenhouseRouter from "./greenhouse";
+import knowledgePacksRouter from "./knowledge-packs";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(greenhouseRouter);
+router.use("/knowledge-packs", knowledgePacksRouter);
 router.use("/agents", agentsRouter);
 router.use("/personas", personasRouter);
 router.use("/posts", postsRouter);
