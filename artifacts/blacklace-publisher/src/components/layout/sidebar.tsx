@@ -1,10 +1,6 @@
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard,
-  Calendar as CalendarIcon,
-  FileText,
-  Megaphone,
-  Users,
   Plug,
   Settings as SettingsIcon,
   Tent,
@@ -26,10 +22,6 @@ const NAV_ITEMS = [
   { href: "/greenhouse", label: "Serre", icon: Sprout },
   { href: "/autonomy", label: "Routine", icon: Bot },
   { href: "/client", label: "Espace Client", icon: Building2 },
-  { href: "/calendar", label: "Calendrier", icon: CalendarIcon },
-  { href: "/posts", label: "Publications", icon: FileText },
-  { href: "/campaigns", label: "Campagnes", icon: Megaphone },
-  { href: "/agents", label: "Agents", icon: Users },
   { href: "/local-technique", label: "Local technique", icon: Plug },
   { href: "/settings", label: "Parametres", icon: SettingsIcon },
 ];
