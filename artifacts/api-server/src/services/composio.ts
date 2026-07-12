@@ -23,6 +23,21 @@ export async function listComposioConnectedAccounts(userId: string): Promise<Com
   return extractItems(payload).map(normalizeConnectedAccount).filter((item): item is ComposioConnectedAccount => Boolean(item));
 }
 
+export async function executeComposioTool(input: {
+  toolSlug: string;
+  arguments: Record<string, unknown>;
+  connectedAccountId?: string | null;
+}): Promise<unknown> {
+  const payload = await composioRequest(`/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
+    method: "POST",
+    body: JSON.stringify({
+      arguments: input.arguments,
+      connected_account_id: input.connectedAccountId || undefined,
+    }),
+  });
+  return payload;
+}
+
 export async function findComposioAuthConfig(toolkitSlug: string): Promise<string | null> {
   const queries = [
     `/auth_configs?toolkit_slug=${encodeURIComponent(toolkitSlug)}&limit=100`,
