@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { href: "/posts", label: "Publications", icon: FileText },
   { href: "/campaigns", label: "Campagnes", icon: Megaphone },
   { href: "/agents", label: "Agents", icon: Users },
-  { href: "/connectors", label: "Connecteurs", icon: Plug },
+  { href: "/local-technique", label: "Local technique", icon: Plug },
   { href: "/settings", label: "Parametres", icon: SettingsIcon },
 ];
 
