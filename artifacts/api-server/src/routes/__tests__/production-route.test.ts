@@ -41,10 +41,25 @@ describe("production route", () => {
     const { server, baseUrl } = await makeApp();
     try {
       const response = await fetch(`${baseUrl}/production/diagnostics`);
-      const body = await response.json() as { error: string };
+      const body = await response.json() as {
+        composio: {
+          configured: boolean;
+          canvaConnected: boolean;
+          connectedAccount: string | null;
+          availableActions: Array<{ slug: string; requiredFields: string[] }>;
+        };
+        mistral: { configured: boolean; available: boolean };
+      };
       expect(response.ok).toBe(true);
-      expect(body).toEqual({
-        composio: { configured: true, canvaConnected: true },
+      expect(body).toMatchObject({
+        composio: {
+          configured: true,
+          canvaConnected: true,
+          connectedAccount: "canva-1",
+          availableActions: expect.arrayContaining([
+            expect.objectContaining({ slug: "CANVA_POST_DESIGNS", requiredFields: ["design_type"] }),
+          ]),
+        },
         mistral: { configured: true, available: true },
       });
       expect(JSON.stringify(body)).not.toContain("secret-key");
@@ -61,7 +76,7 @@ describe("production route", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tool: "canva", action: "create_design", input: { title: "TERRA" } }),
       });
-      const body = await response.json() as { status: string; artifact: { id: string; kind: string; url: string; downloadUrl: string | null } };
+      const body = await response.json() as { error: string };
       expect(response.status).toBe(409);
       expect(body.error).toBe("Canva nécessite une connexion ou une autorisation.");
     } finally {
@@ -79,14 +94,20 @@ describe("production route", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tool: "canva", action: "create_design", input: { title: "TERRA" } }),
       });
-      const body = await response.json();
+      const body = await response.json() as {
+        status: string;
+        action: string;
+        artifact: { id: string; kind: string; url: string; downloadUrl: string | null; rawReference: { designId: string } };
+      };
       expect(response.ok).toBe(true);
       expect(body.status).toBe("completed");
+      expect(body.action).toBe("CANVA_POST_DESIGNS");
       expect(body.artifact).toMatchObject({
         id: "design-1",
         kind: "instagram-visual",
         url: "https://canva.example/design-1",
         downloadUrl: null,
+        rawReference: { designId: "design-1" },
       });
     } finally {
       server.close();

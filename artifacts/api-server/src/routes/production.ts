@@ -8,6 +8,34 @@ import {
 
 const router = Router();
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
+const CANVA_CREATE_DESIGN_ACTION = "CANVA_POST_DESIGNS";
+const AVAILABLE_CANVA_ACTIONS = [
+  {
+    slug: "CANVA_POST_DESIGNS",
+    description: "Creates a new Canva design with preset type or custom dimensions.",
+    requiredFields: ["design_type"],
+  },
+  {
+    slug: "CANVA_FETCH_DESIGN_METADATA_AND_ACCESS_INFORMATION",
+    description: "Gets metadata and access URLs for a Canva design.",
+    requiredFields: ["designId"],
+  },
+  {
+    slug: "CANVA_GET_DESIGNS_DESIGNID_EXPORT_FORMATS",
+    description: "Lists available export formats for a Canva design.",
+    requiredFields: ["designId"],
+  },
+  {
+    slug: "CANVA_POST_EXPORTS",
+    description: "Starts an asynchronous export job for a Canva design.",
+    requiredFields: ["design_id", "format"],
+  },
+  {
+    slug: "CANVA_GET_DESIGN_EXPORT_JOB_RESULT",
+    description: "Polls a Canva export job until download URLs are available.",
+    requiredFields: ["exportId"],
+  },
+] as const;
 
 function isMistralConfigured(): boolean {
   return Boolean((process.env.AI_API_KEY ?? process.env.MISTRAL_API_KEY)?.trim());
@@ -45,17 +73,25 @@ function extractCanvaArtifact(payload: unknown) {
     url,
     downloadUrl,
     mimeType: downloadUrl ? "image/png" : null,
-    rawProvider: "composio",
+    rawReference: {
+      designId: id,
+    },
   };
 }
 
 router.get("/diagnostics", async (_req, res) => {
   try {
     const account = await canvaAccount();
+    console.info(JSON.stringify({
+      connectedAccount: account?.id ?? null,
+      availableActions: AVAILABLE_CANVA_ACTIONS,
+    }));
     return res.json({
       composio: {
         configured: isComposioConfigured(),
         canvaConnected: Boolean(account),
+        connectedAccount: account?.id ?? null,
+        availableActions: AVAILABLE_CANVA_ACTIONS,
       },
       mistral: {
         configured: isMistralConfigured(),
@@ -87,14 +123,22 @@ router.post("/execute", async (req, res) => {
   if (!account) {
     return res.status(409).json({ status: "waiting-authorization", error: "Canva nécessite une connexion ou une autorisation.", action: "Reconnecter Canva" });
   }
+  if (!AVAILABLE_CANVA_ACTIONS.some((action) => action.slug === CANVA_CREATE_DESIGN_ACTION)) {
+    return res.status(501).json({
+      status: "unsupported",
+      reason: "La connexion Canva est active, mais aucune action de création de design n'est exposée pour ce compte via Composio.",
+      connectedAccount: account.id,
+      availableActions: AVAILABLE_CANVA_ACTIONS,
+    });
+  }
 
   const input = req.body?.input && typeof req.body.input === "object" ? req.body.input : {};
   const title = stringValue((input as Record<string, unknown>).title) ?? "TERRA";
   const result = await executeComposioTool({
-    toolSlug: "CANVA_POST_DESIGNS",
+    toolSlug: CANVA_CREATE_DESIGN_ACTION,
     connectedAccountId: account.id,
     arguments: {
-      title: `Visuel Instagram ${title}`,
+      title: req.body?.operationId ? `Visuel Instagram ${title}` : "TERRA — test Poulpe Fiction",
       design_type: { type: "custom", width: 1080, height: 1080 },
     },
   }).catch((error) => ({ error: safeError(error) }));
@@ -112,6 +156,7 @@ router.post("/execute", async (req, res) => {
     status: "completed",
     provider: "composio",
     tool: "canva",
+    action: CANVA_CREATE_DESIGN_ACTION,
     artifact,
   });
 });
