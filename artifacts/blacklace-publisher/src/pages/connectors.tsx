@@ -63,7 +63,7 @@ function providerStatusLabel(provider: ComposioProvider): string {
   return "Composio non configure";
 }
 
-function ComposioGarden() {
+function ComposioLocalTechnique() {
   const { toast } = useToast();
   const [catalog, setCatalog] = useState<ComposioCatalog | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,7 +109,7 @@ function ComposioGarden() {
     <section className="space-y-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="text-xl font-serif font-semibold">Connexions du Garden</h2>
+          <h2 className="text-xl font-serif font-semibold">Connexions du Local technique</h2>
           <p className="text-sm text-muted-foreground">Autorisez ici les producteurs externes. Les cles restent cote Publisher sur Render.</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => void refresh()} disabled={loading} className="w-full sm:w-auto">
@@ -169,8 +169,8 @@ export default function Connectors() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
-      <div className="flex items-center justify-between"><div className="min-w-0"><h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight break-words">Infrastructures</h1><p className="text-muted-foreground font-mono text-sm uppercase tracking-wider break-words">Liaisons exterieures</p></div></div>
-      <ComposioGarden />
+      <div className="flex items-center justify-between"><div className="min-w-0"><h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight break-words">Local technique</h1><p className="text-muted-foreground font-mono text-sm uppercase tracking-wider break-words">Connexions, autorisations et infrastructure Publisher</p></div></div>
+      <ComposioLocalTechnique />
 
       {isLoading ? <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-64 w-full bg-secondary" />)}</div> : connectors?.length ? (
         <div className="space-y-8">

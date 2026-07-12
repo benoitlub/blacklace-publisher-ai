@@ -2,9 +2,9 @@
 
 Publisher Studio est en cours de pivot : il passe d'un assistant de rédaction/publication à un **Knowledge Observatory** pour Octopus Engine.
 
-Sa nouvelle mission : observer des sources, extraire des connaissances structurées, les transformer en Knowledge Packs, puis les préparer pour Octopus Engine.
+Sa nouvelle mission : observer des sources, extraire des connaissances structurées, les transformer en Knowledge Packs, puis préparer les outils, coûts, connexions et routes utilisables par les applications.
 
-> **Règle produit** : Publisher observe. Octopus décide. Gérard jardine.
+> **Règle produit** : Publisher observe et prépare. Octopus exécute. Poulpe Fiction possède le Garden et Gérard jardine.
 
 ---
 
@@ -12,7 +12,7 @@ Sa nouvelle mission : observer des sources, extraire des connaissances structur�
 
 ### Octopus Engine
 
-Octopus Engine reste le cerveau commun :
+Octopus Engine reste le moteur commun et neutre :
 
 - planification ;
 - orchestration ;
@@ -24,15 +24,34 @@ Publisher ne doit pas réinventer Octopus Engine.
 
 ### Publisher Studio
 
-Publisher devient les yeux et les oreilles :
+Publisher devient les yeux, les oreilles et le curateur technique :
 
 - observatoire ;
 - curateur ;
 - laboratoire d'analyse ;
 - producteur de connaissances ;
-- interface de préparation des Seeds, Harvests et Knowledge Packs.
+- Knowledge Packs ;
+- Tool Packs ;
+- Connection Broker ;
+- coûts, crédits, limites et alternatives ;
+- connexions aux providers externes.
 
-Publisher ne prend pas de décision métier finale. Il prépare des connaissances exploitables.
+Publisher ne possède pas le Garden métier, les parcelles ou Gérard. Ces concepts appartiennent à Poulpe Fiction.
+
+### Local technique
+
+L'espace anciennement présenté comme les connexions du « Garden » dans Publisher s'appelle désormais **Local technique**.
+
+Il regroupe uniquement :
+
+- clés et variables d'environnement ;
+- OAuth et Composio ;
+- providers ;
+- connecteurs ;
+- autorisations ;
+- diagnostics et état d'infrastructure.
+
+La route historique `/connectors` reste disponible pour compatibilité. L'entrée UI canonique devient `/local-technique`.
 
 ---
 
@@ -69,9 +88,9 @@ Extraction
 ↓
 Knowledge
 ↓
-Knowledge Pack
+Knowledge Pack / Tool Pack
 ↓
-Export Octopus mock
+Application consommatrice
 ```
 
 Sources prévues côté UI :
@@ -98,7 +117,7 @@ Ne pas modifier sans raison :
 - Capabilities ;
 - runtime Octopus Engine.
 
-Publisher produit des objets exportables. Octopus décide quoi en faire.
+Publisher produit des objets exportables et prépare des routes techniques. Poulpe Fiction conserve ses concepts de Garden, Seed, Sprout, parcelle et récolte.
 
 ---
 
@@ -111,19 +130,11 @@ L'application conserve ses fonctions éditoriales existantes :
 - publications ;
 - campagnes ;
 - calendrier ;
-- connecteurs ;
+- Local technique / connecteurs ;
 - mémoire / source de connaissance ;
-- Garden Report ;
-- Publisher Loop.
+- anciens rapports et boucles Publisher.
 
-Ces éléments doivent être réinterprétés progressivement, pas dupliqués.
-
-Exemples :
-
-- une analyse terminée peut devenir un HarvestDraft ;
-- une connaissance validée peut devenir un Seed ;
-- un rapport peut devenir un Knowledge Report ;
-- le Garden devient un jardin de connaissances.
+Ces éléments doivent être réinterprétés progressivement, pas dupliqués. Les anciens usages du vocabulaire Garden dans Publisher sont historiques et ne définissent plus une responsabilité métier.
 
 ---
 
@@ -195,22 +206,11 @@ Sans clé externe, l'application doit rester utilisable en mode mock.
 ## Scripts utiles
 
 ```bash
-# Typecheck complet
 pnpm run typecheck
-
-# Build complet
 pnpm run build
-
-# Regenerer les hooks API depuis OpenAPI
 pnpm --filter @workspace/api-spec run codegen
-
-# Pousser le schema DB en dev
 pnpm --filter @workspace/db run push
-
-# API
 pnpm --filter @workspace/api-server run dev
-
-# Frontend
 pnpm --filter @workspace/blacklace-publisher run dev
 ```
 
@@ -243,27 +243,7 @@ blacklace-publisher-ai/
 └── README.md
 ```
 
-Le pivot Observatory ajoutera probablement, côté frontend, des dossiers du type :
-
-```txt
-src/observation/
-src/knowledge/
-src/extractors/
-src/connectors/
-src/export/
-src/models/
-src/services/
-```
-
-Seulement si aucun équivalent n'existe déjà.
-
----
-
-## Pull requests et prudence
-
-- Ne pas merger la PR `Sprint 2 lite — Generic knowledge engine foundation` avant le pivot Observatory.
-- Elle contient des briques Knowledge intéressantes, mais peut créer une architecture parallèle si elle est fusionnée trop tôt.
-- Le pivot doit d'abord rendre visible `/observatory` et le pipeline Source → Observation → Extraction → Knowledge → Knowledge Pack.
+Ajouter de nouveaux dossiers seulement si aucun équivalent n'existe déjà.
 
 ---
 
@@ -277,24 +257,10 @@ Seulement si aucun équivalent n'existe déjà.
 
 ---
 
-## Pour Codex
+## Frontières canoniques
 
-Priorité immédiate : pousser le travail Observatory déjà annoncé, sans le recoder.
-
-```md
-Tu as implémenté le pivot Observatory mais il n'est pas visible sur GitHub ni sur Render.
-
-Fais maintenant uniquement ceci :
-
-1. Vérifie les fichiers modifiés/créés.
-2. Commit tous les fichiers Observatory listés.
-3. Push sur GitHub, branche `feature/knowledge-observatory-pivot`.
-4. Ouvre une PR vers `main`.
-
-Ne modifie rien d'autre.
-Ne recode rien.
-Ne refais pas le pivot.
-Pousse simplement le travail déjà fait.
+```txt
+Poulpe Fiction possède le monde et le Garden.
+Publisher connaît les ressources, les outils et les connexions.
+Octopus Engine exécute sans connaître le monde.
 ```
-
-Voir aussi `docs/CODEX_HANDOFF.md` et `docs/REPO_STATUS_2026-07-08.md`.

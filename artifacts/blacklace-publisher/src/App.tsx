@@ -40,6 +40,7 @@ function Router() {
         <Route path="/posts" component={Posts} />
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/agents" component={Agents} />
+        <Route path="/local-technique" component={Connectors} />
         <Route path="/connectors" component={Connectors} />
         <Route path="/settings" component={Settings} />
         <Route>
