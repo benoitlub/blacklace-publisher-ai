@@ -1,51 +1,48 @@
-import type { Capability } from "octopus-engine";
-import { Guardian } from "octopus-engine";
+export type Capability = {
+  readonly id: string;
+  readonly description?: string;
+};
 
 /**
- * CapabilityResolver — source de vérité des capabilities disponibles
- * dans le runtime Octopus actuel.
+ * CapabilityResolver — catalogue local et déterministe des capacités Publisher.
  *
- * Rôle : exposer les capabilities enregistrées et déléguer leur validation
- * au Guardian depuis octopus-engine. Découple le catalogue des capabilities
- * de la logique de matching du MissionPlanner.
+ * Il ne dépend plus du paquet octopus-engine. Le moteur distant valide ensuite
+ * ses propres capacités au moment de l'exécution réelle de la mission.
  */
 export class CapabilityResolver {
-  private readonly guardian: Guardian;
   private readonly capabilities: Capability[];
+  private readonly capabilityIds: Set<string>;
 
   constructor(capabilities: Capability[]) {
-    this.capabilities = capabilities;
-    this.guardian = new Guardian(capabilities);
+    this.capabilities = capabilities.map((capability) => ({ ...capability }));
+    this.capabilityIds = new Set(this.capabilities.map((capability) => capability.id));
   }
 
   /**
-   * Valide que toutes les capabilities requises sont disponibles.
-   * Lève `Error("Capability missing: <id>")` à la première absente.
+   * Valide que toutes les capacités requises sont connues par Publisher.
+   * Octopus Engine conserve sa propre validation côté exécution.
    */
   validate(required: string[]): void {
-    this.guardian.validate(required);
+    for (const capabilityId of required) {
+      if (!this.has(capabilityId)) {
+        throw new Error(`Capability missing: ${capabilityId}`);
+      }
+    }
   }
 
-  /** Retourne true si la capability est enregistrée. */
   has(capId: string): boolean {
-    return this.guardian.has(capId);
+    return this.capabilityIds.has(capId);
   }
 
-  /** Liste toutes les capabilities disponibles dans le runtime. */
   list(): Capability[] {
-    return [...this.capabilities];
+    return this.capabilities.map((capability) => ({ ...capability }));
   }
 
-  /** Liste uniquement les ids. */
   listIds(): string[] {
-    return this.capabilities.map((c) => c.id);
+    return this.capabilities.map((capability) => capability.id);
   }
 }
 
-/**
- * Capabilities disponibles en V1.
- * Étendre ici quand un nouveau module métier est ajouté au Coordinator Publisher.
- */
 export const RUNTIME_CAPABILITIES: Capability[] = [
   { id: "text_generation", description: "Génération de texte structuré" },
   { id: "outline_builder", description: "Construction de plans d'articles" },
@@ -53,5 +50,4 @@ export const RUNTIME_CAPABILITIES: Capability[] = [
   { id: "profile_synthesizer", description: "Synthèse de profils client" },
 ];
 
-/** Singleton prêt à l'emploi pour le runtime courant. */
 export const capabilityResolver = new CapabilityResolver(RUNTIME_CAPABILITIES);
