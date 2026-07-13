@@ -2,6 +2,28 @@ import type { AIProvider, AIGenerateInput, AIGenerateOutput, AISchemaParser } fr
 
 const BASE_URL = "https://api.mistral.ai/v1";
 
+function parseJsonResponse(text: string, status: number): any {
+  if (!text.trim()) {
+    throw new Error(`Mistral API returned an empty response body (${status}).`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch (_) {
+    throw new Error(`Mistral API returned invalid JSON (${status}): ${text.slice(0, 300)}`);
+  }
+}
+
+function extractErrorMessage(payload: any, fallback: string): string {
+  const candidate = payload?.message ?? payload?.error?.message ?? payload?.error ?? payload?.detail;
+  if (typeof candidate === "string" && candidate.trim()) return candidate;
+  try {
+    const serialized = JSON.stringify(candidate ?? payload);
+    return serialized && serialized !== "{}" ? serialized.slice(0, 500) : fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
 export class MistralProvider implements AIProvider {
   readonly name = "mistral";
 
@@ -25,14 +47,18 @@ export class MistralProvider implements AIProvider {
       }),
     });
 
+    const text = await response.text();
+    const data = parseJsonResponse(text, response.status);
+
     if (!response.ok) {
-      throw new Error(`Mistral API error: ${response.status} ${response.statusText}`);
+      throw new Error(`Mistral API error ${response.status}: ${extractErrorMessage(data, response.statusText)}`);
     }
 
-    const data = (await response.json()) as {
-      choices: Array<{ message: { content: string } }>;
-    };
-    const content = data.choices[0]?.message?.content ?? "";
+    const content = data?.choices?.[0]?.message?.content;
+    if (typeof content !== "string" || !content.trim()) {
+      throw new Error(`Mistral API returned no generated content for model ${this.model}.`);
+    }
+
     return { content, provider: "mistral", model: this.model, isMock: false };
   }
 
@@ -46,7 +72,13 @@ export class MistralProvider implements AIProvider {
     };
     const result = await this.generateText(augmented);
     const json = result.content.replace(/```(?:json)?\n?/g, "").trim();
-    return schema.parse(JSON.parse(json));
+    if (!json) throw new Error("Mistral returned an empty structured output.");
+    try {
+      return schema.parse(JSON.parse(json));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "invalid structured output";
+      throw new Error(`Mistral structured output is invalid: ${message}. Raw: ${json.slice(0, 300)}`);
+    }
   }
 
   async healthCheck(): Promise<boolean> {
