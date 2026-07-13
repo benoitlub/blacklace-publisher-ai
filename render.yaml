@@ -24,10 +24,10 @@ services:
         value: mock
 
   - type: web
-    name: blacklace-publisher-web
+    name: blacklace-publisher
     runtime: static
     rootDir: .
-    buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/blacklace-publisher run build
+    buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && VITE_BUILD_SHA=$(git rev-parse --short HEAD) pnpm --filter @workspace/blacklace-publisher run build
     staticPublishPath: artifacts/blacklace-publisher/dist/public
     envVars:
       - key: NODE_VERSION
