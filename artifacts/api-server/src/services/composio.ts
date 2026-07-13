@@ -1,6 +1,7 @@
 import { Composio } from "@composio/core";
 
 const DEFAULT_BASE_URL = "https://backend.composio.dev/api/v3";
+const authConfigToolkitById = new Map<string, string>();
 
 export interface ComposioConnectedAccount {
   id: string;
@@ -61,7 +62,10 @@ export async function findComposioAuthConfig(toolkitSlug: string): Promise<strin
         return (!slug || normalize(slug) === normalize(toolkitSlug)) && !["DISABLED", "DELETED"].includes(status);
       });
       const id = stringValue(asRecord(config).id ?? asRecord(config).auth_config_id);
-      if (id) return id;
+      if (id) {
+        authConfigToolkitById.set(id, normalize(toolkitSlug));
+        return id;
+      }
     } catch (_) {
       // Try the alternate query shape supported by another Composio API revision.
     }
@@ -72,22 +76,25 @@ export async function findComposioAuthConfig(toolkitSlug: string): Promise<strin
 
 export async function initiateComposioConnection(input: {
   userId: string;
-  toolkitSlug: string;
+  toolkitSlug?: string;
   authConfigId?: string | null;
   callbackUrl: string;
 }): Promise<ComposioConnectionRequest> {
+  const toolkitSlug = normalize(input.toolkitSlug || (input.authConfigId ? authConfigToolkitById.get(input.authConfigId) || "" : ""));
+  if (!toolkitSlug) throw new Error("Toolkit Composio introuvable pour cette Auth Config.");
+
   const composio = composioSdk();
   const options: Record<string, unknown> = {
-    toolkits: [input.toolkitSlug],
+    toolkits: [toolkitSlug],
     manageConnections: false,
     sandbox: { enable: false },
   };
   if (input.authConfigId) {
-    options.authConfigs = { [input.toolkitSlug]: input.authConfigId };
+    options.authConfigs = { [toolkitSlug]: input.authConfigId };
   }
 
   const session = await composio.sessions.create(input.userId, options as any);
-  const request = await session.authorize(input.toolkitSlug, { callbackUrl: input.callbackUrl });
+  const request = await session.authorize(toolkitSlug, { callbackUrl: input.callbackUrl });
   return {
     id: stringValue((request as any).id ?? (request as any).connectionRequestId ?? (request as any).connectedAccountId),
     redirectUrl: stringValue((request as any).redirectUrl),
