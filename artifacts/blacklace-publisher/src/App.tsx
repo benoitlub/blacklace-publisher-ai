@@ -22,6 +22,7 @@ import Settings from "@/pages/settings";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
 setBaseUrl(apiBaseUrl?.trim() ? apiBaseUrl : null);
+const buildSha = String(import.meta.env.VITE_BUILD_SHA || "local").slice(0, 7);
 
 const queryClient = new QueryClient();
 
@@ -61,6 +62,9 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>
+        <div className="fixed bottom-3 right-3 z-50 rounded border border-border bg-card/95 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground shadow-lg">
+          Build {buildSha} · Production
+        </div>
         <Toaster />
       </TooltipProvider>
     </QueryClientProvider>
