@@ -1,28 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { GreenhouseCluster, GreenhouseMaturity } from "@/models/greenhouse";
 import type { ObservationMemoryEntry } from "@/models/observation-memory";
 import { buildGreenhouse } from "@/knowledge/build-greenhouse";
 import { loadObservationMemory, OBSERVATION_MEMORY_CHANGED_EVENT } from "@/memory/observation-memory";
-import { Sprout, Flower2, TreePine, Leaf, Database, CalendarClock } from "lucide-react";
+import { Ear, Eye, Send, Sprout } from "lucide-react";
 
-const MATURITY_ICON: Record<GreenhouseMaturity, typeof Sprout> = {
-  graine: Sprout,
-  pousse: Leaf,
-  plante: Flower2,
-  arbre: TreePine,
-};
-
-const MATURITY_LABEL: Record<GreenhouseMaturity, string> = {
-  graine: "Graine",
-  pousse: "Pousse",
-  plante: "Plante",
-  arbre: "Arbre",
-};
-
-function formatDate(value: string): string {
+function formatDate(value?: string): string {
+  if (!value) return "Aucun signal";
   return new Intl.DateTimeFormat("fr-FR", {
     day: "2-digit",
     month: "2-digit",
@@ -31,98 +16,28 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
-function ToolLine({ entry }: { entry: ObservationMemoryEntry }) {
-  return (
-    <div className="rounded-lg border border-border bg-background p-3">
-      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-        <div>
-          <div className="font-serif text-lg text-foreground">{entry.name}</div>
-          <p className="mt-1 text-xs text-muted-foreground">{entry.lastSummary}</p>
-        </div>
-        <Badge variant="outline" className="w-fit font-mono text-[10px] uppercase">
-          {Math.round(entry.averageConfidence * 100)}%
-        </Badge>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Badge variant="outline" className="font-mono text-[10px] uppercase">{entry.category}</Badge>
-        <Badge variant="outline" className="font-mono text-[10px] uppercase">{entry.observationCount} obs.</Badge>
-        <Badge variant="outline" className="font-mono text-[10px] uppercase">{entry.currentDecision}</Badge>
-      </div>
-    </div>
-  );
-}
-
-function ClusterCard({ cluster }: { cluster: GreenhouseCluster }) {
-  const Icon = MATURITY_ICON[cluster.maturity];
-
+function SignalCard({
+  title,
+  value,
+  detail,
+  icon: Icon,
+}: {
+  title: string;
+  value: string;
+  detail: string;
+  icon: typeof Eye;
+}) {
   return (
     <Card className="border-border bg-card shadow-sm">
-      <CardHeader className="space-y-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2 font-serif text-2xl text-foreground">
-              <Icon className="h-5 w-5 text-primary" />
-              {cluster.title}
-            </CardTitle>
-            <p className="mt-1 text-sm text-muted-foreground">{cluster.dominantCategory}</p>
-          </div>
-          <div className="rounded-full border border-primary/20 bg-primary/10 px-3 py-1 font-mono text-sm text-primary">
-            {MATURITY_LABEL[cluster.maturity]}
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="font-mono text-[10px] uppercase">{cluster.toolCount} outil(s)</Badge>
-          <Badge variant="outline" className="font-mono text-[10px] uppercase">{cluster.observationCount} observation(s)</Badge>
-          <Badge variant="outline" className="font-mono text-[10px] uppercase">confiance {Math.round(cluster.averageConfidence * 100)}%</Badge>
-        </div>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 font-serif text-lg">
+          <Icon className="h-5 w-5 text-primary" />
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className="rounded-lg border border-border bg-secondary/20 p-3">
-            <div className="mb-1 flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">
-              <CalendarClock className="h-4 w-4 text-primary" />
-              Première pousse
-            </div>
-            <div className="font-serif text-lg text-foreground">{formatDate(cluster.firstObservedAt)}</div>
-          </div>
-          <div className="rounded-lg border border-border bg-secondary/20 p-3">
-            <div className="mb-1 flex items-center gap-2 text-xs font-mono uppercase tracking-widest text-muted-foreground">
-              <CalendarClock className="h-4 w-4 text-primary" />
-              Dernier signal
-            </div>
-            <div className="font-serif text-lg text-foreground">{formatDate(cluster.lastObservedAt)}</div>
-          </div>
-        </div>
-
-        {cluster.sharedTags.length ? (
-          <div className="rounded-lg border border-border bg-secondary/20 p-4">
-            <div className="mb-3 text-xs font-mono uppercase tracking-widest text-muted-foreground">Tags communs</div>
-            <div className="flex flex-wrap gap-2">
-              {cluster.sharedTags.map((tag) => (
-                <Badge key={tag} className="bg-secondary text-secondary-foreground hover:bg-secondary">{tag}</Badge>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        <div className="rounded-lg border border-border bg-secondary/20 p-4">
-          <div className="mb-3 text-xs font-mono uppercase tracking-widest text-muted-foreground">Signaux de serre</div>
-          <ul className="space-y-2 text-sm text-muted-foreground">
-            {cluster.signals.map((signal) => (
-              <li key={signal} className="flex gap-2">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                <span>{signal}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="space-y-3">
-          <div className="text-xs font-mono uppercase tracking-widest text-muted-foreground">Outils dans cette serre</div>
-          {cluster.entries.map((entry) => (
-            <ToolLine key={entry.id} entry={entry} />
-          ))}
-        </div>
+      <CardContent className="space-y-2">
+        <p className="text-base font-medium text-foreground">{value}</p>
+        <p className="text-sm leading-relaxed text-muted-foreground">{detail}</p>
       </CardContent>
     </Card>
   );
@@ -143,58 +58,90 @@ export default function Greenhouse() {
   }, []);
 
   const report = useMemo(() => buildGreenhouse(entries), [entries]);
+  const latest = entries
+    .slice()
+    .sort((a, b) => new Date(b.lastObservedAt).getTime() - new Date(a.lastObservedAt).getTime())[0];
+  const strongest = report.clusters
+    .slice()
+    .sort((a, b) => b.averageConfidence - a.averageConfidence)[0];
 
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <Badge variant="outline" className="mb-3 font-mono uppercase tracking-widest">Serre du Poulpe</Badge>
-          <h1 className="text-4xl font-serif font-bold text-foreground tracking-tight">Serre</h1>
-          <p className="mt-2 max-w-3xl text-sm font-mono uppercase tracking-wider text-muted-foreground">
-            Observations → groupes vivants → maturité → Seeds potentiels
-          </p>
-        </div>
-        <Button variant="outline" disabled>{report.clusters.length} serre(s)</Button>
-      </div>
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <header>
+        <Badge variant="outline" className="mb-3 gap-2 font-mono uppercase tracking-widest">
+          <Eye className="h-3.5 w-3.5" />
+          Yeux et oreilles
+        </Badge>
+        <h1 className="text-3xl font-serif font-bold tracking-tight text-foreground sm:text-4xl">
+          Publisher observe le monde.
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          Il repère les signaux, écoute ce qui revient, puis prépare ce qui mérite d’être transmis à Octopus Engine.
+        </p>
+      </header>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-mono uppercase tracking-widest text-muted-foreground">
-              <Database className="h-4 w-4 text-primary" />
-              Outils
-            </CardTitle>
-          </CardHeader>
-          <CardContent><div className="text-4xl font-serif text-primary">{report.totalEntries}</div></CardContent>
-        </Card>
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Observations</CardTitle>
-          </CardHeader>
-          <CardContent><div className="text-4xl font-serif text-foreground">{report.totalObservations}</div></CardContent>
-        </Card>
-        <Card className="border-border bg-card shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Mode</CardTitle>
-          </CardHeader>
-          <CardContent><div className="text-lg font-serif text-foreground">Local / sans IA</div></CardContent>
-        </Card>
-      </div>
+      <section className="grid gap-4 md:grid-cols-3" aria-label="Résumé Publisher">
+        <SignalCard
+          title="Ce qu’il vient de voir"
+          value={latest?.name || "Rien de nouveau"}
+          detail={latest ? `${latest.lastSummary} · ${formatDate(latest.lastObservedAt)}` : "Publisher continue d’observer sans fabriquer de faux signal."}
+          icon={Eye}
+        />
+        <SignalCard
+          title="Ce qu’il vient d’entendre"
+          value={strongest?.title || "Aucun motif confirmé"}
+          detail={strongest ? `${strongest.observationCount} observation(s), confiance ${Math.round(strongest.averageConfidence * 100)}%.` : "Les observations ne forment pas encore un motif assez solide."}
+          icon={Ear}
+        />
+        <SignalCard
+          title="Ce qu’il peut transmettre"
+          value={strongest ? "Une ressource est prête à être examinée" : "Rien à transmettre"}
+          detail={strongest ? "Octopus Engine peut maintenant décider si ce signal mérite une action." : "Publisher garde le silence tant qu’il n’a rien d’utile à envoyer."}
+          icon={Send}
+        />
+      </section>
 
-      {report.clusters.length ? (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {report.clusters.map((cluster) => (
-            <ClusterCard key={cluster.id} cluster={cluster} />
-          ))}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
+          <div>
+            <h2 className="font-serif text-xl font-semibold">Signaux retenus</h2>
+            <p className="text-xs text-muted-foreground">Les observations réelles déjà mémorisées.</p>
+          </div>
+          <Badge variant="outline">{entries.length}</Badge>
         </div>
-      ) : (
-        <Card className="border-dashed border-border bg-card/50">
-          <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
-            <Sprout className="h-8 w-8 text-muted-foreground" />
-            <p className="font-mono text-sm text-muted-foreground">La serre est vide. Observe quelques candidats pour faire pousser les premiers groupes.</p>
-          </CardContent>
-        </Card>
-      )}
+
+        {entries.length ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            {entries.slice(0, 6).map((entry) => (
+              <Card key={entry.id} className="border-border bg-card/80">
+                <CardContent className="space-y-2 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-foreground">{entry.name}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{entry.lastSummary}</p>
+                    </div>
+                    <Badge variant="outline" className="shrink-0 font-mono text-[10px] uppercase">
+                      {Math.round(entry.averageConfidence * 100)}%
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">Dernier signal : {formatDate(entry.lastObservedAt)}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <Card className="border-dashed border-border bg-card/50">
+            <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
+              <Sprout className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Aucun signal utile n’est encore remonté. Publisher écoute.</p>
+            </CardContent>
+          </Card>
+        )}
+      </section>
+
+      <p className="rounded-xl border border-dashed border-border bg-card/40 p-4 text-sm text-muted-foreground">
+        Publisher ne jardine pas. Le Garden et Gérard restent dans Poulpe Fiction ; Publisher voit, entend et transmet.
+      </p>
     </div>
   );
 }
