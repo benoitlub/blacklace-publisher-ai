@@ -1,3 +1,5 @@
+import { Composio } from "@composio/core";
+
 const DEFAULT_BASE_URL = "https://backend.composio.dev/api/v3";
 
 export interface ComposioConnectedAccount {
@@ -16,6 +18,12 @@ export interface ComposioConnectionRequest {
 
 export function isComposioConfigured(): boolean {
   return Boolean(process.env.COMPOSIO_API_KEY?.trim());
+}
+
+function composioSdk(): Composio {
+  const apiKey = process.env.COMPOSIO_API_KEY?.trim();
+  if (!apiKey) throw new Error("COMPOSIO_API_KEY is not configured");
+  return new Composio({ apiKey });
 }
 
 export async function listComposioConnectedAccounts(userId: string): Promise<ComposioConnectedAccount[]> {
@@ -64,24 +72,27 @@ export async function findComposioAuthConfig(toolkitSlug: string): Promise<strin
 
 export async function initiateComposioConnection(input: {
   userId: string;
-  authConfigId: string;
+  toolkitSlug: string;
+  authConfigId?: string | null;
   callbackUrl: string;
 }): Promise<ComposioConnectionRequest> {
-  const payload = await composioRequest("/connected_accounts", {
-    method: "POST",
-    body: JSON.stringify({
-      auth_config: { id: input.authConfigId },
-      connection: { user_id: input.userId },
-      callback_url: input.callbackUrl,
-    }),
-  });
-  const record = asRecord(payload);
-  const nested = asRecord(record.connection ?? record.data);
+  const composio = composioSdk();
+  const options: Record<string, unknown> = {
+    toolkits: [input.toolkitSlug],
+    manageConnections: false,
+    sandbox: { enable: false },
+  };
+  if (input.authConfigId) {
+    options.authConfigs = { [input.toolkitSlug]: input.authConfigId };
+  }
+
+  const session = await composio.sessions.create(input.userId, options as any);
+  const request = await session.authorize(input.toolkitSlug, { callbackUrl: input.callbackUrl });
   return {
-    id: stringValue(record.id ?? record.connected_account_id ?? nested.id),
-    redirectUrl: stringValue(record.redirect_url ?? record.redirectUrl ?? nested.redirect_url ?? nested.redirectUrl),
-    status: String(record.status ?? nested.status ?? "INITIATED"),
-    raw: payload,
+    id: stringValue((request as any).id ?? (request as any).connectionRequestId ?? (request as any).connectedAccountId),
+    redirectUrl: stringValue((request as any).redirectUrl),
+    status: String((request as any).status ?? "INITIATED"),
+    raw: request,
   };
 }
 
