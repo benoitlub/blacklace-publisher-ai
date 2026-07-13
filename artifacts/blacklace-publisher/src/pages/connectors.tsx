@@ -26,6 +26,8 @@ const CONNECTOR_FAMILIES = [
   { id: "other", label: "Autres liaisons", description: "Connecteurs disponibles sans famille specifique.", keywords: [] },
 ] as const;
 
+const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-api.onrender.com";
+
 type ComposioProvider = {
   readonly id: string;
   readonly label: string;
@@ -43,9 +45,23 @@ type ComposioCatalog = {
 };
 
 function apiUrl(path: string): string {
-  const configured = String(import.meta.env.VITE_API_BASE_URL || "").trim().replace(/\/$/, "");
-  const root = configured ? (configured.endsWith("/api") ? configured : `${configured}/api`) : "/api";
+  const configured = String(import.meta.env.VITE_API_BASE_URL || OFFICIAL_API_BASE_URL).trim().replace(/\/$/, "");
+  const root = configured.endsWith("/api") ? configured : `${configured}/api`;
   return `${root}${path}`;
+}
+
+async function readJson(response: Response): Promise<any> {
+  const text = await response.text();
+  if (!text) return {};
+  try { return JSON.parse(text); } catch (_) {
+    throw new Error(`Publisher ${response.status}: ${text.slice(0, 240)}`);
+  }
+}
+
+function messageFrom(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try { return JSON.stringify(error); } catch (_) { return "Erreur inconnue"; }
 }
 
 function RealMockIndicator({ result }: { readonly result: ConnectorTestResult | undefined }) {
@@ -72,13 +88,16 @@ function ComposioLocalTechnique() {
   async function refresh() {
     setLoading(true);
     try {
-      await fetch(apiUrl("/connectors/composio/refresh"), { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const refreshResponse = await fetch(apiUrl("/connectors/composio/refresh"), { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const refreshPayload = await readJson(refreshResponse);
+      if (!refreshResponse.ok) throw new Error(refreshPayload?.error || `Publisher ${refreshResponse.status}`);
+
       const response = await fetch(apiUrl("/connectors/composio/catalog"));
-      const payload = await response.json();
+      const payload = await readJson(response);
       if (!response.ok) throw new Error(payload?.error || `Publisher ${response.status}`);
       setCatalog(payload);
     } catch (error) {
-      setCatalog({ configured: false, userId: "benoit-lubert", providers: [], error: error instanceof Error ? error.message : "Composio indisponible" });
+      setCatalog({ configured: false, userId: "benoit-lubert", providers: [], error: messageFrom(error) });
     } finally {
       setLoading(false);
     }
@@ -93,12 +112,12 @@ function ComposioLocalTechnique() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ provider: provider.id, callbackUrl }),
       });
-      const payload = await response.json();
+      const payload = await readJson(response);
       if (!response.ok) throw new Error(payload?.error || `Publisher ${response.status}`);
       if (!payload?.redirectUrl) throw new Error("Composio n'a retourne aucune URL d'autorisation.");
       window.location.assign(payload.redirectUrl);
     } catch (error) {
-      toast({ title: `Connexion ${provider.label} impossible`, description: error instanceof Error ? error.message : "Erreur inconnue", variant: "destructive" });
+      toast({ title: `Connexion ${provider.label} impossible`, description: messageFrom(error), variant: "destructive" });
       setPendingProvider(null);
     }
   }
@@ -119,8 +138,8 @@ function ComposioLocalTechnique() {
 
       {loading ? <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{[...Array(5)].map((_, index) => <Skeleton key={index} className="h-40" />)}</div> : (
         <>
-          {catalog?.error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{catalog.error}</div>}
-          {!catalog?.configured && <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-600">Ajoutez <code>COMPOSIO_API_KEY</code> dans l'environnement Render de Publisher pour ouvrir les autorisations.</div>}
+          {catalog?.error && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive break-words">{catalog.error}</div>}
+          {!catalog?.configured && <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-600">Le serveur Publisher ne confirme pas Composio. Verifiez <code>COMPOSIO_API_KEY</code> sur le service API Render.</div>}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {(catalog?.providers ?? []).map((provider) => (
               <Card key={provider.id} className="border-border bg-card">
@@ -131,7 +150,7 @@ function ComposioLocalTechnique() {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-xs text-muted-foreground break-words">{provider.connectedAccountId ? `Compte : ${provider.connectedAccountId}` : "Aucun compte autorise pour Benoit."}</p>
+                  <p className="text-xs text-muted-foreground break-words">{provider.connectedAccountId ? `Compte : ${provider.connectedAccountId}` : "Aucun compte confirme par le serveur."}</p>
                   {provider.status === "connected" ? (
                     <Button variant="outline" size="sm" disabled className="w-full">✓ Connecte</Button>
                   ) : (
@@ -161,7 +180,7 @@ export default function Connectors() {
         setLastResults((prev) => ({ ...prev, [variables.name]: result }));
         toast({ title: result.success ? "Connexion etablie" : "Echec de connexion", description: result.message, variant: result.success ? "default" : "destructive" });
       },
-      onError: () => toast({ title: "Erreur systeme", description: "Le test a echoue.", variant: "destructive" }),
+      onError: (error) => toast({ title: "Erreur systeme", description: messageFrom(error), variant: "destructive" }),
     },
   });
 
