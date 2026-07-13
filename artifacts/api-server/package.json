@@ -11,6 +11,12 @@
     "test": "vitest run",
     "test:octopus": "vitest run src/octopus"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "octopus-engine",
+      "esbuild"
+    ]
+  },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
