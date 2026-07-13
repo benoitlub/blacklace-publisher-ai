@@ -28,6 +28,8 @@ services:
         sync: false
       - key: COMPOSIO_USER_ID
         value: benoit-lubert
+      - key: OCTOPUS_ENGINE_URL
+        value: https://octopus-engine.onrender.com
       - key: KNOWLEDGE_CONNECTOR
         value: mock
 
