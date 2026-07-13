@@ -24,11 +24,15 @@ services:
         value: mistral-small-latest
       - key: MISTRAL_API_KEY
         sync: false
+      - key: COMPOSIO_API_KEY
+        sync: false
+      - key: COMPOSIO_USER_ID
+        value: benoit-lubert
       - key: KNOWLEDGE_CONNECTOR
         value: mock
 
   - type: web
-    name: blacklace-publisher
+    name: blacklace-publisher-web
     runtime: static
     rootDir: .
     buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && VITE_BUILD_SHA=$(git rev-parse --short HEAD) pnpm --filter @workspace/blacklace-publisher run build
