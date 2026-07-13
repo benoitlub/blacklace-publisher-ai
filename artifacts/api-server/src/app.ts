@@ -29,6 +29,18 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Alias kept at the service root because the Publisher local-technique page
+// and Render probes historically used /health while the canonical API route
+// is /api/healthz.
+app.get("/health", (_req, res) => {
+  res.json({
+    status: "ok",
+    service: "blacklace-publisher-api",
+    api: "/api",
+    canonicalHealth: "/api/healthz",
+  });
+});
+
 app.use("/api", router);
 
 export default app;
