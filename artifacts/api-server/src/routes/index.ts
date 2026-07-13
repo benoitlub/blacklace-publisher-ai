@@ -17,6 +17,7 @@ import globalStateRouter from "./global-state";
 import toolPacksRouter from "./tool-packs";
 import connectionBrokerRouter from "./connection-broker";
 import productionRouter from "./production";
+import productionConnectionsRouter from "./production-connections";
 
 const router: IRouter = Router();
 
@@ -26,6 +27,7 @@ router.use("/knowledge-packs", knowledgePacksRouter);
 router.use("/global-state", globalStateRouter);
 router.use("/tool-packs", toolPacksRouter);
 router.use("/connection-broker", connectionBrokerRouter);
+router.use("/production", productionConnectionsRouter);
 router.use("/production", productionRouter);
 router.use("/agents", agentsRouter);
 router.use("/personas", personasRouter);
