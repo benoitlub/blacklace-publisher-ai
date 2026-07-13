@@ -11,16 +11,9 @@
     "test": "vitest run",
     "test:octopus": "vitest run src/octopus"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "octopus-engine",
-      "esbuild"
-    ]
-  },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
-    "octopus-engine": "github:benoitlub/octopus-engine",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "drizzle-orm": "catalog:",
