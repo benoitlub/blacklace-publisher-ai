@@ -19,7 +19,11 @@ services:
           name: blacklace-publisher-db
           property: connectionString
       - key: AI_PROVIDER
-        value: mock
+        value: mistral
+      - key: AI_MODEL
+        value: mistral-small-latest
+      - key: MISTRAL_API_KEY
+        sync: false
       - key: KNOWLEDGE_CONNECTOR
         value: mock
 
