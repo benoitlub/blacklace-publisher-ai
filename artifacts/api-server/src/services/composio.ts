@@ -19,8 +19,28 @@ export function isComposioConfigured(): boolean {
 }
 
 export async function listComposioConnectedAccounts(userId: string): Promise<ComposioConnectedAccount[]> {
-  const payload = await composioRequest(`/connected_accounts?user_ids=${encodeURIComponent(userId)}&limit=100`);
-  return extractItems(payload).map(normalizeConnectedAccount).filter((item): item is ComposioConnectedAccount => Boolean(item));
+  const paths = [
+    `/connected_accounts?user_ids=${encodeURIComponent(userId)}&limit=100`,
+    `/connected_accounts?user_id=${encodeURIComponent(userId)}&limit=100`,
+    "/connected_accounts?limit=100",
+  ];
+  const found = new Map<string, ComposioConnectedAccount>();
+  let lastError: unknown = null;
+
+  for (const path of paths) {
+    try {
+      const payload = await composioRequest(path);
+      for (const item of extractItems(payload).map(normalizeConnectedAccount)) {
+        if (item) found.set(item.id, item);
+      }
+      if (found.size > 0) break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (found.size === 0 && lastError) throw lastError;
+  return [...found.values()];
 }
 
 export async function executeComposioTool(input: {
@@ -28,20 +48,20 @@ export async function executeComposioTool(input: {
   arguments: Record<string, unknown>;
   connectedAccountId?: string | null;
 }): Promise<unknown> {
-  const payload = await composioRequest(`/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
+  return composioRequest(`/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
     method: "POST",
     body: JSON.stringify({
       arguments: input.arguments,
       connected_account_id: input.connectedAccountId || undefined,
     }),
   });
-  return payload;
 }
 
 export async function findComposioAuthConfig(toolkitSlug: string): Promise<string | null> {
   const queries = [
     `/auth_configs?toolkit_slug=${encodeURIComponent(toolkitSlug)}&limit=100`,
     `/auth_configs?toolkit_slugs=${encodeURIComponent(toolkitSlug)}&limit=100`,
+    "/auth_configs?limit=100",
   ];
 
   for (const path of queries) {
@@ -53,13 +73,13 @@ export async function findComposioAuthConfig(toolkitSlug: string): Promise<strin
         const status = String(record.status ?? record.state ?? "").toUpperCase();
         return (!slug || normalize(slug) === normalize(toolkitSlug)) && !["DISABLED", "DELETED"].includes(status);
       });
-      const id = stringValue(asRecord(config).id ?? asRecord(config).auth_config_id);
+      const record = asRecord(config);
+      const id = stringValue(record.id ?? record.auth_config_id);
       if (id) return id;
     } catch (_) {
-      // Try the alternate query shape supported by another Composio API revision.
+      // Continue with the next API shape.
     }
   }
-
   return null;
 }
 
@@ -107,8 +127,7 @@ async function composioRequest(path: string, init: RequestInit = {}): Promise<un
   let payload: unknown = null;
   try { payload = text ? JSON.parse(text) : null; } catch (_) { payload = { message: text }; }
   if (!response.ok) {
-    const record = asRecord(payload);
-    throw new Error(String(record.message ?? record.error ?? `Composio ${response.status}`));
+    throw new Error(`Composio ${response.status}: ${errorMessage(payload)}`);
   }
   return payload;
 }
@@ -144,8 +163,21 @@ function extractItems(payload: unknown): unknown[] {
     if (Array.isArray(value)) return value;
     const nested = asRecord(value);
     if (Array.isArray(nested.items)) return nested.items;
+    if (Array.isArray(nested.data)) return nested.data;
   }
   return [];
+}
+
+function errorMessage(value: unknown): string {
+  if (typeof value === "string") return value;
+  const record = asRecord(value);
+  for (const candidate of [record.message, record.error, record.detail, record.details]) {
+    if (typeof candidate === "string" && candidate.trim()) return candidate;
+    if (candidate && typeof candidate === "object") {
+      try { return JSON.stringify(candidate); } catch (_) {}
+    }
+  }
+  try { return JSON.stringify(value); } catch (_) { return "Unknown Composio error"; }
 }
 
 function asRecord(value: unknown): Record<string, any> {
