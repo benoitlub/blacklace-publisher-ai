@@ -52,6 +52,20 @@ async function canvaAccount() {
   return accounts.find((account) => account.toolkitSlug === "canva" && isActiveComposioStatus(account.status)) ?? null;
 }
 
+async function productionAccounts() {
+  if (!isComposioConfigured()) return [];
+  return listComposioConnectedAccounts(COMPOSIO_USER_ID);
+}
+
+function accountFor(accounts: Awaited<ReturnType<typeof productionAccounts>>, toolkitSlug: string) {
+  return accounts.find((account) => account.toolkitSlug === toolkitSlug && isActiveComposioStatus(account.status)) ?? null;
+}
+
+function providerStatus(account: unknown, configured = true) {
+  if (!configured) return "unavailable";
+  return account ? "connected" : "not-connected";
+}
+
 function stringValue(value: unknown): string | null {
   const text = typeof value === "string" ? value.trim() : "";
   return text || null;
@@ -81,27 +95,52 @@ function extractCanvaArtifact(payload: unknown) {
 
 router.get("/diagnostics", async (_req, res) => {
   try {
-    const account = await canvaAccount();
+    const accounts = await productionAccounts();
+    const canva = accountFor(accounts, "canva");
+    const elevenLabs = accountFor(accounts, "elevenlabs");
+    const mistralConfigured = isMistralConfigured();
     console.info(JSON.stringify({
-      connectedAccount: account?.id ?? null,
+      canvaConnectedAccount: canva?.id ?? null,
+      elevenLabsConnectedAccount: elevenLabs?.id ?? null,
       availableActions: AVAILABLE_CANVA_ACTIONS,
     }));
     return res.json({
       composio: {
         configured: isComposioConfigured(),
-        canvaConnected: Boolean(account),
-        connectedAccount: account?.id ?? null,
+        canvaConnected: Boolean(canva),
+        elevenLabsConnected: Boolean(elevenLabs),
+        connectedAccount: canva?.id ?? null,
+        connectedAccounts: accounts
+          .filter((account) => isActiveComposioStatus(account.status))
+          .map((account) => ({ id: account.id, toolkitSlug: account.toolkitSlug, status: account.status })),
         availableActions: AVAILABLE_CANVA_ACTIONS,
       },
+      canva: {
+        status: providerStatus(canva, isComposioConfigured()),
+        connected: Boolean(canva),
+        connectedAccount: canva?.id ?? null,
+        provider: "composio",
+        availableActions: AVAILABLE_CANVA_ACTIONS,
+      },
+      elevenLabs: {
+        status: providerStatus(elevenLabs, isComposioConfigured()),
+        connected: Boolean(elevenLabs),
+        connectedAccount: elevenLabs?.id ?? null,
+        provider: "composio",
+      },
       mistral: {
-        configured: isMistralConfigured(),
-        available: isMistralConfigured(),
+        status: mistralConfigured ? "available" : "unavailable",
+        configured: mistralConfigured,
+        available: mistralConfigured,
       },
     });
   } catch (error) {
+    const mistralConfigured = isMistralConfigured();
     return res.status(502).json({
-      composio: { configured: isComposioConfigured(), canvaConnected: false },
-      mistral: { configured: isMistralConfigured(), available: isMistralConfigured() },
+      composio: { configured: isComposioConfigured(), canvaConnected: false, elevenLabsConnected: false },
+      canva: { status: "diagnostic-inaccessible", connected: false, provider: "composio" },
+      elevenLabs: { status: "diagnostic-inaccessible", connected: false, provider: "composio" },
+      mistral: { status: mistralConfigured ? "available" : "unavailable", configured: mistralConfigured, available: mistralConfigured },
       error: safeError(error),
     });
   }

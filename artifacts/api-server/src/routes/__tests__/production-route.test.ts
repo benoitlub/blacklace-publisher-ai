@@ -45,9 +45,13 @@ describe("production route", () => {
         composio: {
           configured: boolean;
           canvaConnected: boolean;
+          elevenLabsConnected: boolean;
           connectedAccount: string | null;
+          connectedAccounts: Array<{ id: string; toolkitSlug: string; status: string }>;
           availableActions: Array<{ slug: string; requiredFields: string[] }>;
         };
+        canva: { status: string; connected: boolean; connectedAccount: string | null };
+        elevenLabs: { status: string; connected: boolean; connectedAccount: string | null };
         mistral: { configured: boolean; available: boolean };
       };
       expect(response.ok).toBe(true);
@@ -55,14 +59,42 @@ describe("production route", () => {
         composio: {
           configured: true,
           canvaConnected: true,
+          elevenLabsConnected: false,
           connectedAccount: "canva-1",
+          connectedAccounts: [{ id: "canva-1", toolkitSlug: "canva", status: "ACTIVE" }],
           availableActions: expect.arrayContaining([
             expect.objectContaining({ slug: "CANVA_POST_DESIGNS", requiredFields: ["design_type"] }),
           ]),
         },
+        canva: { status: "connected", connected: true, connectedAccount: "canva-1" },
+        elevenLabs: { status: "not-connected", connected: false, connectedAccount: null },
         mistral: { configured: true, available: true },
       });
       expect(JSON.stringify(body)).not.toContain("secret-key");
+    } finally {
+      server.close();
+    }
+  });
+
+  it("reports ElevenLabs as connected when Composio has an active account", async () => {
+    composio.accounts = [
+      { id: "canva-1", toolkitSlug: "canva", status: "ACTIVE", raw: {} },
+      { id: "eleven-1", toolkitSlug: "elevenlabs", status: "ACTIVE", raw: {} },
+    ];
+    const { server, baseUrl } = await makeApp();
+    try {
+      const response = await fetch(`${baseUrl}/production/diagnostics`);
+      const body = await response.json() as {
+        composio: { elevenLabsConnected: boolean };
+        elevenLabs: { status: string; connected: boolean; connectedAccount: string | null };
+      };
+      expect(response.ok).toBe(true);
+      expect(body.composio.elevenLabsConnected).toBe(true);
+      expect(body.elevenLabs).toMatchObject({
+        status: "connected",
+        connected: true,
+        connectedAccount: "eleven-1",
+      });
     } finally {
       server.close();
     }
