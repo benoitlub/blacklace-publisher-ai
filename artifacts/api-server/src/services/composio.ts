@@ -28,14 +28,13 @@ export async function executeComposioTool(input: {
   arguments: Record<string, unknown>;
   connectedAccountId?: string | null;
 }): Promise<unknown> {
-  const payload = await composioRequest(`/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
+  return composioRequest(`/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
     method: "POST",
     body: JSON.stringify({
       arguments: input.arguments,
       connected_account_id: input.connectedAccountId || undefined,
     }),
   });
-  return payload;
 }
 
 export async function findComposioAuthConfig(toolkitSlug: string): Promise<string | null> {
@@ -107,10 +106,36 @@ async function composioRequest(path: string, init: RequestInit = {}): Promise<un
   let payload: unknown = null;
   try { payload = text ? JSON.parse(text) : null; } catch (_) { payload = { message: text }; }
   if (!response.ok) {
-    const record = asRecord(payload);
-    throw new Error(String(record.message ?? record.error ?? `Composio ${response.status}`));
+    const message = extractErrorMessage(payload) || `Composio ${response.status}`;
+    throw new Error(`Composio ${response.status}: ${message}`);
   }
   return payload;
+}
+
+function extractErrorMessage(value: unknown, depth = 0): string | null {
+  if (depth > 4 || value == null) return null;
+  if (typeof value === "string") return value.trim() || null;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) {
+    const parts = value.map((item) => extractErrorMessage(item, depth + 1)).filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  }
+  if (typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["message", "detail", "error_description", "description", "reason", "error"]) {
+      const found = extractErrorMessage(record[key], depth + 1);
+      if (found) return found;
+    }
+    const parts = Object.entries(record)
+      .slice(0, 8)
+      .map(([key, item]) => {
+        const found = extractErrorMessage(item, depth + 1);
+        return found ? `${key}: ${found}` : null;
+      })
+      .filter(Boolean);
+    return parts.length ? parts.join(" · ") : null;
+  }
+  return null;
 }
 
 function normalizeConnectedAccount(value: unknown): ComposioConnectedAccount | null {
