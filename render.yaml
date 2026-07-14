@@ -11,7 +11,7 @@ services:
       - key: NODE_ENV
         value: production
       - key: NODE_VERSION
-        value: 24
+        value: 22
       - key: LOG_LEVEL
         value: info
       - key: DATABASE_URL
@@ -41,7 +41,7 @@ services:
     staticPublishPath: artifacts/blacklace-publisher/dist/public
     envVars:
       - key: NODE_VERSION
-        value: 24
+        value: 22
       - key: PORT
         value: 3000
       - key: BASE_PATH
@@ -50,7 +50,7 @@ services:
         value: https://blacklace-publisher-api.onrender.com
     routes:
       - type: rewrite
-        source: /*
+        source: "/*"
         destination: /index.html
 
 databases:
