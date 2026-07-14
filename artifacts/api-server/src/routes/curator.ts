@@ -1,9 +1,9 @@
 import { Router, type IRouter } from "express";
 import { AutonomousCurator, type CuratorContext, type CuratorSignal } from "../services/autonomous-curator.js";
-import { CuratorSourceInbox } from "../services/curator-source-inbox.js";
+import { CuratorPostgresStore } from "../services/curator-postgres-store.js";
 
 const router: IRouter = Router();
-const inbox = new CuratorSourceInbox();
+const store = new CuratorPostgresStore();
 const curator = new AutonomousCurator();
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -19,7 +19,6 @@ function parseSignal(value: unknown): CuratorSignal | null {
   if (typeof value.id !== "string" || !value.id.trim()) return null;
   if (typeof value.title !== "string" || !value.title.trim()) return null;
   if (typeof value.source !== "string" || !value.source.trim()) return null;
-
   return {
     id: value.id,
     title: value.title,
@@ -39,9 +38,7 @@ function parseSignal(value: unknown): CuratorSignal | null {
 }
 
 function parseContext(value: unknown): CuratorContext {
-  if (!isRecord(value)) {
-    return { activeMissionIds: [], knownCapabilities: [], unresolvedNeeds: [] };
-  }
+  if (!isRecord(value)) return { activeMissionIds: [], knownCapabilities: [], unresolvedNeeds: [] };
   return {
     activeMissionIds: stringArray(value.activeMissionIds),
     knownCapabilities: stringArray(value.knownCapabilities),
@@ -49,62 +46,49 @@ function parseContext(value: unknown): CuratorContext {
   };
 }
 
-router.get("/status", (_req, res) => {
-  const records = inbox.list();
-  res.json({
-    status: "ready",
-    mode: "bounded-in-memory",
-    inboxSize: records.length,
-    records: records.map((record) => ({
-      signalId: record.signal.id,
-      title: record.signal.title,
-      clusterKey: record.clusterKey,
-      duplicateCount: record.duplicateCount,
-      sources: record.sources,
-      expiresAt: record.expiresAt,
-    })),
-  });
-});
-
-router.post("/signals", (req, res) => {
-  const signal = parseSignal(req.body);
-  if (!signal) {
-    res.status(400).json({ status: "failed", message: "A valid signal requires id, title and source." });
-    return;
+router.get("/status", async (_req, res, next) => {
+  try {
+    const records = await store.status();
+    res.json({ status: "ready", mode: "postgres", inboxSize: records.length, records });
+  } catch (error) {
+    next(error);
   }
-
-  const record = inbox.ingest(signal);
-  res.status(202).json({
-    status: "captured",
-    signalId: signal.id,
-    clusterKey: record.clusterKey,
-    duplicateCount: record.duplicateCount,
-    expiresAt: record.expiresAt,
-  });
 });
 
-router.post("/run", (req, res) => {
-  const context = parseContext(isRecord(req.body) ? req.body.context : undefined);
-  const limit = isRecord(req.body) && typeof req.body.limit === "number"
-    ? Math.max(1, Math.min(20, Math.floor(req.body.limit)))
-    : 10;
-
-  const batch = inbox.takeBatch(limit);
-  const outcomes = curator.curate(batch, context);
-
-  for (const outcome of outcomes) {
-    if (outcome.decision === "candidate-prepared" || outcome.decision === "knowledge-updated" || outcome.decision === "discarded") {
-      inbox.remove(outcome.clusterKey);
+router.post("/signals", async (req, res, next) => {
+  try {
+    const signal = parseSignal(req.body);
+    if (!signal) {
+      res.status(400).json({ status: "failed", message: "A valid signal requires id, title and source." });
+      return;
     }
+    const record = await store.ingest(signal);
+    res.status(202).json({ status: "captured", signalId: signal.id, ...record });
+  } catch (error) {
+    next(error);
   }
+});
 
-  res.json({
-    status: "curated",
-    processed: outcomes.length,
-    remaining: inbox.list().length,
-    candidates: outcomes.filter((outcome) => outcome.decision === "candidate-prepared"),
-    outcomes,
-  });
+router.post("/run", async (req, res, next) => {
+  try {
+    const context = parseContext(isRecord(req.body) ? req.body.context : undefined);
+    const limit = isRecord(req.body) && typeof req.body.limit === "number"
+      ? Math.max(1, Math.min(20, Math.floor(req.body.limit)))
+      : 10;
+    const batch = await store.list(limit);
+    const outcomes = curator.curate(batch, context);
+    await store.apply(outcomes);
+    const remaining = (await store.status()).length;
+    res.json({
+      status: "curated",
+      processed: outcomes.length,
+      remaining,
+      candidates: outcomes.filter((outcome) => outcome.decision === "candidate-prepared"),
+      outcomes,
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 export default router;
