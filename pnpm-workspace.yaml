@@ -28,9 +28,6 @@
 minimumReleaseAge: 1440
 
 minimumReleaseAgeExclude:
-  # Exclude @replit scoped packages from the minimum release age check.
-  # These are published by Replit and trusted — the supply-chain attack vector
-  # this setting guards against does not apply to our own packages.
   - '@replit/*'
   - stripe-replit-sync
 
@@ -55,9 +52,7 @@ catalog:
   drizzle-orm: ^0.45.2
   framer-motion: ^12.23.24
   lucide-react: ^0.545.0
-  # Must be this exact version because expo requires it
   react: 19.1.0
-  # Must be this exact version because expo requires it
   react-dom: 19.1.0
   tailwind-merge: ^3.3.1
   tailwindcss: ^4.1.14
@@ -81,7 +76,6 @@ allowBuilds:
   octopus-engine: true
 
 overrides:
-  # replit uses linux-x64 only, we can exclude all other platforms
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
   "esbuild>@esbuild/freebsd-arm64": "-"
@@ -157,6 +151,4 @@ overrides:
   "@expo/ngrok-bin>@expo/ngrok-bin-sunos-x64": "-"
   "@expo/ngrok-bin>@expo/ngrok-bin-win32-ia32": "-"
   "@expo/ngrok-bin>@expo/ngrok-bin-win32-x64": "-"
-  # drizzle-kit uses esbuild internally on an older version that's vulnerable, this overrides it
   "@esbuild-kit/esm-loader": "npm:tsx@^4.21.0"
-  esbuild: "0.27.3"
