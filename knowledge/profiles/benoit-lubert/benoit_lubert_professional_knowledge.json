@@ -1,0 +1,51 @@
+{
+  "package": {
+    "id": "benoit-lubert-professional",
+    "name": "Benoît Lubert — Professional Knowledge Package",
+    "version": "1.0",
+    "target": "Blacklace Publisher",
+    "sourceKinds": ["linkedin-confirmed-profile", "user-provided-professional-facts"],
+    "purpose": [
+      "comprendre le profil professionnel de Benoît Lubert",
+      "relier ses créations à des publics, partenaires et opportunités plausibles",
+      "préparer des présentations, offres, campagnes et prises de contact",
+      "séparer faits confirmés et hypothèses à tester"
+    ]
+  },
+  "identity": {
+    "name": "Benoît Lubert",
+    "linkedinProfile": "https://fr.linkedin.com/in/benoitlubert",
+    "positioning": [
+      "créateur multimédia",
+      "formateur expérimenté",
+      "auteur et concepteur d'univers narratifs",
+      "designer graphique et créateur d'expériences numériques",
+      "concepteur de jeux, applications et dispositifs interactifs"
+    ]
+  },
+  "experience": [
+    { "role": "Formateur en multimédia", "duration": "environ 20 ans" },
+    { "role": "Animateur pour enfants", "duration": "environ 7 ans" },
+    { "role": "Commercial", "duration": "environ 2 ans" }
+  ],
+  "skills": {
+    "creative": ["direction artistique", "design graphique", "vidéo", "motion design", "3D", "écriture", "storytelling", "conception d'univers", "conception de jeux"],
+    "technical": ["HTML/CSS", "WordPress", "Joomla", "React", "Vite", "Tailwind CSS", "GitHub", "Notion", "Make.com", "Unity", "Vuforia", "PWA"],
+    "ai": ["ChatGPT", "Mistral", "Gemini", "Claude", "Krea", "Kling", "Morphic", "ElevenLabs", "workflows IA", "automatisation éditoriale"]
+  },
+  "projects": {
+    "books": ["TERRA", "Gérard & Gérard", "Neverland Ltd", "La Feulette Tachetée"],
+    "games": ["Pro.Hibited", "Pro.Hibited Online", "420 Dice Game", "Prout.Hibited", "DrunKards", "Destiny", "Jointed"],
+    "digital": ["Blacklace Island", "Blacklace Publisher", "Octopus Engine", "Poulpe Fiction", "Blacklace Dice", "Creature-Sync", "SpecTRL", "Clochette Lite"]
+  },
+  "offers": [
+    { "family": "formation", "items": ["ateliers IA", "formation multimédia", "création graphique et vidéo", "ateliers créatifs locaux"] },
+    { "family": "création", "items": ["identité visuelle", "supports éditoriaux", "vidéos promotionnelles", "pages web", "expériences interactives"] },
+    { "family": "édition", "items": ["livres", "ebooks", "jeux physiques et numériques", "licences d'univers", "expériences transmedia"] },
+    { "family": "IA appliquée", "items": ["prototypage d'applications IA", "automatisation éditoriale", "curatelle SaaS", "workflows de publication"] }
+  ],
+  "reliability": {
+    "mustNotInvent": ["employeurs", "diplômes", "clients", "résultats chiffrés", "distinctions", "dates professionnelles exactes"],
+    "requiresExactLinkedInExport": ["intitulés exacts", "employeurs", "dates", "formations", "certifications", "recommandations", "nombre de relations"]
+  }
+}
