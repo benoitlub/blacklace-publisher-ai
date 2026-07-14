@@ -18,6 +18,7 @@ import Posts from "@/pages/posts";
 import Campaigns from "@/pages/campaigns";
 import Agents from "@/pages/agents";
 import Connectors from "@/pages/connectors";
+import LocalTechnique from "@/pages/local-technique";
 import Settings from "@/pages/settings";
 
 const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
@@ -41,7 +42,7 @@ function Router() {
         <Route path="/posts" component={Posts} />
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/agents" component={Agents} />
-        <Route path="/local-technique" component={Connectors} />
+        <Route path="/local-technique" component={LocalTechnique} />
         <Route path="/connectors" component={Connectors} />
         <Route path="/settings" component={Settings} />
         <Route>
