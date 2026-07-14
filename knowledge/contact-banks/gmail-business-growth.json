@@ -1,0 +1,69 @@
+{
+  "package": {
+    "id": "gmail-business-growth",
+    "name": "Gmail — Business Growth Contact Bank",
+    "version": "1.0",
+    "target": "Blacklace Publisher",
+    "source": "Gmail exports or connector-provided records explicitly authorized by Benoît",
+    "purpose": [
+      "transformer les échanges Gmail en signaux commerciaux et relationnels",
+      "retrouver les bonnes personnes pour une œuvre, une application, un jeu ou une offre",
+      "préserver l'historique et la provenance de chaque recommandation",
+      "préparer une action sans envoyer de message automatiquement"
+    ]
+  },
+  "supportedContactKinds": [
+    "prospect",
+    "ancien contact",
+    "client",
+    "partenaire",
+    "éditeur",
+    "fabricant",
+    "distributeur",
+    "média",
+    "influenceur",
+    "organisateur",
+    "structure de formation",
+    "institution",
+    "investisseur"
+  ],
+  "recordSchema": {
+    "required": ["id", "displayName", "sourceRef", "evidence"],
+    "optional": ["email", "organization", "role", "sector", "country", "languages", "projectsMentioned", "offersMentioned", "lastInteractionAt", "responseHistory", "documentsShared", "tags"],
+    "privacy": "Ne jamais exposer une adresse ou un contenu privé dans une sortie publique. Toute source privée reste cloisonnée dans Publisher."
+  },
+  "matchingSignals": {
+    "strong": [
+      "réponse positive ou demande de précision",
+      "projet ou produit explicitement mentionné",
+      "rôle compatible avec le besoin",
+      "relation déjà établie",
+      "document déjà envoyé ou rendez-vous passé"
+    ],
+    "medium": [
+      "secteur compatible",
+      "langue et pays compatibles",
+      "centre d'intérêt ou activité proche",
+      "contact indirect mais contextualisé"
+    ],
+    "negative": [
+      "désinscription ou refus explicite",
+      "adresse automatique ou no-reply",
+      "absence totale de lien avec l'objectif",
+      "donnée sans provenance vérifiable"
+    ]
+  },
+  "learningRules": [
+    "Une validation humaine augmente le poids des signaux qui ont justifié la recommandation.",
+    "Un rejet humain diminue ces poids sans supprimer la source ni réécrire l'historique.",
+    "Un contact ne devient jamais client, partenaire ou prospect qualifié sans preuve.",
+    "Publisher propose et explique; l'envoi reste une action sensible soumise à validation."
+  ],
+  "seedInputs": [
+    "exports Gmail fournis",
+    "résumés de threads autorisés",
+    "fiches prospects Notion existantes",
+    "contacts manuels",
+    "autres banques d'informations explicitement fournies"
+  ]
+}
