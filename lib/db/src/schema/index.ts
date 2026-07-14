@@ -3,3 +3,4 @@ export * from "./campaigns";
 export * from "./posts";
 export * from "./settings";
 export * from "./curator-signals";
+export * from "./poulpe-life";
