@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, lt } from "drizzle-orm";
 import { curatorSignalsTable, db } from "@workspace/db";
 import { curatorClusterKey, type CuratorOutcome, type CuratorSignal } from "./autonomous-curator.js";
 
@@ -18,12 +18,12 @@ function decodeSignal(payload: unknown): CuratorSignal {
 export class CuratorPostgresStore {
   async ingest(signal: CuratorSignal): Promise<{ clusterKey: string; duplicateCount: number; expiresAt: string }> {
     const clusterKey = curatorClusterKey(signal);
-    const existing = await db.select().from(curatorSignalsTable)
+    const [existing] = await db.select().from(curatorSignalsTable)
       .where(and(eq(curatorSignalsTable.clusterKey, clusterKey), eq(curatorSignalsTable.decision, "captured")))
       .limit(1);
 
-    if (existing[0]) {
-      const previous = decodeSignal(existing[0].payload);
+    if (existing) {
+      const previous = decodeSignal(existing.payload);
       const merged: CuratorSignal = {
         ...previous,
         ...signal,
@@ -37,10 +37,11 @@ export class CuratorPostgresStore {
         title: signal.title,
         kind: signal.kind ?? "unknown",
         summary: signal.summary,
-        duplicateCount: existing[0].duplicateCount + 1,
+        duplicateCount: existing.duplicateCount + 1,
         expiresAt: expiry(),
         updatedAt: new Date(),
-      }).where(eq(curatorSignalsTable.id, existing[0].id)).returning();
+      }).where(eq(curatorSignalsTable.id, existing.id)).returning();
+      if (!updated) throw new Error("Curator signal update returned no row.");
       return { clusterKey, duplicateCount: updated.duplicateCount, expiresAt: updated.expiresAt.toISOString() };
     }
 
@@ -58,6 +59,7 @@ export class CuratorPostgresStore {
 
     if (!created) {
       const [row] = await db.select().from(curatorSignalsTable).where(eq(curatorSignalsTable.id, signal.id)).limit(1);
+      if (!row) throw new Error("Curator signal conflict could not be resolved.");
       return { clusterKey: row.clusterKey, duplicateCount: row.duplicateCount, expiresAt: row.expiresAt.toISOString() };
     }
 
@@ -97,7 +99,7 @@ export class CuratorPostgresStore {
   async prune(): Promise<void> {
     await db.delete(curatorSignalsTable).where(and(
       eq(curatorSignalsTable.decision, "captured"),
-      gt(new Date(), curatorSignalsTable.expiresAt),
+      lt(curatorSignalsTable.expiresAt, new Date()),
     ));
   }
 
@@ -106,6 +108,8 @@ export class CuratorPostgresStore {
       .where(eq(curatorSignalsTable.decision, "captured"))
       .orderBy(asc(curatorSignalsTable.receivedAt));
     const excess = rows.length - MAX_RECORDS;
-    if (excess > 0) await db.delete(curatorSignalsTable).where(inArray(curatorSignalsTable.id, rows.slice(0, excess).map((row) => row.id)));
+    if (excess > 0) {
+      await db.delete(curatorSignalsTable).where(inArray(curatorSignalsTable.id, rows.slice(0, excess).map((row) => row.id)));
+    }
   }
 }
