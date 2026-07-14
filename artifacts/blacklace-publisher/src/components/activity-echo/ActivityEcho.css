@@ -1,0 +1,69 @@
+/* ActivityEcho — jardin nocturne autonome.
+   Toutes les couleurs sont définies localement pour rester portable
+   entre applications (Publisher, Poulpe Fiction, Octopus Engine). */
+
+.ae-root {
+  --ae-bg-0: #07070c;
+  --ae-bg-1: #0d0d18;
+  --ae-bg-2: #131327;
+  --ae-ink: #d8d3e8;
+  --ae-ink-dim: #7a7595;
+  --ae-line: rgba(200, 190, 240, 0.08);
+  --ae-glow-cool: #6aa3ff;
+  --ae-glow-warm: #f3b872;
+  --ae-glow-life: #a486ff;
+  --ae-glow-harvest: #f0c26a;
+  --ae-glow-cold: #6ec6c6;
+  --ae-glow-success: #b6e0a0;
+  position: relative;
+  width: 100%;
+  border-radius: 18px;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, var(--ae-bg-2) 0%, var(--ae-bg-1) 55%, var(--ae-bg-0) 100%);
+  color: var(--ae-ink);
+  font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  isolation: isolate;
+}
+.ae-scene { position: relative; width: 100%; aspect-ratio: 4 / 3; min-height: 260px; }
+.ae-scene::after { content: ""; position: absolute; inset: 0; pointer-events: none; background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px); background-size: 3px 3px; mix-blend-mode: overlay; opacity: .4; }
+.ae-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ae-link { stroke: var(--ae-line); stroke-width: 1; fill: none; }
+.ae-link.is-active { stroke: color-mix(in oklab, var(--ae-glow-life) 60%, transparent); animation: ae-link-flash 1.8s ease-out; }
+@keyframes ae-link-flash { 0% { stroke-opacity: .9; } 100% { stroke-opacity: .08; } }
+.ae-pole { cursor: pointer; }
+.ae-pole-halo { fill: var(--ae-glow-life); opacity: .05; transition: opacity 600ms ease; }
+.ae-pole-core { fill: var(--ae-ink); opacity: .55; }
+.ae-pole-ring { fill: none; stroke: var(--ae-ink-dim); stroke-width: .6; opacity: .35; }
+.ae-pole-label { fill: var(--ae-ink-dim); font-size: 8px; letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+.ae-pole.is-active .ae-pole-halo { opacity: .35; animation: ae-halo 2s ease-out; }
+.ae-pole.is-active .ae-pole-core { fill: var(--ae-glow-warm); opacity: 1; }
+.ae-pole.is-active .ae-pole-label { fill: var(--ae-ink); }
+@keyframes ae-halo { 0% { opacity: .55; transform-origin: center; } 100% { opacity: .08; } }
+.ae-creature-wrap { position: absolute; top: 0; left: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; transition: offset-distance 2400ms cubic-bezier(.55,.1,.35,1); offset-rotate: 0deg; will-change: offset-distance, transform; }
+.ae-creature { width: 100%; height: 100%; animation: ae-breathe 4200ms ease-in-out infinite; filter: drop-shadow(0 0 8px color-mix(in oklab, var(--ae-glow-life) 60%, transparent)); }
+.ae-creature-body { fill: var(--ae-glow-life); opacity: .85; }
+.ae-creature-core { fill: #fff; opacity: .85; }
+.ae-creature-tent { stroke: var(--ae-glow-life); stroke-width: 1.2; fill: none; opacity: .7; stroke-linecap: round; }
+@keyframes ae-breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+.ae-root[data-status="calme"] .ae-creature { animation-duration: 5200ms; opacity: .85; }
+.ae-root[data-status="observation"] .ae-creature { animation-duration: 3200ms; }
+.ae-root[data-status="reflexion"] .ae-creature { animation: ae-flicker 2400ms ease-in-out infinite; }
+.ae-root[data-status="preparation"] .ae-creature-body { fill: var(--ae-glow-warm); }
+.ae-root[data-status="experimentation"] .ae-creature { animation: ae-jitter 900ms ease-in-out infinite; }
+.ae-root[data-status="recolte"] .ae-creature-body { fill: var(--ae-glow-harvest); }
+.ae-root[data-status="blocage"] .ae-creature-body { fill: var(--ae-glow-cold); }
+.ae-root[data-status="blocage"] .ae-creature { animation: ae-vacille 1600ms ease-in-out infinite; }
+.ae-root[data-status="reussite"] .ae-creature { animation: ae-bloom 1800ms ease-out; }
+.ae-root[data-status="reussite"] .ae-creature-body { fill: var(--ae-glow-success); }
+@keyframes ae-flicker { 0%,100% { transform: scale(1); } 30% { transform: scale(1.06); } 60% { transform: scale(.98); } }
+@keyframes ae-jitter { 0%,100% { transform: translate(0,0) scale(1.02); } 25% { transform: translate(2px,-1px) scale(1.06); } 75% { transform: translate(-2px,1px) scale(1.04); } }
+@keyframes ae-vacille { 0%,100% { opacity: .7; transform: scale(.98); } 50% { opacity: 1; transform: scale(1.02); } }
+@keyframes ae-bloom { 0% { transform: scale(1); filter: drop-shadow(0 0 4px var(--ae-glow-success)); } 50% { transform: scale(1.35); filter: drop-shadow(0 0 22px var(--ae-glow-success)); } 100% { transform: scale(1); filter: drop-shadow(0 0 8px var(--ae-glow-success)); } }
+.ae-timeline { display: flex; gap: 10px; align-items: center; padding: 10px 14px 14px; overflow: hidden; min-height: 34px; }
+.ae-timeline-item { font-size: 11px; color: var(--ae-ink-dim); white-space: nowrap; animation: ae-fade-up 500ms ease-out both; }
+.ae-timeline-item strong { color: var(--ae-ink); font-weight: 500; letter-spacing: .06em; text-transform: uppercase; font-size: 10px; margin-right: 6px; }
+.ae-timeline-sep { color: var(--ae-ink-dim); opacity: .4; }
+.ae-veille { font-size: 11px; color: var(--ae-ink-dim); padding: 10px 14px 14px; font-style: italic; letter-spacing: .04em; }
+@keyframes ae-fade-up { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+.ae-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (prefers-reduced-motion: reduce) { .ae-creature, .ae-root[data-status] .ae-creature { animation: none !important; } .ae-creature-wrap { transition: none; } }
