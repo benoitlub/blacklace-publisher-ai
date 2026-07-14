@@ -20,11 +20,13 @@ import productionRouter from "./production";
 import productionConnectionsRouter from "./production-connections";
 import contactIntelligenceRouter from "./contact-intelligence";
 import curatorRouter from "./curator";
+import poulpeLifeRouter from "./poulpe-life";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(greenhouseRouter);
+router.use(poulpeLifeRouter);
 router.use("/knowledge-packs", knowledgePacksRouter);
 router.use("/global-state", globalStateRouter);
 router.use("/tool-packs", toolPacksRouter);
