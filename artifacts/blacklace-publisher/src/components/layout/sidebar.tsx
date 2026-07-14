@@ -14,17 +14,27 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/radar", label: "Radar", icon: Radar },
-  { href: "/observatory", label: "Observatoire", icon: Telescope },
-  { href: "/memory", label: "Memoire", icon: Database },
-  { href: "/greenhouse", label: "Serre", icon: Sprout },
-  { href: "/autonomy", label: "Routine", icon: Bot },
-  { href: "/client", label: "Espace Client", icon: Building2 },
-  { href: "/local-technique", label: "Local technique", icon: Plug },
-  { href: "/settings", label: "Parametres", icon: SettingsIcon },
-];
+const NAV_GROUPS = [
+  {
+    label: "Observer et préparer",
+    items: [
+      { href: "/", label: "Vue technique", icon: LayoutDashboard },
+      { href: "/observatory", label: "Observatoire", icon: Telescope },
+      { href: "/radar", label: "Radar", icon: Radar },
+      { href: "/memory", label: "Mémoire", icon: Database },
+      { href: "/greenhouse", label: "Serre", icon: Sprout },
+      { href: "/autonomy", label: "Routine", icon: Bot },
+    ],
+  },
+  {
+    label: "Configurer",
+    items: [
+      { href: "/client", label: "Clients et projets", icon: Building2 },
+      { href: "/local-technique", label: "Local technique", icon: Plug },
+      { href: "/settings", label: "Paramètres", icon: SettingsIcon },
+    ],
+  },
+] as const;
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -46,8 +56,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           <div className="flex items-center gap-3 text-primary">
             <Tent className="w-6 h-6" />
             <div>
-              <h1 className="font-serif font-bold text-lg leading-none tracking-tight">Feuch Institute</h1>
-              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Knowledge Observatory</span>
+              <h1 className="font-serif font-bold text-lg leading-none tracking-tight">Publisher</h1>
+              <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">Observatoire & local technique</span>
             </div>
           </div>
           <button
@@ -59,35 +69,48 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           </button>
         </div>
       </div>
-      
-      <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-        {NAV_ITEMS.map((item) => {
-          const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
-          
-          return (
-            <Link key={item.href} href={item.href}>
-              <div
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2 rounded-md font-mono text-sm transition-all cursor-pointer group",
-                  isActive
-                    ? "bg-primary/10 text-primary border border-primary/20"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground border border-transparent"
-                )}
-                onClick={onClose}
-              >
-                <item.icon className={cn("w-4 h-4", isActive ? "text-primary" : "group-hover:text-foreground")} />
-                {item.label}
-              </div>
-            </Link>
-          );
-        })}
+
+      <nav className="flex-1 overflow-y-auto p-4">
+        {NAV_GROUPS.map((group) => (
+          <section key={group.label} className="mb-6 last:mb-0">
+            <p className="mb-2 px-3 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground/70">
+              {group.label}
+            </p>
+            <div className="space-y-2">
+              {group.items.map((item) => {
+                const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+                return (
+                  <Link key={item.href} href={item.href}>
+                    <div
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2 font-mono text-sm transition-all group",
+                        isActive
+                          ? "border-primary/20 bg-primary/10 text-primary"
+                          : "border-transparent text-muted-foreground hover:bg-secondary hover:text-foreground",
+                      )}
+                      onClick={onClose}
+                    >
+                      <item.icon className={cn("h-4 w-4", isActive ? "text-primary" : "group-hover:text-foreground")} />
+                      {item.label}
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
       </nav>
-      
-      <div className="p-4 border-t border-border">
-        <div className="text-xs font-mono text-muted-foreground flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
-          Systeme Operationnel
-        </div>
+
+      <div className="border-t border-border p-4">
+        <p className="mb-2 text-xs text-muted-foreground">Poulpe Fiction reste l’entrée principale pour parler à Gérard et suivre les parcelles.</p>
+        <a
+          href="https://poulpe-fiction.onrender.com"
+          target="_blank"
+          rel="noreferrer"
+          className="block rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-center font-mono text-xs text-primary hover:bg-primary/10"
+        >
+          Ouvrir Poulpe Fiction
+        </a>
       </div>
     </aside>
   );
