@@ -5,16 +5,71 @@ const TICK_MS = 60_000;
 const MAX_GAIN = 4;
 let timer: NodeJS.Timeout | null = null;
 let ticking = false;
+let schemaReady = false;
 
 function eventId(seedId: string, at: Date) {
   return `life:${seedId}:${at.toISOString()}`;
 }
 
+export async function ensurePoulpeLifeSchema() {
+  if (!pool || schemaReady) return;
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS poulpe_parcels (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS poulpe_seeds (
+        id TEXT PRIMARY KEY,
+        parcel_id TEXT NOT NULL,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'planted',
+        maturity REAL NOT NULL DEFAULT 0,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        last_tick_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS poulpe_events (
+        id TEXT PRIMARY KEY,
+        parcel_id TEXT,
+        seed_id TEXT,
+        kind TEXT NOT NULL,
+        label TEXT NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query("CREATE INDEX IF NOT EXISTS poulpe_seeds_parcel_idx ON poulpe_seeds (parcel_id)");
+    await client.query("CREATE INDEX IF NOT EXISTS poulpe_seeds_status_idx ON poulpe_seeds (status)");
+    await client.query("CREATE INDEX IF NOT EXISTS poulpe_events_created_at_idx ON poulpe_events (created_at)");
+    await client.query("CREATE INDEX IF NOT EXISTS poulpe_events_seed_idx ON poulpe_events (seed_id)");
+    await client.query("COMMIT");
+    schemaReady = true;
+    logger.info("Persistent Poulpe life schema ready");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    logger.error({ error }, "Persistent Poulpe life schema initialization failed");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function tickPoulpeLife() {
   if (!pool || ticking) return;
   ticking = true;
-  const client = await pool.connect();
+  let client: Awaited<ReturnType<typeof pool.connect>> | null = null;
   try {
+    await ensurePoulpeLifeSchema();
+    client = await pool.connect();
     await client.query("BEGIN");
     const result = await client.query<{
       id: string;
@@ -73,17 +128,19 @@ export async function tickPoulpeLife() {
     }
     await client.query("COMMIT");
   } catch (error) {
-    await client.query("ROLLBACK");
+    if (client) await client.query("ROLLBACK").catch(() => undefined);
     logger.error({ error }, "Persistent Poulpe life tick failed");
   } finally {
-    client.release();
+    client?.release();
     ticking = false;
   }
 }
 
 export function startPoulpeLife() {
   if (!pool || timer) return;
-  void tickPoulpeLife();
+  void ensurePoulpeLifeSchema()
+    .then(() => tickPoulpeLife())
+    .catch((error) => logger.error({ error }, "Persistent Poulpe life startup failed"));
   timer = setInterval(() => void tickPoulpeLife(), TICK_MS);
   timer.unref?.();
   logger.info({ intervalMs: TICK_MS }, "Persistent Poulpe life started");
