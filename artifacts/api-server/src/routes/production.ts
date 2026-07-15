@@ -5,6 +5,7 @@ import {
   isComposioConfigured,
   listComposioConnectedAccounts,
 } from "../services/composio";
+import { productionEngine, type ProducerCapability, type ProductionRequest } from "../publisher/production-engine";
 
 const router = Router();
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
@@ -93,6 +94,39 @@ function extractCanvaArtifact(payload: unknown) {
   };
 }
 
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function productionRequestFromBody(body: Record<string, unknown>): ProductionRequest {
+  const input = recordValue(body.input);
+  const title = stringValue(input.title ?? body.title) ?? "Production Publisher";
+  return {
+    id: stringValue(body.requestId) ?? `production-${Date.now()}`,
+    capability: normalizeCapability(body.capability ?? body.type ?? body.tool),
+    title,
+    objective: stringValue(input.objective ?? body.objective) ?? undefined,
+    input,
+    preferredProducerId: stringValue(body.preferredProducerId ?? body.tool) ?? undefined,
+  };
+}
+
+function normalizeCapability(value: unknown): ProducerCapability {
+  const text = String(value ?? "").toLowerCase().replace(/_/g, "-");
+  if (text === "html" || text === "html-local" || text === "landing" || text === "landing-page") return "landing-page";
+  if (text === "canva" || text === "visual" || text === "social-visual") return "social-visual";
+  if (text === "elevenlabs" || text === "voice" || text === "voice-over") return "voice-over";
+  if (text === "kling" || text === "video") return "video";
+  if (text === "metricool" || text === "publish") return "publish";
+  if (text === "gmail" || text === "email") return "email";
+  return "landing-page";
+}
+
+function isLandingPageExecution(tool: string, action: string, body: Record<string, unknown>): boolean {
+  const capability = normalizeCapability(body.capability ?? body.type ?? tool);
+  return capability === "landing-page" && (tool === "html-local" || tool === "html" || action === "create_landing_page" || action === "create_landing-page");
+}
+
 router.get("/diagnostics", async (_req, res) => {
   try {
     const accounts = await productionAccounts();
@@ -146,9 +180,32 @@ router.get("/diagnostics", async (_req, res) => {
   }
 });
 
+router.post("/plan", (req, res) => {
+  const body = recordValue(req.body);
+  const request = productionRequestFromBody(body);
+  const plan = productionEngine.plan(request);
+  return res.json({ request, plan });
+});
+
 router.post("/execute", async (req, res) => {
   const tool = String(req.body?.tool ?? "").toLowerCase();
   const action = String(req.body?.action ?? "").toLowerCase();
+  const body = recordValue(req.body);
+  if (isLandingPageExecution(tool, action, body)) {
+    const request = productionRequestFromBody({ ...body, capability: "landing-page", preferredProducerId: "html-local" });
+    const plan = productionEngine.plan(request);
+    const report = await productionEngine.execute(plan, request);
+    return res.status(report.status === "completed" ? 200 : 422).json({
+      status: report.status,
+      provider: "production-engine",
+      tool: "html-local",
+      action: "HTML_LOCAL_LANDING_PAGE",
+      plan,
+      artifact: report.artifacts[0] ?? null,
+      errors: report.errors,
+    });
+  }
+
   if (tool !== "canva" || action !== "create_design") {
     return res.status(400).json({ status: "failed", error: "Seule l'action canva/create_design est autorisée dans cette passe." });
   }

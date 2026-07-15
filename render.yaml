@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: free
     rootDir: .
-    buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
-    startCommand: pnpm --filter @workspace/api-server run start
+    buildCommand: corepack enable && corepack pnpm install --no-frozen-lockfile && corepack pnpm --filter @workspace/api-server run build
+    startCommand: corepack pnpm --filter @workspace/api-server run start
     healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
@@ -37,7 +37,7 @@ services:
     name: blacklace-publisher-web
     runtime: static
     rootDir: .
-    buildCommand: npm install -g pnpm@10 && pnpm install --no-frozen-lockfile && VITE_BUILD_SHA=$(git rev-parse --short HEAD) pnpm --filter @workspace/blacklace-publisher run build
+    buildCommand: corepack enable && corepack pnpm install --no-frozen-lockfile && VITE_BUILD_SHA=$(git rev-parse --short HEAD) corepack pnpm --filter @workspace/blacklace-publisher run build
     staticPublishPath: artifacts/blacklace-publisher/dist/public
     envVars:
       - key: NODE_VERSION

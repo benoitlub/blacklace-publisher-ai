@@ -1,7 +1,9 @@
 import { Router } from "express";
 import { listGlobalState, readGlobalState } from "../services/global-state";
+import { isActiveComposioStatus, isComposioConfigured, listComposioConnectedAccounts } from "../services/composio";
 
 const router = Router();
+const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
 
 type ConnectionStatus = "connected" | "authorization-required" | "not-configured" | "unavailable";
 type ConnectionRoute = "composio" | "direct-api" | "manual";
@@ -77,9 +79,13 @@ router.post("/plan", async (req, res) => {
       else observations.push(record.value);
     }
 
-    const connectionRecords = await listGlobalState<ConnectionRecord>("connections");
+    const [connectionRecords, confirmedConnections] = await Promise.all([
+      listGlobalState<ConnectionRecord>("connections"),
+      loadServerConfirmedConnections(),
+    ]);
     const connections = new Map<string, ConnectionRecord>();
     for (const record of connectionRecords) connections.set(normalize(record.key), record.value);
+    for (const [key, record] of confirmedConnections) connections.set(key, record);
 
     const preferred = step.providers ?? [];
     const candidates = uniqueProviders([
@@ -176,6 +182,40 @@ function buildCandidate(provider: ProviderObservation, role: string, connections
     checkedAt: connection?.checkedAt ?? provider.freeTier?.checkedAt ?? provider.trial?.checkedAt ?? null,
     notes: connection?.notes ?? null,
   };
+}
+
+async function loadServerConfirmedConnections(): Promise<Map<string, ConnectionRecord>> {
+  const confirmed = new Map<string, ConnectionRecord>();
+  if (!isComposioConfigured()) return confirmed;
+  const accounts = await listComposioConnectedAccounts(COMPOSIO_USER_ID);
+  const checkedAt = new Date().toISOString();
+  for (const account of accounts) {
+    if (!isActiveComposioStatus(account.status)) continue;
+    const key = normalize(account.toolkitSlug);
+    const record: ConnectionRecord = {
+      provider: account.toolkitSlug,
+      status: "connected",
+      route: "composio",
+      authorization: "granted",
+      creditStatus: "available",
+      checkedAt,
+      notes: "Confirmed by Publisher Local technique",
+    };
+    for (const alias of providerAliases(key)) confirmed.set(alias, record);
+  }
+  return confirmed;
+}
+
+function providerAliases(key: string): string[] {
+  const aliases = new Set([key]);
+  if (key === "elevenlabs" || key === "eleven-labs") {
+    aliases.add("elevenlabs");
+    aliases.add("eleven-labs");
+    aliases.add("eleven-labs-io");
+  }
+  if (key === "canva") aliases.add("canva");
+  if (key === "metricool") aliases.add("metricool");
+  return [...aliases];
 }
 
 function inferRoute(provider: ProviderObservation): ConnectionRoute {
