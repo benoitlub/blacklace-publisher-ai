@@ -12,6 +12,7 @@
     "test:octopus": "vitest run src/octopus"
   },
   "dependencies": {
+    "@composio/core": "^0.13.1",
     "@workspace/api-zod": "workspace:*",
     "@workspace/db": "workspace:*",
     "cookie-parser": "^1.4.7",

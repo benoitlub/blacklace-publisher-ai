@@ -10,6 +10,7 @@ import {
 const router = Router();
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
 const SUPPORTED_TOOLKITS = new Set(["canva", "elevenlabs", "notion"]);
+const COMPOSIO_CONNECT_ERROR = "La connexion Canva n’a pas pu être ouverte. Le connecteur Composio doit être mis à jour.";
 
 function normalizeToolkit(value: unknown): string {
   return String(value ?? "")
@@ -79,20 +80,9 @@ async function initiate(toolkit: string) {
   }
 
   const authConfigId = await findComposioAuthConfig(toolkit);
-  if (!authConfigId) {
-    return {
-      status: 404,
-      body: {
-        status: "missing-auth-config",
-        toolkit,
-        userId: COMPOSIO_USER_ID,
-        error: `Aucune Auth Config active trouvée pour ${toolkit}.`,
-      },
-    };
-  }
-
   const request = await initiateComposioConnection({
     userId: COMPOSIO_USER_ID,
+    toolkitSlug: toolkit,
     authConfigId,
     callbackUrl: callbackUrl(),
   });
@@ -160,11 +150,12 @@ router.post("/connections/:toolkit/connect", async (req, res) => {
     const result = await initiate(toolkit);
     return res.status(result.status).json(result.body);
   } catch (error) {
+    console.warn("[composio] production connection failed", safeError(error));
     return res.status(502).json({
       status: "failed",
       toolkit,
       userId: COMPOSIO_USER_ID,
-      error: safeError(error),
+      error: COMPOSIO_CONNECT_ERROR,
     });
   }
 });
@@ -179,11 +170,12 @@ router.get("/connections/:toolkit/authorize", async (req, res) => {
     }
     return res.status(result.status).json(result.body);
   } catch (error) {
+    console.warn("[composio] production authorization failed", safeError(error));
     return res.status(502).json({
       status: "failed",
       toolkit,
       userId: COMPOSIO_USER_ID,
-      error: safeError(error),
+      error: COMPOSIO_CONNECT_ERROR,
     });
   }
 });

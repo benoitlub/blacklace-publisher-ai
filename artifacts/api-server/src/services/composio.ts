@@ -14,6 +14,16 @@ export interface ComposioConnectionRequest {
   raw: unknown;
 }
 
+type ComposioSession = {
+  authorize: (toolkitSlug: string, options: { callbackUrl: string }) => Promise<unknown>;
+};
+
+type ComposioClient = {
+  create: (userId: string, options?: Record<string, unknown>) => Promise<ComposioSession>;
+};
+
+type ComposioCtor = new (options: { apiKey: string }) => ComposioClient;
+
 export function isComposioConfigured(): boolean {
   return Boolean(process.env.COMPOSIO_API_KEY?.trim());
 }
@@ -85,21 +95,21 @@ export async function findComposioAuthConfig(toolkitSlug: string): Promise<strin
 
 export async function initiateComposioConnection(input: {
   userId: string;
-  authConfigId: string;
+  toolkitSlug: string;
+  authConfigId?: string | null;
   callbackUrl: string;
 }): Promise<ComposioConnectionRequest> {
-  const payload = await composioRequest("/connected_accounts", {
-    method: "POST",
-    body: JSON.stringify({
-      auth_config: { id: input.authConfigId },
-      connection: { user_id: input.userId },
-      callback_url: input.callbackUrl,
-    }),
-  });
+  const composio = await createComposioClient();
+  const sessionOptions: Record<string, unknown> = { manageConnections: false };
+  if (input.authConfigId) {
+    sessionOptions.authConfigs = { [input.toolkitSlug]: input.authConfigId };
+  }
+  const session = await composio.create(input.userId, sessionOptions);
+  const payload = await session.authorize(input.toolkitSlug, { callbackUrl: input.callbackUrl });
   const record = asRecord(payload);
   const nested = asRecord(record.connection ?? record.data);
   return {
-    id: stringValue(record.id ?? record.connected_account_id ?? nested.id),
+    id: stringValue(record.id ?? record.connected_account_id ?? record.connectedAccountId ?? nested.id),
     redirectUrl: stringValue(record.redirect_url ?? record.redirectUrl ?? nested.redirect_url ?? nested.redirectUrl),
     status: String(record.status ?? nested.status ?? "INITIATED"),
     raw: payload,
@@ -130,6 +140,14 @@ async function composioRequest(path: string, init: RequestInit = {}): Promise<un
     throw new Error(`Composio ${response.status}: ${errorMessage(payload)}`);
   }
   return payload;
+}
+
+async function createComposioClient(): Promise<ComposioClient> {
+  const apiKey = process.env.COMPOSIO_API_KEY?.trim();
+  if (!apiKey) throw new Error("COMPOSIO_API_KEY is not configured");
+  const packageName = "@composio/core";
+  const sdk = await import(packageName) as { Composio: ComposioCtor };
+  return new sdk.Composio({ apiKey });
 }
 
 function normalizeConnectedAccount(value: unknown): ComposioConnectedAccount | null {
