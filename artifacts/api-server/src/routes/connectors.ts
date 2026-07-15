@@ -26,6 +26,7 @@ const COMPOSIO_TARGETS = [
   { id: "runway", label: "Runway", toolkitSlugs: ["runway", "runwayml"], capability: "video" },
   { id: "kling", label: "Kling", toolkitSlugs: ["kling", "klingai"], capability: "video" },
 ] as const;
+const COMPOSIO_CONNECT_ERROR = "La connexion Canva n’a pas pu être ouverte. Le connecteur Composio doit être mis à jour.";
 
 const CONNECTOR_DEFS: ConnectorDef[] = [
   {
@@ -115,6 +116,13 @@ function getConnectorStatus(def: ConnectorDef): "connected" | "disconnected" | "
   return "mock";
 }
 
+function safeComposioLog(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error ?? "Unknown Composio error");
+  return message
+    .replace(/ak_[a-zA-Z0-9_-]+/g, "[secret]")
+    .replace(/Bearer\s+[a-zA-Z0-9._-]+/g, "Bearer [secret]");
+}
+
 router.get("/", (_req, res) => {
   const connectors = CONNECTOR_DEFS.map((def) => ({
     name: def.name,
@@ -145,7 +153,8 @@ router.get("/composio/catalog", async (_req, res) => {
     });
     return res.json({ configured: true, userId: COMPOSIO_USER_ID, providers });
   } catch (error) {
-    return res.status(502).json({ configured: true, userId: COMPOSIO_USER_ID, providers: [], error: error instanceof Error ? error.message : "Composio unavailable" });
+    console.warn("[composio] catalog unavailable", safeComposioLog(error));
+    return res.status(502).json({ configured: true, userId: COMPOSIO_USER_ID, providers: [], error: "Diagnostic Composio indisponible." });
   }
 });
 
@@ -158,16 +167,13 @@ router.post("/composio/connect", async (req, res) => {
 
   try {
     let authConfigId: string | null = null;
-    let toolkitSlug: string | null = null;
+    let toolkitSlug: string = target.toolkitSlugs[0];
     for (const slug of target.toolkitSlugs) {
       authConfigId = await findComposioAuthConfig(slug);
       if (authConfigId) { toolkitSlug = slug; break; }
     }
-    if (!authConfigId || !toolkitSlug) {
-      return res.status(404).json({ error: `Aucune configuration OAuth Composio active trouvee pour ${target.label}.` });
-    }
 
-    const request = await initiateComposioConnection({ userId: COMPOSIO_USER_ID, authConfigId, callbackUrl });
+    const request = await initiateComposioConnection({ userId: COMPOSIO_USER_ID, toolkitSlug, authConfigId, callbackUrl });
     await writeGlobalState("connections", target.id, {
       provider: target.label,
       status: "authorization-required",
@@ -181,7 +187,8 @@ router.post("/composio/connect", async (req, res) => {
     });
     return res.json({ provider: target.id, status: request.status, connectedAccountId: request.id, redirectUrl: request.redirectUrl });
   } catch (error) {
-    return res.status(502).json({ error: error instanceof Error ? error.message : "Unable to initiate Composio connection" });
+    console.warn("[composio] unable to initiate connection", safeComposioLog(error));
+    return res.status(502).json({ error: COMPOSIO_CONNECT_ERROR });
   }
 });
 
@@ -209,7 +216,8 @@ router.post("/composio/refresh", async (_req, res) => {
     }
     return res.json({ configured: true, userId: COMPOSIO_USER_ID, providers });
   } catch (error) {
-    return res.status(502).json({ error: error instanceof Error ? error.message : "Unable to refresh Composio connections" });
+    console.warn("[composio] refresh unavailable", safeComposioLog(error));
+    return res.status(502).json({ error: "Diagnostic Composio indisponible." });
   }
 });
 
