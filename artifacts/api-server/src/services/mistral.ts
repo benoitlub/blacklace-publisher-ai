@@ -9,6 +9,9 @@ export interface GeneratePostDraftInput {
   prompt?: string;
   knowledgeContext?: string;
   knowledgeSource?: "notion" | "mock";
+  expertiseContext?: string;
+  expertiseIds?: readonly string[];
+  expertiseRecipeId?: string;
 }
 
 export interface GeneratedDraft {
@@ -20,6 +23,8 @@ export interface GeneratedDraft {
   model?: string;
   knowledgeSource: "notion" | "mock";
   fallbackReason: string | null;
+  expertiseIds: readonly string[];
+  expertiseRecipeId: string | null;
 }
 
 const MOCK_POSTS_BY_AGENT: Record<string, Array<{ title: string; content: string; hashtags: string }>> = {
@@ -52,99 +57,75 @@ const MOCK_POSTS_BY_AGENT: Record<string, Array<{ title: string; content: string
 function getMockDraft(input: GeneratePostDraftInput, fallbackReason: string | null): GeneratedDraft {
   const agentPosts = MOCK_POSTS_BY_AGENT[input.agentName];
   const knowledgeSource = input.knowledgeSource ?? "mock";
-  if (!agentPosts || agentPosts.length === 0) {
-    return {
+  const base = !agentPosts || agentPosts.length === 0
+    ? {
       title: `Publication — ${input.universe}`,
       content: `Contenu généré pour l'univers ${input.universe} par ${input.agentName}. Mode mock actif — configurez AI_PROVIDER et AI_API_KEY pour une génération réelle.`,
       hashtags: `#${input.universe.replace(/\s+/g, "")} #Blacklace #FeuchInstitute`,
-      isMock: true,
-      provider: "mock",
-      knowledgeSource,
-      fallbackReason,
-    };
-  }
-  const post = agentPosts[Math.floor(Math.random() * agentPosts.length)];
-  return { ...post, isMock: true, provider: "mock", knowledgeSource, fallbackReason };
+    }
+    : agentPosts[Math.floor(Math.random() * agentPosts.length)];
+  return {
+    ...base,
+    isMock: true,
+    provider: "mock",
+    knowledgeSource,
+    fallbackReason,
+    expertiseIds: input.expertiseIds ?? [],
+    expertiseRecipeId: input.expertiseRecipeId ?? null,
+  };
 }
 
 function parseGeneratedDraft(raw: string, universe: string): { title: string; content: string; hashtags: string; parseWarning: string | null } {
   const cleaned = raw.replace(/```(?:json)?\n?/g, "").trim();
   if (!cleaned) throw new Error("Le fournisseur IA n'a retourné aucun contenu.");
-
   try {
     const parsed = JSON.parse(cleaned) as { title?: string; content?: string; hashtags?: string };
     const content = String(parsed.content || "").trim();
     if (!content) throw new Error("Le JSON du fournisseur ne contient aucun contenu.");
-    return {
-      title: String(parsed.title || `Publication ${universe}`).trim(),
-      content,
-      hashtags: String(parsed.hashtags || "").trim(),
-      parseWarning: null,
-    };
+    return { title: String(parsed.title || `Publication ${universe}`).trim(), content, hashtags: String(parsed.hashtags || "").trim(), parseWarning: null };
   } catch (_) {
     const objectMatch = cleaned.match(/\{[\s\S]*\}/);
     if (objectMatch) {
       try {
         const parsed = JSON.parse(objectMatch[0]) as { title?: string; content?: string; hashtags?: string };
         const content = String(parsed.content || "").trim();
-        if (content) {
-          return {
-            title: String(parsed.title || `Publication ${universe}`).trim(),
-            content,
-            hashtags: String(parsed.hashtags || "").trim(),
-            parseWarning: "Le fournisseur a entouré le JSON de texte supplémentaire.",
-          };
-        }
+        if (content) return { title: String(parsed.title || `Publication ${universe}`).trim(), content, hashtags: String(parsed.hashtags || "").trim(), parseWarning: "Le fournisseur a entouré le JSON de texte supplémentaire." };
       } catch (_) {}
     }
-
     const lines = cleaned.split(/\n+/).map((line) => line.trim()).filter(Boolean);
     const hashtags = lines.filter((line) => line.startsWith("#")).join(" ");
     const content = lines.filter((line) => !line.startsWith("#")).join("\n").trim();
     if (!content) throw new Error("La réponse IA est inutilisable.");
-    return {
-      title: lines[0]?.slice(0, 120) || `Publication ${universe}`,
-      content,
-      hashtags,
-      parseWarning: "Le fournisseur n'a pas respecté le format JSON ; son texte a été conservé.",
-    };
+    return { title: lines[0]?.slice(0, 120) || `Publication ${universe}`, content, hashtags, parseWarning: "Le fournisseur n'a pas respecté le format JSON ; son texte a été conservé." };
   }
 }
 
 export async function generatePostDraft(input: GeneratePostDraftInput): Promise<GeneratedDraft> {
   const provider = getAIProvider();
   const knowledgeSource = input.knowledgeSource ?? "mock";
-
-  if (provider.name === "mock") {
-    return getMockDraft(input, "Aucun fournisseur IA configuré (AI_PROVIDER/MISTRAL_API_KEY absents) — génération en mode mock.");
-  }
+  if (provider.name === "mock") return getMockDraft(input, "Aucun fournisseur IA configuré (AI_PROVIDER/MISTRAL_API_KEY absents) — génération en mode mock.");
 
   const knowledgeBlock = input.knowledgeContext
     ? `\n\nContexte issu de la base de connaissances (${knowledgeSource}) :\n${input.knowledgeContext}`
     : "";
+  const expertiseBlock = input.expertiseContext
+    ? `\n\nExpertises composées par Publisher :\n${input.expertiseContext}\n\nTu synthétises ces expertises dans une seule réponse. Tu ne simules pas une réunion d'agents et tu ne cites pas les profils.`
+    : "";
 
-  const systemPrompt = `Tu es ${input.agentName}, un agent éditorial du Feuch Institute.
+  const systemPrompt = `Tu es ${input.agentName}, une voix éditoriale du Feuch Institute.
 Ton ton est : ${input.agentTone}.
-Tu crées du contenu pour l'univers ${input.universe} destiné à la plateforme ${input.platform}.${knowledgeBlock}
+Tu crées du contenu pour l'univers ${input.universe} destiné à la plateforme ${input.platform}.${knowledgeBlock}${expertiseBlock}
+N'invente aucune preuve, statistique, témoignage ou urgence.
 Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "hashtags": "..." }`;
-
   const userPrompt = input.prompt ?? `Rédige une publication pour ${input.universe} sur ${input.platform}.`;
 
   try {
     const result = await provider.generateText({
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
       temperature: 0.8,
       maxTokens: 600,
     });
-
-    if (result.isMock) {
-      logger.info({ agent: input.agentName, provider: provider.name }, "AI in mock mode — using curated draft");
-      return getMockDraft(input, "Le fournisseur IA a répondu en mode mock.");
-    }
-
+    if (result.isMock) return getMockDraft(input, "Le fournisseur IA a répondu en mode mock.");
     const parsed = parseGeneratedDraft(result.content, input.universe);
     return {
       title: parsed.title,
@@ -155,6 +136,8 @@ Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "h
       model: result.model,
       knowledgeSource,
       fallbackReason: parsed.parseWarning,
+      expertiseIds: input.expertiseIds ?? [],
+      expertiseRecipeId: input.expertiseRecipeId ?? null,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : "Erreur inconnue lors de l'appel au fournisseur IA";
