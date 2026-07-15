@@ -116,6 +116,45 @@ describe("production route", () => {
     }
   });
 
+  it("returns a ProductionPlan for a landing page", async () => {
+    const { server, baseUrl } = await makeApp();
+    try {
+      const response = await fetch(`${baseUrl}/production/plan`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ capability: "landing-page", input: { title: "Yaebali" } }),
+      });
+      const body = await response.json() as { plan: { status: string; steps: Array<{ producerId: string | null }> } };
+
+      expect(response.ok).toBe(true);
+      expect(body.plan.status).toBe("ready");
+      expect(body.plan.steps[0]?.producerId).toBe("html-local");
+    } finally {
+      server.close();
+    }
+  });
+
+  it("executes landing-page through Production Engine HTML local", async () => {
+    const { server, baseUrl } = await makeApp();
+    try {
+      const response = await fetch(`${baseUrl}/production/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tool: "html-local", action: "create_landing_page", input: { title: "Yaebali" } }),
+      });
+      const body = await response.json() as { status: string; tool: string; artifact: { producerId: string; content: string } };
+
+      expect(response.ok).toBe(true);
+      expect(body.status).toBe("completed");
+      expect(body.tool).toBe("html-local");
+      expect(body.artifact.producerId).toBe("html-local");
+      expect(body.artifact.content).toContain("<main");
+      expect(body.artifact.content).toContain("Yaebali");
+    } finally {
+      server.close();
+    }
+  });
+
   it("returns a Canva artifact only when Composio provides a real URL", async () => {
     composio.accounts = [{ id: "canva-1", toolkitSlug: "canva", status: "ACTIVE", raw: {} }];
     composio.executeResult = { data: { design: { id: "design-1", urls: { view_url: "https://canva.example/design-1" } } } };
