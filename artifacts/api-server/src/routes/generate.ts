@@ -3,6 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, postsTable, agentsTable, campaignsTable } from "@workspace/db";
 import { generatePostDraft } from "../services/mistral";
 import { fetchBlacklaceKnowledgeWithDiagnostics, buildKnowledgeContext } from "../services/notion";
+import { composeExpertise } from "../services/expertise-composer";
 import { logger } from "../lib/logger";
 
 const router = Router();
@@ -25,19 +26,18 @@ router.post("/month", async (_req, res) => {
   }
 
   const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
-
   const posts = [];
   const today = new Date();
 
   for (let day = 0; day < 30; day++) {
     const scheduledDate = addDays(today, day + 1);
-
     const postsForDay = day % 7 === 6 ? 0 : Math.random() < 0.7 ? 1 : 2;
     for (let p = 0; p < postsForDay; p++) {
       const agent = agents[Math.floor(Math.random() * agents.length)];
       const universe = UNIVERSES[Math.floor(Math.random() * UNIVERSES.length)];
       const platform = PLATFORMS[Math.floor(Math.random() * PLATFORMS.length)];
       const campaign = campaigns.length > 0 ? campaigns[Math.floor(Math.random() * campaigns.length)] : null;
+      const expertise = composeExpertise({ universe, platform, prompt: campaign?.name ?? undefined });
 
       const draft = await generatePostDraft({
         universe,
@@ -46,6 +46,9 @@ router.post("/month", async (_req, res) => {
         platform,
         knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
         knowledgeSource: knowledge.source,
+        expertiseContext: expertise.promptBlock,
+        expertiseIds: expertise.profiles.map((profile) => profile.id),
+        expertiseRecipeId: expertise.recipeId,
       });
 
       posts.push({
@@ -63,7 +66,7 @@ router.post("/month", async (_req, res) => {
   }
 
   const inserted = await db.insert(postsTable).values(posts).returning();
-  logger.info({ count: inserted.length, knowledgeSource: knowledge.source }, "Generated month of posts");
+  logger.info({ count: inserted.length, knowledgeSource: knowledge.source }, "Generated month of posts with composed expertise");
   return res.status(201).json({ count: inserted.length, posts: inserted });
 });
 
@@ -83,16 +86,21 @@ router.post("/post", async (req, res) => {
   const [agent] = await db.select().from(agentsTable).where(eq(agentsTable.id, agentId));
   if (!agent) return res.status(404).json({ error: "Agent not found" });
 
+  const targetPlatform = platform ?? "Instagram";
   const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
+  const expertise = composeExpertise({ universe, platform: targetPlatform, prompt });
 
   const draft = await generatePostDraft({
     universe,
     agentName: agent.name,
     agentTone: agent.tone,
-    platform: platform ?? "Instagram",
+    platform: targetPlatform,
     prompt,
     knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
     knowledgeSource: knowledge.source,
+    expertiseContext: expertise.promptBlock,
+    expertiseIds: expertise.profiles.map((profile) => profile.id),
+    expertiseRecipeId: expertise.recipeId,
   });
 
   const [post] = await db
@@ -100,7 +108,7 @@ router.post("/post", async (req, res) => {
     .values({
       title: draft.title,
       content: draft.content,
-      platform: platform ?? "Instagram",
+      platform: targetPlatform,
       status: "draft",
       hashtags: draft.hashtags,
       agentId: agent.id,
@@ -117,6 +125,11 @@ router.post("/post", async (req, res) => {
     knowledgeSource: draft.knowledgeSource,
     isMock: draft.isMock,
     fallbackReason: draft.fallbackReason,
+    expertise: {
+      recipeId: draft.expertiseRecipeId,
+      profiles: expertise.profiles.map((profile) => ({ id: profile.id, label: profile.label })),
+      rationale: expertise.rationale,
+    },
   });
 });
 
