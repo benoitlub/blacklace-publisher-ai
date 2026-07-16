@@ -1,9 +1,11 @@
 import { and, asc, eq, inArray, lt } from "drizzle-orm";
-import { curatorSignalsTable, db } from "@workspace/db";
+import { db } from "@workspace/db";
+import * as dbSchema from "@workspace/db/schema";
 import { curatorClusterKey, type CuratorOutcome, type CuratorSignal } from "./autonomous-curator.js";
 
 const TTL_DAYS = 14;
 const MAX_RECORDS = 100;
+const curatorSignalsTable = (dbSchema as Record<string, any>).curatorSignalsTable;
 
 function expiry(from = new Date()): Date {
   const date = new Date(from);
@@ -46,7 +48,7 @@ export class CuratorPostgresStore {
     }
 
     await this.prune();
-    const [created] = await db.insert(curatorSignalsTable).values({
+    const createdRows = await db.insert(curatorSignalsTable).values({
       id: signal.id,
       clusterKey,
       title: signal.title,
@@ -55,7 +57,8 @@ export class CuratorPostgresStore {
       summary: signal.summary,
       payload: signal,
       expiresAt: expiry(),
-    }).onConflictDoNothing().returning();
+    }).onConflictDoNothing().returning() as Array<any>;
+    const [created] = createdRows;
 
     if (!created) {
       const [row] = await db.select().from(curatorSignalsTable).where(eq(curatorSignalsTable.id, signal.id)).limit(1);

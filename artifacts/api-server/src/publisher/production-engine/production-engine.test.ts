@@ -92,6 +92,35 @@ describe("Production Engine V1", () => {
     expect(report.artifacts[0]?.content).toContain("<main");
     expect(report.artifacts[0]?.content).toContain("Yaebali");
   });
+
+  it("plans and executes copy.generate as a Markdown artifact", async () => {
+    const engine = new ProductionEngine(createDefaultProducerRegistry());
+    const request: ProductionRequest = {
+      id: "copy-1",
+      capability: "copy.generate",
+      title: "Landing Yael",
+      objective: "Rédiger une première récolte utile.",
+      input: { prompt: "Prépare une campagne simple pour Yael." },
+    };
+    const plan = engine.plan(request);
+    const report = await engine.execute(plan, request);
+
+    expect(plan.status).toBe("ready");
+    expect(plan.steps[0]).toMatchObject({
+      producerId: "mistral-copy",
+      connector: "mistral",
+      status: "ready",
+    });
+    expect(report.status).toBe("completed");
+    expect(report.artifacts[0]).toMatchObject({
+      capability: "copy.generate",
+      producerId: "mistral-copy",
+      type: "markdown",
+      mimeType: "text/markdown",
+      metadata: expect.objectContaining({ status: "completed" }),
+    });
+    expect(report.artifacts[0]?.content).toContain("# Landing Yael");
+  });
 });
 
 function unavailableLandingProducer(id: string): Producer {

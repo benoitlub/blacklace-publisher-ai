@@ -155,6 +155,39 @@ describe("production route", () => {
     }
   });
 
+  it("executes copy.generate through Production Engine and returns a completed Markdown artifact", async () => {
+    const { server, baseUrl } = await makeApp();
+    try {
+      const response = await fetch(`${baseUrl}/production/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          capability: "copy.generate",
+          requestId: "copy-yael",
+          input: {
+            title: "Récolte Yael",
+            prompt: "Trouve un prospect intéressant pour Yael.",
+          },
+        }),
+      });
+      const body = await response.json() as {
+        status: string;
+        action: string;
+        artifact: { producerId: string; content: string; mimeType: string; metadata: { status: string } };
+      };
+
+      expect(response.ok).toBe(true);
+      expect(body.status).toBe("completed");
+      expect(body.action).toBe("COPY_GENERATE");
+      expect(body.artifact.producerId).toBe("mistral-copy");
+      expect(body.artifact.mimeType).toBe("text/markdown");
+      expect(body.artifact.metadata.status).toBe("completed");
+      expect(body.artifact.content).toContain("# Récolte Yael");
+    } finally {
+      server.close();
+    }
+  });
+
   it("returns a Canva artifact only when Composio provides a real URL", async () => {
     composio.accounts = [{ id: "canva-1", toolkitSlug: "canva", status: "ACTIVE", raw: {} }];
     composio.executeResult = { data: { design: { id: "design-1", urls: { view_url: "https://canva.example/design-1" } } } };

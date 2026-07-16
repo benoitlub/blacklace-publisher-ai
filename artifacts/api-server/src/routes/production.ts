@@ -113,6 +113,7 @@ function productionRequestFromBody(body: Record<string, unknown>): ProductionReq
 
 function normalizeCapability(value: unknown): ProducerCapability {
   const text = String(value ?? "").toLowerCase().replace(/_/g, "-");
+  if (text === "copy" || text === "copy.generate" || text === "text" || text === "markdown") return "copy.generate";
   if (text === "html" || text === "html-local" || text === "landing" || text === "landing-page") return "landing-page";
   if (text === "canva" || text === "visual" || text === "social-visual") return "social-visual";
   if (text === "elevenlabs" || text === "voice" || text === "voice-over") return "voice-over";
@@ -191,6 +192,23 @@ router.post("/execute", async (req, res) => {
   const tool = String(req.body?.tool ?? "").toLowerCase();
   const action = String(req.body?.action ?? "").toLowerCase();
   const body = recordValue(req.body);
+  const capability = normalizeCapability(body.capability ?? body.type ?? body.tool);
+  if (capability === "copy.generate") {
+    const request = productionRequestFromBody({ ...body, capability: "copy.generate", preferredProducerId: "mistral-copy" });
+    const plan = productionEngine.plan(request);
+    const report = await productionEngine.execute(plan, request);
+    const artifact = report.artifacts[0] ?? null;
+    return res.status(report.status === "completed" ? 200 : 422).json({
+      status: report.status,
+      provider: "production-engine",
+      tool: artifact?.producerId ?? "mistral-copy",
+      action: "COPY_GENERATE",
+      plan,
+      artifact,
+      errors: report.errors,
+    });
+  }
+
   if (isLandingPageExecution(tool, action, body)) {
     const request = productionRequestFromBody({ ...body, capability: "landing-page", preferredProducerId: "html-local" });
     const plan = productionEngine.plan(request);

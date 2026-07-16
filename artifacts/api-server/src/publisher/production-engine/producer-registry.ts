@@ -1,4 +1,7 @@
+import { getAIProvider } from "../../ai/providerRegistry";
+
 export type ProducerCapability =
+  | "copy.generate"
   | "landing-page"
   | "social-visual"
   | "voice-over"
@@ -50,12 +53,62 @@ export interface Producer {
   id: string;
   label: string;
   capability: ProducerCapability;
-  connector: "local" | "canva" | "elevenlabs" | "kling" | "metricool" | "gmail";
+  connector: "local" | "mistral" | "canva" | "elevenlabs" | "kling" | "metricool" | "gmail";
   cost: ProductionCost;
   quality: ProductionQuality;
   status: ProducerStatus;
   alternatives: string[];
   execute?: (request: ProductionRequest, stepId: string) => Promise<ProductionArtifact>;
+}
+
+export class MistralCopyProducer implements Producer {
+  readonly id = "mistral-copy";
+  readonly label = "Mistral text";
+  readonly capability = "copy.generate" as const;
+  readonly connector = "mistral" as const;
+  readonly cost = "low" as const;
+  readonly quality = "high" as const;
+  readonly status = "available" as const;
+  readonly alternatives = ["mock"];
+
+  async execute(request: ProductionRequest, stepId: string): Promise<ProductionArtifact> {
+    const provider = getAIProvider();
+    const prompt = String(request.input?.prompt ?? request.objective ?? request.title).trim();
+    const system = String(
+      request.input?.system ??
+      "Tu es le producteur textuel de Publisher. Retourne un livrable Markdown clair, exploitable et directement relisible."
+    );
+    const result = await provider.generateText({
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt || "Produis un texte utile en Markdown." },
+      ],
+      temperature: typeof request.input?.temperature === "number" ? request.input.temperature : 0.5,
+      maxTokens: typeof request.input?.maxTokens === "number" ? request.input.maxTokens : 900,
+    });
+    const content = normalizeMarkdown(result.content, request.title);
+
+    return {
+      id: `artifact-${request.id}-${stepId}`,
+      requestId: request.id,
+      stepId,
+      producerId: this.id,
+      capability: this.capability,
+      type: "markdown",
+      title: request.title || "Texte Publisher",
+      content,
+      url: null,
+      downloadUrl: null,
+      mimeType: "text/markdown",
+      createdAt: nowIso(),
+      metadata: {
+        provider: result.provider,
+        model: result.model,
+        isMock: result.isMock,
+        status: "completed",
+      },
+    };
+  }
 }
 
 export interface ProductionStep {
@@ -160,6 +213,7 @@ export class HtmlLocalProducer implements Producer {
 
 export function createDefaultProducerRegistry(): ProducerRegistry {
   return new ProducerRegistry([
+    new MistralCopyProducer(),
     new HtmlLocalProducer(),
     {
       id: "canva",
@@ -222,4 +276,10 @@ function escapeHtml(value: string): string {
     "\"": "&quot;",
     "'": "&#039;",
   }[char] ?? char));
+}
+
+function normalizeMarkdown(value: string, title: string): string {
+  const text = String(value || "").replace(/\\n/g, "\n").trim();
+  if (!text) return `# ${title || "Texte Publisher"}\n\nAucun contenu n'a ete retourne par le fournisseur.`;
+  return /^#{1,6}\s+/m.test(text) ? text : `# ${title || "Texte Publisher"}\n\n${text}`;
 }
