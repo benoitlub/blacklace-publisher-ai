@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { setBaseUrl } from "@workspace/api-client-react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { OctopusWitness } from "@/components/layout/octopus-witness";
 import NotFound from "@/pages/not-found";
 
 import { Layout } from "@/components/layout/layout";
@@ -63,6 +64,9 @@ function App() {
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>
+        <div className="fixed bottom-12 right-3 z-50 w-[min(19rem,calc(100vw-1.5rem))] shadow-lg">
+          <OctopusWitness />
+        </div>
         <div className="fixed bottom-3 right-3 z-50 rounded border border-border bg-card/95 px-2 py-1 font-mono text-[10px] uppercase tracking-wide text-muted-foreground shadow-lg">
           Build {buildSha} · Production
         </div>
