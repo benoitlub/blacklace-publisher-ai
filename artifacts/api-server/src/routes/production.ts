@@ -49,6 +49,10 @@ function stringValue(value: unknown): string | null {
   return text || null;
 }
 
+function recordValue(value: unknown): Record<string, any> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
+}
+
 function toolText(tool: ComposioTool): string {
   return `${tool.slug} ${tool.name} ${tool.description}`.toLowerCase();
 }
@@ -56,11 +60,12 @@ function toolText(tool: ComposioTool): string {
 function scoreCanvaCreateTool(tool: ComposioTool): number {
   const text = toolText(tool);
   if (!text.includes("design")) return -100;
-  if (/export|metadata|access|format|list|get|fetch|delete|update/.test(text)) return -50;
+  if (/export|metadata|access|format|list|get|fetch|delete|update|comment|folder/.test(text)) return -50;
   let score = 0;
-  if (/create/.test(text)) score += 60;
-  if (/post/.test(text)) score += 35;
-  if (/designs?/.test(text)) score += 25;
+  if (/create/.test(text)) score += 80;
+  if (/post/.test(text)) score += 45;
+  if (/designs?/.test(text)) score += 30;
+  if (/instagram|social/.test(text)) score += 20;
   if (/canva/.test(text)) score += 10;
   return score;
 }
@@ -73,15 +78,103 @@ function selectCanvaCreateTools(tools: ComposioTool[]): ComposioTool[] {
     .map((entry) => entry.tool);
 }
 
+function schemaProperties(tool: ComposioTool): Record<string, Record<string, any>> {
+  const schema = recordValue(tool.inputSchema);
+  const properties = recordValue(schema.properties ?? schema.schema?.properties);
+  return Object.fromEntries(Object.entries(properties).map(([key, value]) => [key, recordValue(value)]));
+}
+
+function schemaRequired(tool: ComposioTool): string[] {
+  const schema = recordValue(tool.inputSchema);
+  const required = schema.required ?? schema.schema?.required;
+  return Array.isArray(required) ? required.filter((item): item is string => typeof item === "string") : [];
+}
+
+function preferredEnum(values: unknown[], key: string): unknown {
+  const normalized = values.map((value) => ({ value, text: String(value).toLowerCase() }));
+  const preferences = key.includes("type")
+    ? ["instagram", "social", "post", "custom", "square"]
+    : ["png", "public", "edit", "view"];
+  for (const preference of preferences) {
+    const found = normalized.find((entry) => entry.text.includes(preference));
+    if (found) return found.value;
+  }
+  return values[0];
+}
+
+function schemaValue(key: string, definition: Record<string, any>, title: string): unknown {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const enumValues = Array.isArray(definition.enum) ? definition.enum : [];
+  if (enumValues.length) return preferredEnum(enumValues, normalized);
+
+  const type = String(definition.type ?? "").toLowerCase();
+  if (/title|name|label/.test(normalized)) return `Visuel principal ${title}`;
+  if (/width/.test(normalized)) return 1080;
+  if (/height/.test(normalized)) return 1080;
+  if (/design.?type|format|preset|category/.test(normalized)) {
+    if (type === "object") return { type: "custom", width: 1080, height: 1080 };
+    return "instagram_post";
+  }
+  if (/description|prompt|content|text/.test(normalized)) return `Créer un visuel Instagram carré pour ${title}.`;
+  if (type === "number" || type === "integer") return 1080;
+  if (type === "boolean") return false;
+  if (type === "array") return [];
+  if (type === "object") return {};
+  return title;
+}
+
+function canvaArguments(tool: ComposioTool, title: string): Record<string, unknown> {
+  const properties = schemaProperties(tool);
+  const required = new Set(schemaRequired(tool));
+  const args: Record<string, unknown> = {};
+
+  for (const [key, definition] of Object.entries(properties)) {
+    const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const recognized = /title|name|label|width|height|design.?type|format|preset|category|description|prompt|content|text/.test(normalized);
+    if (required.has(key) || recognized) args[key] = schemaValue(key, definition, title);
+  }
+
+  if (!Object.keys(args).length) {
+    return {
+      title: `Visuel principal ${title}`,
+      design_type: "instagram_post",
+    };
+  }
+  return args;
+}
+
+function walkPayload(value: unknown, visit: (key: string, item: unknown) => void, depth = 0): void {
+  if (depth > 8 || value === null || value === undefined) return;
+  if (Array.isArray(value)) {
+    value.forEach((item) => walkPayload(item, visit, depth + 1));
+    return;
+  }
+  if (typeof value !== "object") return;
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    visit(key, item);
+    walkPayload(item, visit, depth + 1);
+  }
+}
+
 function extractCanvaArtifact(payload: unknown, title: string) {
-  const record = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, any> : {};
-  const data = record.data && typeof record.data === "object" ? record.data : record;
-  const design = data.design && typeof data.design === "object" ? data.design : data;
-  const urls = design.urls && typeof design.urls === "object" ? design.urls : {};
-  const url = stringValue(urls.view_url ?? urls.viewUrl ?? urls.edit_url ?? urls.editUrl ?? design.url ?? data.url);
-  const downloadUrl = stringValue(data.downloadUrl ?? data.download_url ?? urls.download_url);
-  const id = stringValue(design.id ?? data.id ?? record.id);
+  const urls: string[] = [];
+  const ids: string[] = [];
+  walkPayload(payload, (key, item) => {
+    if (typeof item !== "string" || !item.trim()) return;
+    const normalizedKey = key.toLowerCase();
+    if (/url|link|href|thumbnail|download/.test(normalizedKey) && /^https?:\/\//i.test(item)) urls.push(item.trim());
+    if (/(^|_)(design_?)?id$|designid/i.test(normalizedKey) && !/^https?:\/\//i.test(item)) ids.push(item.trim());
+  });
+
+  const id = ids.find(Boolean) ?? null;
+  const rankedUrls = [...new Set(urls)].sort((a, b) => {
+    const score = (url: string) => (/canva\.com\/design/i.test(url) ? 100 : 0) + (/edit/i.test(url) ? 30 : 0) + (/view/i.test(url) ? 20 : 0) - (/thumbnail/i.test(url) ? 10 : 0);
+    return score(b) - score(a);
+  });
+  const url = rankedUrls[0] ?? (id ? `https://www.canva.com/design/${encodeURIComponent(id)}/edit` : null);
+  const downloadUrl = rankedUrls.find((item) => /download|export|\.png(?:\?|$)|\.jpg(?:\?|$)/i.test(item)) ?? null;
   if (!id && !url) return null;
+
   return {
     id: id ?? `canva_${Date.now()}`,
     kind: "social-visual",
@@ -91,10 +184,6 @@ function extractCanvaArtifact(payload: unknown, title: string) {
     mimeType: downloadUrl ? "image/png" : null,
     rawReference: { designId: id },
   };
-}
-
-function recordValue(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 function productionRequestFromBody(body: Record<string, unknown>): ProductionRequest {
@@ -126,16 +215,6 @@ function isLandingPageExecution(tool: string, action: string, body: Record<strin
   return capability === "landing-page" && (tool === "html-local" || tool === "html" || action === "create_landing_page" || action === "create_landing-page");
 }
 
-function canvaArguments(title: string): Record<string, unknown> {
-  return {
-    title: `Visuel principal ${title}`,
-    design_type: { type: "custom", width: 1080, height: 1080 },
-    designType: { type: "custom", width: 1080, height: 1080 },
-    width: 1080,
-    height: 1080,
-  };
-}
-
 router.get("/diagnostics", async (_req, res) => {
   try {
     const accounts = await productionAccounts();
@@ -154,9 +233,7 @@ router.get("/diagnostics", async (_req, res) => {
         canvaConnected: Boolean(canva),
         elevenLabsConnected: Boolean(elevenLabs),
         connectedAccount: canva?.id ?? null,
-        connectedAccounts: accounts
-          .filter((account) => isActiveComposioStatus(account.status))
-          .map((account) => ({ id: account.id, toolkitSlug: account.toolkitSlug, status: account.status })),
+        connectedAccounts: accounts.filter((account) => isActiveComposioStatus(account.status)).map((account) => ({ id: account.id, toolkitSlug: account.toolkitSlug, status: account.status })),
       },
       canva: {
         status: canvaCreationTools.length ? "executable" : providerStatus(canva, isComposioConfigured()),
@@ -164,7 +241,13 @@ router.get("/diagnostics", async (_req, res) => {
         connectedAccount: canva?.id ?? null,
         provider: "composio",
         discoveredToolCount: canvaTools.length,
-        creationActions: canvaCreationTools.map((tool) => ({ slug: tool.slug, name: tool.name, description: tool.description })),
+        creationActions: canvaCreationTools.map((tool) => ({
+          slug: tool.slug,
+          name: tool.name,
+          description: tool.description,
+          required: schemaRequired(tool),
+          generatedArguments: canvaArguments(tool, "Diagnostic Publisher"),
+        })),
       },
       elevenLabs: {
         status: providerStatus(elevenLabs, isComposioConfigured()),
@@ -178,11 +261,7 @@ router.get("/diagnostics", async (_req, res) => {
       kling: { status: "not-implemented", executable: false },
       metricool: { status: "not-implemented", executable: false },
       gmail: { status: "not-implemented", executable: false },
-      mistral: {
-        status: mistralConfigured ? "available" : "unavailable",
-        configured: mistralConfigured,
-        available: mistralConfigured,
-      },
+      mistral: { status: mistralConfigured ? "available" : "unavailable", configured: mistralConfigured, available: mistralConfigured },
     });
   } catch (error) {
     const mistralConfigured = isMistralConfigured();
@@ -235,12 +314,7 @@ router.post("/execute", async (req, res) => {
 
     const account = await canvaAccount();
     if (!account) {
-      return res.status(409).json({
-        status: "waiting-authorization",
-        code: "CANVA_NOT_CONNECTED",
-        error: "Canva nécessite une connexion ou une autorisation.",
-        action: "Reconnecter Canva",
-      });
+      return res.status(409).json({ status: "waiting-authorization", code: "CANVA_NOT_CONNECTED", error: "Canva nécessite une connexion ou une autorisation.", action: "Reconnecter Canva" });
     }
 
     const tools = await listComposioTools("canva");
@@ -257,29 +331,20 @@ router.post("/execute", async (req, res) => {
 
     const input = recordValue(req.body?.input);
     const title = stringValue(input.title) ?? "Production Publisher";
-    const attempts: Array<{ slug: string; error: string }> = [];
+    const attempts: Array<{ slug: string; arguments: Record<string, unknown>; error: string }> = [];
 
     for (const candidate of candidates) {
+      const args = canvaArguments(candidate, title);
       try {
-        const result = await executeComposioTool({
-          toolSlug: candidate.slug,
-          connectedAccountId: account.id,
-          arguments: canvaArguments(title),
-        });
+        const result = await executeComposioTool({ toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
         const artifact = extractCanvaArtifact(result, title);
         if (!artifact?.url) {
-          attempts.push({ slug: candidate.slug, error: "Aucun lien de design exploitable retourné." });
+          attempts.push({ slug: candidate.slug, arguments: args, error: "Aucun identifiant ou lien de design exploitable retourné." });
           continue;
         }
-        return res.json({
-          status: "completed",
-          provider: "composio",
-          tool: "canva",
-          action: candidate.slug,
-          artifact,
-        });
+        return res.json({ status: "completed", provider: "composio", tool: "canva", action: candidate.slug, artifact });
       } catch (error) {
-        attempts.push({ slug: candidate.slug, error: safeError(error) });
+        attempts.push({ slug: candidate.slug, arguments: args, error: safeError(error) });
       }
     }
 
@@ -293,11 +358,7 @@ router.post("/execute", async (req, res) => {
       action: "Relancer uniquement l'étape Canva",
     });
   } catch (error) {
-    return res.status(502).json({
-      status: "failed",
-      code: "PRODUCTION_PROVIDER_ERROR",
-      error: safeError(error),
-    });
+    return res.status(502).json({ status: "failed", code: "PRODUCTION_PROVIDER_ERROR", error: safeError(error) });
   }
 });
 
