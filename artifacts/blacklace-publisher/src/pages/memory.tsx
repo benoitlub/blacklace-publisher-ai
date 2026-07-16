@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BrainCircuit, CalendarClock, Database, RotateCcw, Tags, Target } from "lucide-react";
+import { BrainCircuit, CalendarClock, Database, RadioTower, RotateCcw, Tags, Target } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +24,12 @@ function formatDate(value: string): string {
   }).format(new Date(value));
 }
 
+function priorityLabel(priority: NonNullable<ObservationMemoryEntry["octopus"]>["harvestPriority"]): string {
+  if (priority === "prioritize") return "Prioritaire";
+  if (priority === "prepare") return "À préparer";
+  return "À observer";
+}
+
 function MemoryCard({ entry, onDecisionChange }: { entry: ObservationMemoryEntry; onDecisionChange: (id: string, decision: ObservationDecision) => void }) {
   return (
     <Card className="border-border bg-card shadow-sm">
@@ -41,6 +47,7 @@ function MemoryCard({ entry, onDecisionChange }: { entry: ObservationMemoryEntry
           <Badge variant="outline" className="font-mono text-[10px] uppercase">{entry.category}</Badge>
           <Badge variant="outline" className="font-mono text-[10px] uppercase">{entry.sourceKind}</Badge>
           <Badge variant="outline" className="font-mono text-[10px] uppercase">{entry.observationCount} observation(s)</Badge>
+          {entry.octopus ? <Badge className="font-mono text-[10px] uppercase">octopus enrichi</Badge> : null}
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -75,6 +82,43 @@ function MemoryCard({ entry, onDecisionChange }: { entry: ObservationMemoryEntry
             </select>
           </label>
         </div>
+
+        {entry.octopus ? (
+          <div className="rounded-lg border border-primary/30 bg-primary/10 p-4">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2 font-mono text-xs uppercase tracking-[0.18em] text-primary">
+                <RadioTower className="h-4 w-4" />
+                Mémoire Octopus
+              </div>
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                reçu {formatDate(entry.octopus.receivedAt)}
+              </span>
+            </div>
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-md border border-border bg-background/60 p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Pertinence</p>
+                <p className="mt-1 text-2xl font-semibold text-foreground">{entry.octopus.relevanceScore}%</p>
+              </div>
+              <div className="rounded-md border border-border bg-background/60 p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Nouveauté</p>
+                <p className="mt-1 text-2xl font-semibold text-foreground">{entry.octopus.noveltyScore}%</p>
+              </div>
+              <div className="rounded-md border border-border bg-background/60 p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Relations</p>
+                <p className="mt-1 text-2xl font-semibold text-foreground">{entry.octopus.relatedCount}</p>
+              </div>
+              <div className="rounded-md border border-border bg-background/60 p-3">
+                <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">Récolte</p>
+                <p className="mt-2 text-sm font-semibold text-foreground">{priorityLabel(entry.octopus.harvestPriority)}</p>
+              </div>
+            </div>
+            <p className="mt-4 text-sm text-muted-foreground">{entry.octopus.summary}</p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-background/30 p-4 text-sm text-muted-foreground">
+            Cette fiche précède le branchement de l’Observatoire à Octopus. Relance son observation pour obtenir pertinence, nouveauté, relations et priorité de récolte.
+          </div>
+        )}
 
         <div className="grid gap-3 md:grid-cols-2">
           <div className="rounded-lg border border-border bg-secondary/20 p-4">
@@ -144,7 +188,7 @@ export default function Memory() {
           <Badge variant="outline" className="mb-3 font-mono uppercase tracking-widest">Memoire du Poulpe</Badge>
           <h1 className="text-4xl font-serif font-bold text-foreground tracking-tight">Mémoire</h1>
           <p className="mt-2 max-w-3xl text-sm font-mono uppercase tracking-wider text-muted-foreground">
-            Observations retenues → historique → comparables → decisions proposees
+            Observations retenues → historique → mémoire Octopus → décisions proposées
           </p>
         </div>
         {entries.length ? (
@@ -170,9 +214,9 @@ export default function Memory() {
         </Card>
         <Card className="border-border bg-card shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Mode</CardTitle>
+            <CardTitle className="text-sm font-mono uppercase tracking-widest text-muted-foreground">Enrichies par Octopus</CardTitle>
           </CardHeader>
-          <CardContent><div className="text-lg font-serif text-foreground">LocalStorage</div></CardContent>
+          <CardContent><div className="text-4xl font-serif text-foreground">{entries.filter((entry) => entry.octopus).length}</div></CardContent>
         </Card>
       </div>
 
