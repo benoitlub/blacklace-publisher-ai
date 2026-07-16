@@ -4,15 +4,49 @@ import {
   PUBLISHER_ADAPTER_CAPABILITIES,
   type OctopusAdapterEnvelope,
 } from "../publisher/octopus-adapter";
+import {
+  observeWithOctopus,
+  type PublisherObservationInput,
+} from "../publisher/octopus-observation";
 
 const router = Router();
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function validObservation(value: unknown): PublisherObservationInput | null {
+  if (!isRecord(value)) return null;
+  if (typeof value.kind !== "string" || !value.kind.trim()) return null;
+  if (typeof value.title !== "string" || !value.title.trim()) return null;
+
+  const metrics = isRecord(value.metrics)
+    ? Object.fromEntries(Object.entries(value.metrics).filter((entry): entry is [string, number] => typeof entry[1] === "number" && Number.isFinite(entry[1])))
+    : undefined;
+  const context = isRecord(value.context)
+    ? Object.fromEntries(Object.entries(value.context).filter(([, item]) => item === null || ["string", "number", "boolean"].includes(typeof item))) as PublisherObservationInput["context"]
+    : undefined;
+
+  return {
+    kind: value.kind.trim(),
+    title: value.title.trim(),
+    ...(typeof value.id === "string" && value.id.trim() ? { id: value.id.trim() } : {}),
+    ...(typeof value.source === "string" && value.source.trim() ? { source: value.source.trim() } : {}),
+    ...(typeof value.occurredAt === "string" && value.occurredAt.trim() ? { occurredAt: value.occurredAt.trim() } : {}),
+    ...(metrics ? { metrics } : {}),
+    ...(context ? { context } : {}),
+    ...(Array.isArray(value.tags) ? { tags: value.tags.filter((item): item is string => typeof item === "string" && Boolean(item.trim())) } : {}),
+    ...(isRecord(value.metadata) ? { metadata: value.metadata } : {}),
+  };
+}
 
 router.get("/health", (_req, res) => {
   res.json({
     status: "ok",
     adapterId: "publisher",
-    contract: "octopus-adapter-execution-v1",
+    contracts: ["octopus-adapter-execution-v1", "universal-observation-knowledge-v1"],
     capabilities: PUBLISHER_ADAPTER_CAPABILITIES,
+    observationBridge: true,
   });
 });
 
@@ -25,6 +59,28 @@ router.post("/execute", async (req, res) => {
       status: "failed",
       summary: error instanceof Error ? error.message : "Échec de l’adaptateur Publisher.",
       output: {},
+    });
+  }
+});
+
+router.post("/observe", async (req, res) => {
+  const observation = validObservation(req.body);
+  if (!observation) {
+    return res.status(400).json({
+      status: "rejected",
+      code: "INVALID_OBSERVATION",
+      summary: "Publisher requires a neutral observation with kind and title.",
+    });
+  }
+
+  try {
+    const result = await observeWithOctopus(observation);
+    return res.json(result);
+  } catch (error) {
+    return res.status(502).json({
+      status: "failed",
+      code: "OCTOPUS_UNAVAILABLE",
+      summary: error instanceof Error ? error.message : "Octopus could not process the observation.",
     });
   }
 });
