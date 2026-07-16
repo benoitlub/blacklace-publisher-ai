@@ -9,9 +9,6 @@
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
   },
   "pnpm": {
-    "overrides": {
-      "esbuild": "0.27.3"
-    },
     "onlyBuiltDependencies": [
       "esbuild"
     ]
