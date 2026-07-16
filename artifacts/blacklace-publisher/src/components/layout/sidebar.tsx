@@ -13,6 +13,7 @@ import {
   Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OctopusWitness } from "./octopus-witness";
 
 const NAV_GROUPS = [
   {
@@ -102,6 +103,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       </nav>
 
       <div className="border-t border-border p-4">
+        <OctopusWitness />
         <p className="mb-2 text-xs text-muted-foreground">Poulpe Fiction reste l’entrée principale pour parler à Gérard et suivre les parcelles.</p>
         <a
           href="https://poulpe-fiction.onrender.com"
