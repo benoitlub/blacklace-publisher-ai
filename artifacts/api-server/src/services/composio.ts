@@ -7,6 +7,15 @@ export interface ComposioConnectedAccount {
   raw: unknown;
 }
 
+export interface ComposioTool {
+  slug: string;
+  name: string;
+  description: string;
+  toolkitSlug: string;
+  inputSchema: Record<string, unknown> | null;
+  raw: unknown;
+}
+
 export interface ComposioConnectionRequest {
   id: string | null;
   redirectUrl: string | null;
@@ -42,6 +51,33 @@ export async function listComposioConnectedAccounts(userId: string): Promise<Com
       const payload = await composioRequest(path);
       for (const item of extractItems(payload).map(normalizeConnectedAccount)) {
         if (item) found.set(item.id, item);
+      }
+      if (found.size > 0) break;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  if (found.size === 0 && lastError) throw lastError;
+  return [...found.values()];
+}
+
+export async function listComposioTools(toolkitSlug: string): Promise<ComposioTool[]> {
+  const normalizedToolkit = normalize(toolkitSlug);
+  const queries = [
+    `/tools?toolkit_slugs=${encodeURIComponent(toolkitSlug)}&limit=250`,
+    `/tools?toolkit_slug=${encodeURIComponent(toolkitSlug)}&limit=250`,
+    `/tools?toolkits=${encodeURIComponent(toolkitSlug)}&limit=250`,
+  ];
+  const found = new Map<string, ComposioTool>();
+  let lastError: unknown = null;
+
+  for (const path of queries) {
+    try {
+      const payload = await composioRequest(path);
+      for (const item of extractItems(payload)) {
+        const tool = normalizeTool(item, normalizedToolkit);
+        if (tool) found.set(tool.slug, tool);
       }
       if (found.size > 0) break;
     } catch (error) {
@@ -163,6 +199,23 @@ function normalizeConnectedAccount(value: unknown): ComposioConnectedAccount | n
   };
 }
 
+function normalizeTool(value: unknown, expectedToolkit: string): ComposioTool | null {
+  const record = asRecord(value);
+  const slug = stringValue(record.slug ?? record.name ?? record.tool_slug ?? record.toolSlug);
+  if (!slug) return null;
+  const toolkit = normalize(toolkitFrom(record) || expectedToolkit);
+  if (toolkit && expectedToolkit && toolkit !== expectedToolkit) return null;
+  const schema = asRecord(record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
+  return {
+    slug,
+    name: stringValue(record.name ?? record.display_name ?? record.displayName) || slug,
+    description: stringValue(record.description) || "",
+    toolkitSlug: toolkit || expectedToolkit,
+    inputSchema: Object.keys(schema).length ? schema : null,
+    raw: value,
+  };
+}
+
 function toolkitFrom(record: Record<string, unknown>): string {
   const toolkit = asRecord(record.toolkit);
   const authConfig = asRecord(record.auth_config ?? record.authConfig);
@@ -176,12 +229,13 @@ function toolkitFrom(record: Record<string, unknown>): string {
 function extractItems(payload: unknown): unknown[] {
   if (Array.isArray(payload)) return payload;
   const record = asRecord(payload);
-  for (const key of ["items", "data", "results", "connected_accounts", "auth_configs"]) {
+  for (const key of ["items", "data", "results", "tools", "connected_accounts", "auth_configs"]) {
     const value = record[key];
     if (Array.isArray(value)) return value;
     const nested = asRecord(value);
     if (Array.isArray(nested.items)) return nested.items;
     if (Array.isArray(nested.data)) return nested.data;
+    if (Array.isArray(nested.tools)) return nested.tools;
   }
   return [];
 }
