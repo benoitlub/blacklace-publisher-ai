@@ -35,7 +35,7 @@ describe("Production Engine V1", () => {
 
     expect(plan.steps[0]).toMatchObject({
       producerId: "html-local",
-      producerLabel: "HTML local",
+      producerLabel: "HTML local enrichi",
       connector: "local",
       status: "ready",
     });
@@ -77,20 +77,40 @@ describe("Production Engine V1", () => {
     });
   });
 
-  it("executes the landing-page through the selected producer", async () => {
+  it("executes a complete responsive landing page through the selected producer", async () => {
+    const request: ProductionRequest = {
+      ...baseRequest,
+      input: {
+        audience: "Courtiers indépendants",
+        offer: "Une prospection qualifiée et structurée",
+        callToAction: "Présenter mon besoin",
+        actionUrl: "https://example.com/contact",
+        benefits: ["Audience claire", "Message crédible", "Prochain pas simple"],
+      },
+    };
     const engine = new ProductionEngine(createDefaultProducerRegistry());
-    const plan = engine.plan(baseRequest);
-    const report = await engine.execute(plan, baseRequest);
+    const plan = engine.plan(request);
+    const report = await engine.execute(plan, request);
 
     expect(report.status).toBe("completed");
     expect(report.artifacts[0]).toMatchObject({
       producerId: "html-local",
       capability: "landing-page",
       type: "landing-page.html",
-      mimeType: "text/html",
+      mimeType: "text/html; charset=utf-8",
+      metadata: {
+        template: "publisher-rich-landing-v2",
+        responsive: true,
+        selfContained: true,
+      },
     });
-    expect(report.artifacts[0]?.content).toContain("<main");
+    expect(report.artifacts[0]?.content).toContain("<!doctype html>");
+    expect(report.artifacts[0]?.content).toContain("<meta name=\"viewport\"");
+    expect(report.artifacts[0]?.content).toContain("@media(max-width:780px)");
     expect(report.artifacts[0]?.content).toContain("Yaebali");
+    expect(report.artifacts[0]?.content).toContain("Courtiers indépendants");
+    expect(report.artifacts[0]?.content).toContain("https://example.com/contact");
+    expect(report.artifacts[0]?.content).not.toContain("témoignage client");
   });
 });
 
