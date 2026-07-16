@@ -4,39 +4,13 @@ import {
   isActiveComposioStatus,
   isComposioConfigured,
   listComposioConnectedAccounts,
+  listComposioTools,
+  type ComposioTool,
 } from "../services/composio";
 import { productionEngine, type ProducerCapability, type ProductionRequest } from "../publisher/production-engine";
 
 const router = Router();
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
-const CANVA_CREATE_DESIGN_ACTION = "CANVA_POST_DESIGNS";
-const AVAILABLE_CANVA_ACTIONS = [
-  {
-    slug: "CANVA_POST_DESIGNS",
-    description: "Creates a new Canva design with preset type or custom dimensions.",
-    requiredFields: ["design_type"],
-  },
-  {
-    slug: "CANVA_FETCH_DESIGN_METADATA_AND_ACCESS_INFORMATION",
-    description: "Gets metadata and access URLs for a Canva design.",
-    requiredFields: ["designId"],
-  },
-  {
-    slug: "CANVA_GET_DESIGNS_DESIGNID_EXPORT_FORMATS",
-    description: "Lists available export formats for a Canva design.",
-    requiredFields: ["designId"],
-  },
-  {
-    slug: "CANVA_POST_EXPORTS",
-    description: "Starts an asynchronous export job for a Canva design.",
-    requiredFields: ["design_id", "format"],
-  },
-  {
-    slug: "CANVA_GET_DESIGN_EXPORT_JOB_RESULT",
-    description: "Polls a Canva export job until download URLs are available.",
-    requiredFields: ["exportId"],
-  },
-] as const;
 
 function isMistralConfigured(): boolean {
   return Boolean((process.env.AI_API_KEY ?? process.env.MISTRAL_API_KEY)?.trim());
@@ -44,7 +18,10 @@ function isMistralConfigured(): boolean {
 
 function safeError(error: unknown): string {
   const message = error instanceof Error ? error.message : "Erreur inconnue";
-  return message.replace(/sk-[a-zA-Z0-9_-]+/g, "[secret]").replace(/Bearer\s+[a-zA-Z0-9._-]+/g, "Bearer [secret]");
+  return message
+    .replace(/sk-[a-zA-Z0-9_-]+/g, "[secret]")
+    .replace(/ak_[a-zA-Z0-9_-]+/g, "[secret]")
+    .replace(/Bearer\s+[a-zA-Z0-9._-]+/g, "Bearer [secret]");
 }
 
 async function canvaAccount() {
@@ -72,7 +49,31 @@ function stringValue(value: unknown): string | null {
   return text || null;
 }
 
-function extractCanvaArtifact(payload: unknown) {
+function toolText(tool: ComposioTool): string {
+  return `${tool.slug} ${tool.name} ${tool.description}`.toLowerCase();
+}
+
+function scoreCanvaCreateTool(tool: ComposioTool): number {
+  const text = toolText(tool);
+  if (!text.includes("design")) return -100;
+  if (/export|metadata|access|format|list|get|fetch|delete|update/.test(text)) return -50;
+  let score = 0;
+  if (/create/.test(text)) score += 60;
+  if (/post/.test(text)) score += 35;
+  if (/designs?/.test(text)) score += 25;
+  if (/canva/.test(text)) score += 10;
+  return score;
+}
+
+function selectCanvaCreateTools(tools: ComposioTool[]): ComposioTool[] {
+  return tools
+    .map((tool) => ({ tool, score: scoreCanvaCreateTool(tool) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.tool);
+}
+
+function extractCanvaArtifact(payload: unknown, title: string) {
   const record = payload && typeof payload === "object" && !Array.isArray(payload) ? payload as Record<string, any> : {};
   const data = record.data && typeof record.data === "object" ? record.data : record;
   const design = data.design && typeof data.design === "object" ? data.design : data;
@@ -83,14 +84,12 @@ function extractCanvaArtifact(payload: unknown) {
   if (!id && !url) return null;
   return {
     id: id ?? `canva_${Date.now()}`,
-    kind: "instagram-visual",
-    title: "Visuel Instagram TERRA",
+    kind: "social-visual",
+    title: `Visuel principal · ${title}`,
     url,
     downloadUrl,
     mimeType: downloadUrl ? "image/png" : null,
-    rawReference: {
-      designId: id,
-    },
+    rawReference: { designId: id },
   };
 }
 
@@ -127,17 +126,28 @@ function isLandingPageExecution(tool: string, action: string, body: Record<strin
   return capability === "landing-page" && (tool === "html-local" || tool === "html" || action === "create_landing_page" || action === "create_landing-page");
 }
 
+function canvaArguments(title: string): Record<string, unknown> {
+  return {
+    title: `Visuel principal ${title}`,
+    design_type: { type: "custom", width: 1080, height: 1080 },
+    designType: { type: "custom", width: 1080, height: 1080 },
+    width: 1080,
+    height: 1080,
+  };
+}
+
 router.get("/diagnostics", async (_req, res) => {
   try {
     const accounts = await productionAccounts();
     const canva = accountFor(accounts, "canva");
     const elevenLabs = accountFor(accounts, "elevenlabs");
     const mistralConfigured = isMistralConfigured();
-    console.info(JSON.stringify({
-      canvaConnectedAccount: canva?.id ?? null,
-      elevenLabsConnectedAccount: elevenLabs?.id ?? null,
-      availableActions: AVAILABLE_CANVA_ACTIONS,
-    }));
+    const [canvaTools, elevenLabsTools] = await Promise.all([
+      canva ? listComposioTools("canva").catch(() => []) : Promise.resolve([]),
+      elevenLabs ? listComposioTools("elevenlabs").catch(() => []) : Promise.resolve([]),
+    ]);
+    const canvaCreationTools = selectCanvaCreateTools(canvaTools);
+
     return res.json({
       composio: {
         configured: isComposioConfigured(),
@@ -147,21 +157,27 @@ router.get("/diagnostics", async (_req, res) => {
         connectedAccounts: accounts
           .filter((account) => isActiveComposioStatus(account.status))
           .map((account) => ({ id: account.id, toolkitSlug: account.toolkitSlug, status: account.status })),
-        availableActions: AVAILABLE_CANVA_ACTIONS,
       },
       canva: {
-        status: providerStatus(canva, isComposioConfigured()),
+        status: canvaCreationTools.length ? "executable" : providerStatus(canva, isComposioConfigured()),
         connected: Boolean(canva),
         connectedAccount: canva?.id ?? null,
         provider: "composio",
-        availableActions: AVAILABLE_CANVA_ACTIONS,
+        discoveredToolCount: canvaTools.length,
+        creationActions: canvaCreationTools.map((tool) => ({ slug: tool.slug, name: tool.name, description: tool.description })),
       },
       elevenLabs: {
         status: providerStatus(elevenLabs, isComposioConfigured()),
         connected: Boolean(elevenLabs),
         connectedAccount: elevenLabs?.id ?? null,
         provider: "composio",
+        discoveredToolCount: elevenLabsTools.length,
+        executable: false,
+        reason: elevenLabs ? "Connexion trouvée, mais aucun exécuteur vocal validé dans Production Engine." : "Non connecté.",
       },
+      kling: { status: "not-implemented", executable: false },
+      metricool: { status: "not-implemented", executable: false },
+      gmail: { status: "not-implemented", executable: false },
       mistral: {
         status: mistralConfigured ? "available" : "unavailable",
         configured: mistralConfigured,
@@ -171,6 +187,7 @@ router.get("/diagnostics", async (_req, res) => {
   } catch (error) {
     const mistralConfigured = isMistralConfigured();
     return res.status(502).json({
+      status: "failed",
       composio: { configured: isComposioConfigured(), canvaConnected: false, elevenLabsConnected: false },
       canva: { status: "diagnostic-inaccessible", connected: false, provider: "composio" },
       elevenLabs: { status: "diagnostic-inaccessible", connected: false, provider: "composio" },
@@ -188,73 +205,100 @@ router.post("/plan", (req, res) => {
 });
 
 router.post("/execute", async (req, res) => {
-  const tool = String(req.body?.tool ?? "").toLowerCase();
-  const action = String(req.body?.action ?? "").toLowerCase();
-  const body = recordValue(req.body);
-  if (isLandingPageExecution(tool, action, body)) {
-    const request = productionRequestFromBody({ ...body, capability: "landing-page", preferredProducerId: "html-local" });
-    const plan = productionEngine.plan(request);
-    const report = await productionEngine.execute(plan, request);
-    return res.status(report.status === "completed" ? 200 : 422).json({
-      status: report.status,
-      provider: "production-engine",
-      tool: "html-local",
-      action: "HTML_LOCAL_LANDING_PAGE",
-      plan,
-      artifact: report.artifacts[0] ?? null,
-      errors: report.errors,
-    });
-  }
-
-  if (tool !== "canva" || action !== "create_design") {
-    return res.status(400).json({ status: "failed", error: "Seule l'action canva/create_design est autorisée dans cette passe." });
-  }
-
-  let account = null;
   try {
-    account = await canvaAccount();
+    const tool = String(req.body?.tool ?? "").toLowerCase();
+    const action = String(req.body?.action ?? "").toLowerCase();
+    const body = recordValue(req.body);
+
+    if (isLandingPageExecution(tool, action, body)) {
+      const request = productionRequestFromBody({ ...body, capability: "landing-page", preferredProducerId: "html-local" });
+      const plan = productionEngine.plan(request);
+      const report = await productionEngine.execute(plan, request);
+      return res.status(report.status === "completed" ? 200 : 422).json({
+        status: report.status,
+        provider: "production-engine",
+        tool: "html-local",
+        action: "HTML_LOCAL_LANDING_PAGE",
+        plan,
+        artifact: report.artifacts[0] ?? null,
+        errors: report.errors,
+      });
+    }
+
+    if (tool !== "canva" || action !== "create_design") {
+      return res.status(400).json({
+        status: "failed",
+        code: "PRODUCER_NOT_IMPLEMENTED",
+        error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé.`,
+      });
+    }
+
+    const account = await canvaAccount();
+    if (!account) {
+      return res.status(409).json({
+        status: "waiting-authorization",
+        code: "CANVA_NOT_CONNECTED",
+        error: "Canva nécessite une connexion ou une autorisation.",
+        action: "Reconnecter Canva",
+      });
+    }
+
+    const tools = await listComposioTools("canva");
+    const candidates = selectCanvaCreateTools(tools);
+    if (!candidates.length) {
+      return res.status(501).json({
+        status: "unsupported",
+        code: "CANVA_CREATE_TOOL_UNAVAILABLE",
+        error: "Canva est connecté, mais Composio n'expose actuellement aucune action de création de design compatible.",
+        connectedAccount: account.id,
+        discoveredActions: tools.map((item) => item.slug),
+      });
+    }
+
+    const input = recordValue(req.body?.input);
+    const title = stringValue(input.title) ?? "Production Publisher";
+    const attempts: Array<{ slug: string; error: string }> = [];
+
+    for (const candidate of candidates) {
+      try {
+        const result = await executeComposioTool({
+          toolSlug: candidate.slug,
+          connectedAccountId: account.id,
+          arguments: canvaArguments(title),
+        });
+        const artifact = extractCanvaArtifact(result, title);
+        if (!artifact?.url) {
+          attempts.push({ slug: candidate.slug, error: "Aucun lien de design exploitable retourné." });
+          continue;
+        }
+        return res.json({
+          status: "completed",
+          provider: "composio",
+          tool: "canva",
+          action: candidate.slug,
+          artifact,
+        });
+      } catch (error) {
+        attempts.push({ slug: candidate.slug, error: safeError(error) });
+      }
+    }
+
+    return res.status(502).json({
+      status: "failed",
+      code: "CANVA_EXECUTION_FAILED",
+      provider: "composio",
+      tool: "canva",
+      error: "Canva est connecté, mais aucune action de création découverte n'a produit de visuel exploitable.",
+      attempts,
+      action: "Relancer uniquement l'étape Canva",
+    });
   } catch (error) {
-    return res.status(502).json({ status: "failed", error: safeError(error), action: "Ouvrir le Local technique" });
-  }
-  if (!account) {
-    return res.status(409).json({ status: "waiting-authorization", error: "Canva nécessite une connexion ou une autorisation.", action: "Reconnecter Canva" });
-  }
-  if (!AVAILABLE_CANVA_ACTIONS.some((action) => action.slug === CANVA_CREATE_DESIGN_ACTION)) {
-    return res.status(501).json({
-      status: "unsupported",
-      reason: "La connexion Canva est active, mais aucune action de création de design n'est exposée pour ce compte via Composio.",
-      connectedAccount: account.id,
-      availableActions: AVAILABLE_CANVA_ACTIONS,
+    return res.status(502).json({
+      status: "failed",
+      code: "PRODUCTION_PROVIDER_ERROR",
+      error: safeError(error),
     });
   }
-
-  const input = req.body?.input && typeof req.body.input === "object" ? req.body.input : {};
-  const title = stringValue((input as Record<string, unknown>).title) ?? "TERRA";
-  const result = await executeComposioTool({
-    toolSlug: CANVA_CREATE_DESIGN_ACTION,
-    connectedAccountId: account.id,
-    arguments: {
-      title: req.body?.operationId ? `Visuel Instagram ${title}` : "TERRA — test Poulpe Fiction",
-      design_type: { type: "custom", width: 1080, height: 1080 },
-    },
-  }).catch((error) => ({ error: safeError(error) }));
-
-  if (result && typeof result === "object" && "error" in result) {
-    return res.status(502).json({ status: "failed", provider: "composio", tool: "canva", error: String((result as { error: unknown }).error), action: "Relancer uniquement l'étape Canva" });
-  }
-
-  const artifact = extractCanvaArtifact(result);
-  if (!artifact?.url) {
-    return res.status(502).json({ status: "failed", provider: "composio", tool: "canva", error: "Aucun artefact Canva exploitable retourné.", action: "Réessayer" });
-  }
-
-  return res.json({
-    status: "completed",
-    provider: "composio",
-    tool: "canva",
-    action: CANVA_CREATE_DESIGN_ACTION,
-    artifact,
-  });
 });
 
 export default router;
