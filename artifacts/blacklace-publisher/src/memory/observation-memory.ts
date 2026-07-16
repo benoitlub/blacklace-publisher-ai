@@ -1,5 +1,5 @@
 import type { KnowledgeObservatoryResult } from "@/models/knowledge-observatory";
-import type { ObservationDecision, ObservationMemoryEntry } from "@/models/observation-memory";
+import type { ObservationDecision, ObservationMemoryEntry, ObservationOctopusEnrichment } from "@/models/observation-memory";
 
 const STORAGE_KEY = "blacklace.publisher.observationMemory.v1";
 export const OBSERVATION_MEMORY_CHANGED_EVENT = "blacklace:observation-memory-changed";
@@ -115,6 +115,22 @@ export function rememberObservation(result: KnowledgeObservatoryResult): Observa
 
   saveObservationMemory(entries.sort((a, b) => new Date(b.lastObservedAt).getTime() - new Date(a.lastObservedAt).getTime()));
   return saved;
+}
+
+export function attachOctopusToLatestObservation(enrichment: Omit<ObservationOctopusEnrichment, "receivedAt">): void {
+  const entries = loadObservationMemory();
+  if (!entries.length) return;
+  const [latest, ...rest] = entries;
+  saveObservationMemory([
+    {
+      ...latest,
+      octopus: {
+        ...enrichment,
+        receivedAt: new Date().toISOString(),
+      },
+    },
+    ...rest,
+  ]);
 }
 
 export function updateObservationDecision(entryId: string, decision: ObservationDecision): void {
