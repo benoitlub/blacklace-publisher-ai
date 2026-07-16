@@ -7,11 +7,39 @@ import { KnowledgeSourceStatus } from "@/components/knowledge-source-status";
 import { ActivityEcho } from "@/components/activity-echo";
 import { toActivityEchoEvents } from "@/lib/activity-echo-events";
 import { loadActivityEntries, PUBLISHER_LOOP_CHANGED_EVENT, type ActivityEntry } from "@/lib/missions";
-import { Ear, Eye, Radio, Send, Sparkles } from "lucide-react";
+import { Activity, Ear, Eye, PackageCheck, Radio, RefreshCw, Send, Sparkles, Sprout } from "lucide-react";
 
 const CAPTURE_TYPES = new Set<string>(["radar-launched", "candidate-detected", "observation-memorized", "seed-created"]);
 const PREPARED_TYPES = new Set<string>(["knowledge-pack-created", "harvest-draft-created", "publication-draft-generated", "publication-draft-updated"]);
 const TRANSMITTED_TYPES = new Set<string>(["mission-sent", "provider-call-started", "recommendation-applied", "test-in-progress", "fallback-used", "blockage-detected"]);
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "https://blacklace-publisher-api.onrender.com").replace(/\/$/, "");
+
+type PoulpeSeed = {
+  id: string;
+  parcelId?: string;
+  title?: string;
+  status?: string;
+  maturity?: number;
+  lastCultivatedAt?: string;
+};
+
+type PoulpeParcel = {
+  id: string;
+  name?: string;
+  title?: string;
+};
+
+type PoulpeEvent = {
+  id: string;
+  label?: string;
+  createdAt?: string;
+};
+
+type PoulpeLifeState = {
+  parcels: PoulpeParcel[];
+  seeds: PoulpeSeed[];
+  events: PoulpeEvent[];
+};
 
 function latestOf(entries: readonly ActivityEntry[], accepted: ReadonlySet<string>): ActivityEntry | undefined {
   return entries.find((entry) => accepted.has(String(entry.type)));
@@ -34,6 +62,104 @@ function SignalCard({ title, empty, entry, icon: Icon }: { title: string; empty:
             <Badge variant="outline" className="font-mono text-[10px] uppercase">{entry.type}</Badge>
           </div>
         ) : <p className="text-sm text-muted-foreground">{empty}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function GerardGardenTile() {
+  const [life, setLife] = useState<PoulpeLifeState | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/poulpe-life/state`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Publisher API ${response.status}`);
+      const payload = await response.json() as Partial<PoulpeLifeState>;
+      setLife({
+        parcels: Array.isArray(payload.parcels) ? payload.parcels : [],
+        seeds: Array.isArray(payload.seeds) ? payload.seeds : [],
+        events: Array.isArray(payload.events) ? payload.events : [],
+      });
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Vie du jardin indisponible");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refresh();
+    const timer = window.setInterval(() => void refresh(), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const summary = useMemo(() => {
+    const seeds = life?.seeds ?? [];
+    const active = seeds.filter((seed) => ["observing", "growing"].includes(String(seed.status))).length;
+    const ready = seeds.filter((seed) => seed.status === "bag-ready").length;
+    const missions = seeds.filter((seed) => seed.status === "adventure").length;
+    const average = seeds.length
+      ? Math.round((seeds.reduce((total, seed) => total + Number(seed.maturity || 0), 0) / seeds.length) * 10) / 10
+      : 0;
+    return { active, ready, missions, average };
+  }, [life]);
+
+  const latestEvent = life?.events?.[0];
+
+  return (
+    <Card className="overflow-hidden border-primary/30 bg-card shadow-sm">
+      <CardHeader className="gap-3 border-b border-border bg-primary/5 pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2 font-serif text-xl">
+            <Sprout className="h-5 w-5 text-primary" />
+            Gérard travaille sur toutes les parcelles
+          </CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Vue Publisher de la culture persistante. Gérard répartit ses tentacules sans changer manuellement de parcelle.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => void refresh()} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Actualiser
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-5">
+        {error ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            La mémoire du jardin ne répond pas encore : {error}
+          </div>
+        ) : null}
+
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Parcelles</p><p className="mt-1 text-2xl font-semibold">{life?.parcels.length ?? "—"}</p></div>
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Seeds</p><p className="mt-1 text-2xl font-semibold">{life?.seeds.length ?? "—"}</p></div>
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">En pousse</p><p className="mt-1 text-2xl font-semibold">{life ? summary.active : "—"}</p></div>
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Sacs prêts</p><p className="mt-1 text-2xl font-semibold">{life ? summary.ready : "—"}</p></div>
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Maturité moyenne</p><p className="mt-1 text-2xl font-semibold">{life ? `${summary.average}%` : "—"}</p></div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-3">
+          <div className="rounded-lg border border-border p-3">
+            <p className="flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4 text-primary" />Activité parallèle</p>
+            <p className="mt-2 text-sm text-muted-foreground">{summary.active} Seed(s) en observation ou croissance, {summary.missions} en aventure.</p>
+          </div>
+          <div className="rounded-lg border border-border p-3">
+            <p className="flex items-center gap-2 text-sm font-medium"><PackageCheck className="h-4 w-4 text-primary" />Récoltes à autoriser</p>
+            <p className="mt-2 text-sm text-muted-foreground">{summary.ready} sac(s) prêt(s) attendent un départ ou une validation humaine.</p>
+          </div>
+          <div className="rounded-lg border border-border p-3">
+            <p className="flex items-center gap-2 text-sm font-medium"><Sprout className="h-4 w-4 text-primary" />Dernière trace réelle</p>
+            <p className="mt-2 text-sm text-muted-foreground">{latestEvent?.label || (loading ? "Lecture du jardin…" : "Aucun événement enregistré.")}</p>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Publisher observe et mémorise. Les décisions et départs restent confiés à Poulpe Fiction et Octopus Engine.
+        </p>
       </CardContent>
     </Card>
   );
@@ -84,6 +210,8 @@ export default function Dashboard() {
         <SignalCard title="Ce qu’il vient d’entendre" empty="Aucune connaissance ou comparaison n’est encore prête." entry={signals.prepared} icon={Ear} />
         <SignalCard title="Ce qu’il transmet au moteur" empty="Rien n’attend Octopus Engine pour le moment." entry={signals.transmitted} icon={Send} />
       </section>
+
+      <GerardGardenTile />
 
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3 border-b border-border pb-2">
