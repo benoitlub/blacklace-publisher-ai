@@ -1,3 +1,5 @@
+import { attachOctopusToLatestObservation } from "@/memory/observation-memory";
+
 const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-api.onrender.com";
 
 function apiUrl(path: string) {
@@ -68,5 +70,8 @@ export async function sendObservatoryObservation(input: {
   if (!response.ok || !payload.publisher) {
     throw new Error(payload.summary || `Octopus indisponible (${response.status}).`);
   }
-  return payload as PublisherOctopusObservationResult;
+
+  const result = payload as PublisherOctopusObservationResult;
+  attachOctopusToLatestObservation(result.publisher);
+  return result;
 }
