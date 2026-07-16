@@ -10,6 +10,7 @@ import {
 } from "../publisher/octopus-observation";
 
 const router = Router();
+const DEFAULT_OCTOPUS_URL = "https://octopus-engine.onrender.com";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -40,13 +41,30 @@ function validObservation(value: unknown): PublisherObservationInput | null {
   };
 }
 
-router.get("/health", (_req, res) => {
+async function engineHealth() {
+  const octopusUrl = (process.env.OCTOPUS_ENGINE_URL?.trim() || DEFAULT_OCTOPUS_URL).replace(/\/$/, "");
+  const startedAt = Date.now();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(`${octopusUrl}/health`, { signal: controller.signal, cache: "no-store" });
+    return { connected: response.ok, status: response.status, latencyMs: Date.now() - startedAt };
+  } catch {
+    return { connected: false, status: null, latencyMs: Date.now() - startedAt };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+router.get("/health", async (_req, res) => {
+  const engine = await engineHealth();
   res.json({
     status: "ok",
     adapterId: "publisher",
     contracts: ["octopus-adapter-execution-v1", "universal-observation-knowledge-v1"],
     capabilities: PUBLISHER_ADAPTER_CAPABILITIES,
     observationBridge: true,
+    engine,
   });
 });
 
