@@ -4,6 +4,7 @@ import { fetchBlacklaceKnowledgeWithDiagnostics, buildKnowledgeContext } from ".
 import { composeExpertise } from "../services/expertise-composer";
 
 export const PUBLISHER_ADAPTER_CAPABILITIES = [
+  "copy.generate",
   "content.article.write",
   "content.social.write",
   "knowledge.search",
@@ -45,9 +46,16 @@ function requestedCapability(mission: OctopusAdapterMission): PublisherAdapterCa
   return PUBLISHER_ADAPTER_CAPABILITIES.find((capability) => mission.requiredCapabilities.includes(capability));
 }
 
-async function writeContent(mission: OctopusAdapterMission, capability: "content.article.write" | "content.social.write") {
+async function writeContent(
+  mission: OctopusAdapterMission,
+  capability: "copy.generate" | "content.article.write" | "content.social.write",
+) {
   const universe = stringValue(metadataValue(mission, "universe")) ?? mission.context.label ?? "Blacklace";
-  const platform = stringValue(metadataValue(mission, "platform")) ?? (capability === "content.article.write" ? "Site web" : "Instagram");
+  const platform = stringValue(metadataValue(mission, "platform")) ?? (
+    capability === "content.article.write" ? "Site web" :
+    capability === "copy.generate" ? "Livrable Markdown" :
+    "Instagram"
+  );
   const agentName = stringValue(metadataValue(mission, "agentName")) ?? "Sofia";
   const agentTone = stringValue(metadataValue(mission, "agentTone")) ?? "clair, documenté, créatif et sans promesse invérifiable";
   const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
@@ -73,6 +81,16 @@ async function writeContent(mission: OctopusAdapterMission, capability: "content
       capability,
       title: draft.title,
       content: draft.content,
+      text: draft.content,
+      artifacts: [{
+        id: `publisher-${mission.operationId}`,
+        title: draft.title,
+        type: "markdown",
+        artifactType: "markdown",
+        mimeType: "text/markdown; charset=utf-8",
+        content: draft.content,
+        artifact: draft.content,
+      }],
       hashtags: draft.hashtags,
       provider: draft.provider,
       model: draft.model,
@@ -121,7 +139,7 @@ async function generateLanding(mission: OctopusAdapterMission) {
     operationId: mission.operationId,
     status: report.status === "completed" ? "completed" as const : "failed" as const,
     summary: report.status === "completed" ? "Landing page produite par Publisher." : "La production de la landing page a échoué.",
-    output: { capability: "landing.generate", plan, errors: report.errors },
+    output: { capability: "landing.generate", plan, errors: report.errors, artifacts: report.artifacts },
     artifacts: report.artifacts,
   };
 }
@@ -139,7 +157,9 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
       output: { requestedCapabilities: envelope.mission.requiredCapabilities },
     };
   }
-  if (capability === "content.article.write" || capability === "content.social.write") return writeContent(envelope.mission, capability);
+  if (capability === "copy.generate" || capability === "content.article.write" || capability === "content.social.write") {
+    return writeContent(envelope.mission, capability);
+  }
   if (capability === "knowledge.search") return searchKnowledge(envelope.mission);
   return generateLanding(envelope.mission);
 }
