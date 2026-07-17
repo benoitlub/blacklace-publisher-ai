@@ -46,26 +46,54 @@ function requestedCapability(mission: OctopusAdapterMission): PublisherAdapterCa
   return PUBLISHER_ADAPTER_CAPABILITIES.find((capability) => mission.requiredCapabilities.includes(capability));
 }
 
+function platformFor(mission: OctopusAdapterMission, capability: PublisherAdapterCapability): string {
+  const explicit = stringValue(metadataValue(mission, "platform"));
+  if (explicit) return explicit;
+  const request = `${mission.title} ${mission.objective} ${mission.prompt ?? ""}`.toLowerCase();
+  if (request.includes("linkedin")) return "LinkedIn";
+  if (request.includes("instagram")) return "Instagram";
+  if (capability === "content.article.write") return "Site web";
+  if (capability === "copy.generate") return "Livrable Markdown";
+  return "Instagram";
+}
+
+function productionPrompt(mission: OctopusAdapterMission, capability: PublisherAdapterCapability): string {
+  const original = mission.prompt ?? mission.objective;
+  if (capability !== "copy.generate") return original;
+
+  const audience = stringValue(metadataValue(mission, "audience"));
+  const format = stringValue(metadataValue(mission, "format"));
+  const details = stringValue(metadataValue(mission, "details"));
+  return [
+    original,
+    audience ? `Audience déjà choisie : ${audience}.` : "",
+    format ? `Ton ou format déjà choisi : ${format}.` : "",
+    details ? `Détails fournis : ${details}.` : "",
+    "RÈGLE DE PRODUCTION : rends maintenant un premier brouillon complet et directement exploitable.",
+    "Ne transforme pas une demande de brouillon en questionnaire de cadrage.",
+    "Lorsque le ciblage reste large, choisis un angle raisonnable à partir du projet, de l'audience et du format fournis, puis indique brièvement l'hypothèse retenue dans le brouillon.",
+    "N'utilise needs-input que lorsqu'un fait vérifiable indispensable empêche réellement toute production, par exemple un lien obligatoire, un prix exact ou une identité qui ne peut pas être supposée.",
+    "Pour un post social, produis le post : hook, corps, conclusion et CTA prudent. N'écris pas une liste de questions à l'utilisateur.",
+  ].filter(Boolean).join("\n\n");
+}
+
 async function writeContent(
   mission: OctopusAdapterMission,
   capability: "copy.generate" | "content.article.write" | "content.social.write",
 ) {
   const universe = stringValue(metadataValue(mission, "universe")) ?? mission.context.label ?? "Blacklace";
-  const platform = stringValue(metadataValue(mission, "platform")) ?? (
-    capability === "content.article.write" ? "Site web" :
-    capability === "copy.generate" ? "Livrable Markdown" :
-    "Instagram"
-  );
+  const platform = platformFor(mission, capability);
   const agentName = stringValue(metadataValue(mission, "agentName")) ?? "Sofia";
   const agentTone = stringValue(metadataValue(mission, "agentTone")) ?? "clair, documenté, créatif et sans promesse invérifiable";
   const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
-  const expertise = composeExpertise({ universe, platform, prompt: mission.prompt ?? mission.objective });
+  const prompt = productionPrompt(mission, capability);
+  const expertise = composeExpertise({ universe, platform, prompt });
   const draft = await generatePostDraft({
     universe,
     agentName,
     agentTone,
     platform,
-    prompt: mission.prompt ?? mission.objective,
+    prompt,
     knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
     knowledgeSource: knowledge.source,
     expertiseContext: expertise.promptBlock,
