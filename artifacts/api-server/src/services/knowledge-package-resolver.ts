@@ -1,4 +1,6 @@
 import { fetchBlacklaceKnowledgeWithDiagnostics, type BlacklaceKnowledgeItem } from "./notion";
+import { searchNotionWorkspaceKnowledge } from "./notion-workspace-search";
+import { digestObservation, selectKnowledgeForMission, type KnowledgeItem } from "./knowledge-digestion";
 
 export interface ResolvedKnowledgePackage {
   slug: string;
@@ -11,6 +13,8 @@ export interface ResolvedKnowledgePackage {
     error: string | null;
     totalItems: number;
     matchedItems: number;
+    discoveredItems: number;
+    digestedItems: number;
   };
 }
 
@@ -87,42 +91,99 @@ function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
   return score;
 }
 
-function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[]): string {
+function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[], digested: KnowledgeItem[]): string {
   return [
     "KNOWLEDGE PACKAGE PUBLISHER VÉRIFIÉ — SOURCE DE VÉRITÉ",
     `Parcelle / produit : ${slug}`,
     ...items.map((item, index) => [
-      `SOURCE ${index + 1}: ${item.title}`,
+      `SOURCE NOTION ${index + 1}: ${item.title}`,
       `Univers: ${item.universe}`,
       item.tags.length ? `Tags: ${item.tags.join(" | ")}` : "",
       item.content,
     ].filter(Boolean).join("\n")),
+    digested.length ? "CONNAISSANCES DIGÉRÉES ET SÉLECTIONNÉES PAR PUBLISHER" : "",
+    ...digested.map((item, index) => [
+      `CONNAISSANCE ${index + 1}: ${item.title}`,
+      `Maturité: ${item.maturity} · Confiance: ${item.confidence}`,
+      item.summary,
+      item.sources.length ? `Sources: ${item.sources.map((source) => source.label).join(" | ")}` : "",
+    ].filter(Boolean).join("\n")),
     "Utilise uniquement les faits présents dans ce package ou explicitement fournis dans la mission.",
     "N'invente aucun produit, prix, lien, personnage, témoignage, statistique, fonctionnalité ou preuve.",
-  ].join("\n\n");
+  ].filter(Boolean).join("\n\n");
+}
+
+async function digestNotionItems(slug: string, items: BlacklaceKnowledgeItem[]): Promise<void> {
+  for (const item of items) {
+    await digestObservation({
+      id: `notion-${item.id}`,
+      title: item.title,
+      summary: item.content.slice(0, 1800),
+      kind: "source",
+      categories: [slug, "project-knowledge"],
+      expertises: ["editorial", "project-context"],
+      tags: [...item.tags, slug, "notion"],
+      confidence: 0.9,
+      source: { label: item.title, evidence: item.content.slice(0, 500) },
+      activationRules: {
+        missionTypes: ["generation", "copy.generate", "content.social.write", "content.article.write", "landing.generate"],
+        artifactTypes: ["markdown", "social-post", "article", "landing-page"],
+        audienceTags: [slug],
+        expertises: ["editorial", "project-context"],
+      },
+    });
+  }
 }
 
 export async function resolveKnowledgePackage(candidates: unknown[]): Promise<ResolvedKnowledgePackage> {
   const slug = canonicalSlug(candidates);
   const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics();
-  const ranked = diagnostics.items
+  let pool = diagnostics.items;
+  let discoveredItems = 0;
+  let ranked = pool
     .map((item) => ({ item, score: scoreItem(item, slug) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
+
+  if (ranked.length === 0 && diagnostics.connected) {
+    const queries = [slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])];
+    const discovered = new Map<string, BlacklaceKnowledgeItem>();
+    for (const query of queries) {
+      for (const item of await searchNotionWorkspaceKnowledge(query, slug)) discovered.set(item.id, item);
+    }
+    discoveredItems = discovered.size;
+    pool = [...pool, ...discovered.values()];
+    ranked = pool
+      .map((item) => ({ item, score: scoreItem(item, slug) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 10);
+  }
+
   const items = ranked.map(({ item }) => item);
   const verified = diagnostics.source === "notion" && items.length > 0 && items.every((item) => !item.isMock && Boolean(item.content.trim()));
+  if (verified) await digestNotionItems(slug, items);
+  const digested = verified ? await selectKnowledgeForMission({
+    missionType: "generation",
+    audienceTags: [slug],
+    expertises: ["editorial", "project-context"],
+    limit: 8,
+  }) : [];
+
   return {
     slug,
     verified,
     source: diagnostics.source,
     items,
-    prompt: verified ? buildPrompt(slug, items) : "",
+    prompt: verified ? buildPrompt(slug, items, digested) : "",
     diagnostics: {
       connected: diagnostics.connected,
       error: diagnostics.error,
-      totalItems: diagnostics.items.length,
+      totalItems: pool.length,
       matchedItems: items.length,
+      discoveredItems,
+      digestedItems: digested.length,
     },
   };
 }
