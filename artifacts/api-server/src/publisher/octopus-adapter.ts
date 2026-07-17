@@ -1,7 +1,7 @@
 import { productionEngine, type ProductionRequest } from "./production-engine";
 import { generatePostDraft } from "../services/mistral";
-import { fetchBlacklaceKnowledgeWithDiagnostics, buildKnowledgeContext } from "../services/notion";
 import { composeExpertise } from "../services/expertise-composer";
+import { resolveKnowledgePackage } from "../services/knowledge-package-resolver";
 
 export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "copy.generate",
@@ -46,6 +46,37 @@ function requestedCapability(mission: OctopusAdapterMission): PublisherAdapterCa
   return PUBLISHER_ADAPTER_CAPABILITIES.find((capability) => mission.requiredCapabilities.includes(capability));
 }
 
+function packageCandidates(mission: OctopusAdapterMission): unknown[] {
+  const request = metadataValue(mission, "knowledgeRequest");
+  const requestRecord = request && typeof request === "object" && !Array.isArray(request) ? request as Record<string, unknown> : {};
+  return [
+    metadataValue(mission, "knowledgeSlug"),
+    requestRecord.subject,
+    metadataValue(mission, "parcelId"),
+    metadataValue(mission, "universe"),
+    mission.context.label,
+    mission.context.id,
+    mission.title,
+  ];
+}
+
+function needsKnowledge(mission: OctopusAdapterMission, diagnostics: Record<string, unknown>) {
+  return {
+    operationId: mission.operationId,
+    status: "needs-input" as const,
+    summary: "Publisher ne trouve pas de Knowledge Package Notion vérifié pour cette parcelle.",
+    question: {
+      id: `knowledge-${mission.operationId}`,
+      key: "verified-knowledge-package",
+      label: `Quel Knowledge Package Publisher doit-il utiliser pour « ${mission.context.label ?? mission.title} » ?`,
+      reason: "La production ne doit pas être inventée à partir du seul nom de la parcelle.",
+      inputType: "text",
+      scope: "parcel",
+    },
+    output: { capability: "knowledge.search", diagnostics },
+  };
+}
+
 function platformFor(mission: OctopusAdapterMission, capability: PublisherAdapterCapability): string {
   const explicit = stringValue(metadataValue(mission, "platform"));
   if (explicit) return explicit;
@@ -53,14 +84,12 @@ function platformFor(mission: OctopusAdapterMission, capability: PublisherAdapte
   if (request.includes("linkedin")) return "LinkedIn";
   if (request.includes("instagram")) return "Instagram";
   if (capability === "content.article.write") return "Site web";
-  if (capability === "copy.generate") return "Livrable Markdown";
-  return "Instagram";
+  return capability === "copy.generate" ? "Livrable Markdown" : "Instagram";
 }
 
 function productionPrompt(mission: OctopusAdapterMission, capability: PublisherAdapterCapability): string {
   const original = mission.prompt ?? mission.objective;
   if (capability !== "copy.generate") return original;
-
   const audience = stringValue(metadataValue(mission, "audience"));
   const format = stringValue(metadataValue(mission, "format"));
   const details = stringValue(metadataValue(mission, "details"));
@@ -69,11 +98,9 @@ function productionPrompt(mission: OctopusAdapterMission, capability: PublisherA
     audience ? `Audience déjà choisie : ${audience}.` : "",
     format ? `Ton ou format déjà choisi : ${format}.` : "",
     details ? `Détails fournis : ${details}.` : "",
-    "RÈGLE DE PRODUCTION : rends maintenant un premier brouillon complet et directement exploitable.",
+    "Rends maintenant un premier brouillon complet et directement exploitable.",
     "Ne transforme pas une demande de brouillon en questionnaire de cadrage.",
-    "Lorsque le ciblage reste large, choisis un angle raisonnable à partir du projet, de l'audience et du format fournis, puis indique brièvement l'hypothèse retenue dans le brouillon.",
-    "N'utilise needs-input que lorsqu'un fait vérifiable indispensable empêche réellement toute production, par exemple un lien obligatoire, un prix exact ou une identité qui ne peut pas être supposée.",
-    "Pour un post social, produis le post : hook, corps, conclusion et CTA prudent. N'écris pas une liste de questions à l'utilisateur.",
+    "Pour un post social, produis le hook, le corps, la conclusion et un CTA prudent.",
   ].filter(Boolean).join("\n\n");
 }
 
@@ -81,20 +108,19 @@ async function writeContent(
   mission: OctopusAdapterMission,
   capability: "copy.generate" | "content.article.write" | "content.social.write",
 ) {
-  const universe = stringValue(metadataValue(mission, "universe")) ?? mission.context.label ?? "Blacklace";
+  const knowledge = await resolveKnowledgePackage(packageCandidates(mission));
+  if (!knowledge.verified) return needsKnowledge(mission, knowledge.diagnostics);
+
   const platform = platformFor(mission, capability);
-  const agentName = stringValue(metadataValue(mission, "agentName")) ?? "Sofia";
-  const agentTone = stringValue(metadataValue(mission, "agentTone")) ?? "clair, documenté, créatif et sans promesse invérifiable";
-  const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
   const prompt = productionPrompt(mission, capability);
-  const expertise = composeExpertise({ universe, platform, prompt });
+  const expertise = composeExpertise({ universe: knowledge.slug, platform, prompt });
   const draft = await generatePostDraft({
-    universe,
-    agentName,
-    agentTone,
+    universe: knowledge.slug,
+    agentName: stringValue(metadataValue(mission, "agentName")) ?? "Sofia",
+    agentTone: stringValue(metadataValue(mission, "agentTone")) ?? "clair, documenté, créatif et sans promesse invérifiable",
     platform,
     prompt,
-    knowledgeContext: buildKnowledgeContext(knowledge.items, universe),
+    knowledgeContext: knowledge.prompt,
     knowledgeSource: knowledge.source,
     expertiseContext: expertise.promptBlock,
     expertiseIds: expertise.profiles.map((profile) => profile.id),
@@ -104,7 +130,7 @@ async function writeContent(
   return {
     operationId: mission.operationId,
     status: "completed" as const,
-    summary: `${capability} exécuté par Publisher.`,
+    summary: `${capability} exécuté à partir du Knowledge Package ${knowledge.slug}.`,
     output: {
       capability,
       title: draft.title,
@@ -123,6 +149,12 @@ async function writeContent(
       provider: draft.provider,
       model: draft.model,
       knowledgeSource: draft.knowledgeSource,
+      knowledgePackage: {
+        slug: knowledge.slug,
+        source: knowledge.source,
+        verified: true,
+        itemCount: knowledge.items.length,
+      },
       isMock: draft.isMock,
       fallbackReason: draft.fallbackReason,
     },
@@ -130,35 +162,40 @@ async function writeContent(
 }
 
 async function searchKnowledge(mission: OctopusAdapterMission) {
-  const universe = stringValue(metadataValue(mission, "universe")) ?? mission.context.label ?? "Blacklace";
-  const knowledge = await fetchBlacklaceKnowledgeWithDiagnostics();
+  const knowledge = await resolveKnowledgePackage(packageCandidates(mission));
+  if (!knowledge.verified) return needsKnowledge(mission, knowledge.diagnostics);
   return {
     operationId: mission.operationId,
     status: "completed" as const,
-    summary: "Contexte documentaire préparé par Publisher.",
+    summary: `Knowledge Package ${knowledge.slug} préparé par Publisher.`,
     output: {
       capability: "knowledge.search",
-      universe,
+      slug: knowledge.slug,
       source: knowledge.source,
-      context: buildKnowledgeContext(knowledge.items, universe),
+      verified: true,
+      context: knowledge.prompt,
       itemCount: knowledge.items.length,
+      diagnostics: knowledge.diagnostics,
     },
   };
 }
 
 async function generateLanding(mission: OctopusAdapterMission) {
-  const input = {
-    ...(mission.context.metadata ?? {}),
-    title: mission.title,
-    objective: mission.objective,
-    prompt: mission.prompt,
-  };
+  const knowledge = await resolveKnowledgePackage(packageCandidates(mission));
+  if (!knowledge.verified) return needsKnowledge(mission, knowledge.diagnostics);
   const request: ProductionRequest = {
     id: mission.operationId,
     capability: "landing-page",
     title: mission.title,
     objective: mission.objective,
-    input,
+    input: {
+      ...(mission.context.metadata ?? {}),
+      title: mission.title,
+      objective: mission.objective,
+      prompt: mission.prompt,
+      verifiedKnowledge: knowledge.prompt,
+      knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: true },
+    },
     preferredProducerId: "html-local",
   };
   const plan = productionEngine.plan(request);
@@ -166,8 +203,8 @@ async function generateLanding(mission: OctopusAdapterMission) {
   return {
     operationId: mission.operationId,
     status: report.status === "completed" ? "completed" as const : "failed" as const,
-    summary: report.status === "completed" ? "Landing page produite par Publisher." : "La production de la landing page a échoué.",
-    output: { capability: "landing.generate", plan, errors: report.errors, artifacts: report.artifacts },
+    summary: report.status === "completed" ? `Landing page produite avec le Knowledge Package ${knowledge.slug}.` : "La production de la landing page a échoué.",
+    output: { capability: "landing.generate", plan, errors: report.errors, artifacts: report.artifacts, knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: true } },
     artifacts: report.artifacts,
   };
 }
@@ -178,16 +215,9 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
   }
   const capability = requestedCapability(envelope.mission);
   if (!capability) {
-    return {
-      operationId: envelope.mission.operationId,
-      status: "failed" as const,
-      summary: "Publisher ne déclare aucune des capacités demandées.",
-      output: { requestedCapabilities: envelope.mission.requiredCapabilities },
-    };
+    return { operationId: envelope.mission.operationId, status: "failed" as const, summary: "Publisher ne déclare aucune des capacités demandées.", output: { requestedCapabilities: envelope.mission.requiredCapabilities } };
   }
-  if (capability === "copy.generate" || capability === "content.article.write" || capability === "content.social.write") {
-    return writeContent(envelope.mission, capability);
-  }
+  if (capability === "copy.generate" || capability === "content.article.write" || capability === "content.social.write") return writeContent(envelope.mission, capability);
   if (capability === "knowledge.search") return searchKnowledge(envelope.mission);
   return generateLanding(envelope.mission);
 }
