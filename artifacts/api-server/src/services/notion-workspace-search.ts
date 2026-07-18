@@ -22,24 +22,11 @@ function notionApiKey(): string | undefined {
 }
 
 function headers() {
-  const token = notionApiKey();
-  if (!token) throw new Error("Notion workspace search unavailable: no API token configured");
   return {
-    Authorization: `Bearer ${token}`,
+    Authorization: `Bearer ${notionApiKey()}`,
     "Notion-Version": NOTION_VERSION,
     "Content-Type": "application/json",
   };
-}
-
-async function notionError(response: Response, operation: string): Promise<Error> {
-  let detail = "";
-  try {
-    const payload = await response.json() as { code?: string; message?: string };
-    detail = [payload.code, payload.message].filter(Boolean).join(": ");
-  } catch {
-    try { detail = await response.text(); } catch { detail = ""; }
-  }
-  return new Error(`Notion ${operation} failed (${response.status} ${response.statusText})${detail ? `: ${detail}` : ""}`);
 }
 
 function richText(value: unknown): string {
@@ -55,6 +42,7 @@ function propertyText(property: unknown): string {
   if (!property || typeof property !== "object") return "";
   const record = property as Record<string, unknown>;
   const type = typeof record.type === "string" ? record.type : "";
+
   if (type === "title" || Array.isArray(record.title)) return richText(record.title);
   if (type === "rich_text" || Array.isArray(record.rich_text)) return richText(record.rich_text);
   if (type === "select" && record.select && typeof record.select === "object") {
@@ -77,6 +65,7 @@ function propertyText(property: unknown): string {
     const date = record.date as Record<string, unknown>;
     return [date.start, date.end].filter((value): value is string => typeof value === "string").join(" — ");
   }
+
   return "";
 }
 
@@ -96,16 +85,25 @@ function pageMetadata(page: NotionPageResult): { universe: string; tags: string[
   const lines: string[] = [];
   const tags = new Set<string>();
   let universe = "";
+
   for (const [name, property] of Object.entries(page.properties ?? {})) {
     const value = propertyText(property).trim();
     if (!value) continue;
+
     const normalizedName = name.toLowerCase();
-    if (["universe", "univers", "project", "projet", "parcel", "parcelle", "product", "produit"].includes(normalizedName)) universe = value;
+    if (["universe", "univers", "project", "projet", "parcel", "parcelle", "product", "produit"].includes(normalizedName)) {
+      universe = value;
+    }
+
     if (["tags", "tag", "labels", "étiquettes", "etiquettes"].includes(normalizedName)) {
       for (const tag of value.split(",").map((item) => item.trim()).filter(Boolean)) tags.add(tag);
     }
-    if (!["name", "nom", "title", "titre"].includes(normalizedName)) lines.push(`${name}: ${value}`);
+
+    if (!(["name", "nom", "title", "titre"].includes(normalizedName))) {
+      lines.push(`${name}: ${value}`);
+    }
   }
+
   return { universe, tags: [...tags], content: lines.join("\n") };
 }
 
@@ -116,7 +114,7 @@ function blockText(block: NotionBlock): string {
 }
 
 async function readBlocks(blockId: string, depth = 0): Promise<string[]> {
-  if (depth > 4) return [];
+  if (!notionApiKey() || depth > 4) return [];
   const texts: string[] = [];
   let cursor: string | undefined;
   do {
@@ -124,7 +122,7 @@ async function readBlocks(blockId: string, depth = 0): Promise<string[]> {
     url.searchParams.set("page_size", "100");
     if (cursor) url.searchParams.set("start_cursor", cursor);
     const response = await fetch(url, { headers: headers() });
-    if (!response.ok) throw await notionError(response, `block read for ${blockId}`);
+    if (!response.ok) break;
     const payload = await response.json() as { results?: NotionBlock[]; has_more?: boolean; next_cursor?: string | null };
     for (const block of payload.results ?? []) {
       const text = blockText(block);
@@ -139,6 +137,7 @@ async function readBlocks(blockId: string, depth = 0): Promise<string[]> {
 async function searchPages(query: string): Promise<NotionPageResult[]> {
   const pages: NotionPageResult[] = [];
   let cursor: string | undefined;
+
   do {
     const body: Record<string, unknown> = {
       filter: { property: "object", value: "page" },
@@ -147,36 +146,48 @@ async function searchPages(query: string): Promise<NotionPageResult[]> {
     };
     if (query) body.query = query;
     if (cursor) body.start_cursor = cursor;
+
     const response = await fetch(`${NOTION_API_URL}/search`, {
       method: "POST",
       headers: headers(),
       body: JSON.stringify(body),
     });
-    if (!response.ok) throw await notionError(response, `workspace search${query ? ` for “${query}”` : ""}`);
-    const payload = await response.json() as { results?: NotionPageResult[]; has_more?: boolean; next_cursor?: string | null };
+    if (!response.ok) return pages;
+
+    const payload = await response.json() as {
+      results?: NotionPageResult[];
+      has_more?: boolean;
+      next_cursor?: string | null;
+    };
     pages.push(...(payload.results ?? []).filter((item) => item.object === "page"));
     cursor = payload.has_more && payload.next_cursor ? payload.next_cursor : undefined;
   } while (cursor);
+
   return pages;
 }
 
 export async function searchNotionWorkspaceKnowledge(query: string, _requestedUniverse: string): Promise<BlacklaceKnowledgeItem[]> {
-  if (!notionApiKey()) throw new Error("Notion workspace search unavailable: no API token configured");
-  const pages = await searchPages(query.trim());
+  if (!notionApiKey()) return [];
+  const normalizedQuery = query.trim();
+  const pages = await searchPages(normalizedQuery);
   const items: BlacklaceKnowledgeItem[] = [];
+
   for (const page of pages) {
+    const title = pageTitle(page);
     const metadata = pageMetadata(page);
     const blockContent = (await readBlocks(page.id)).join("\n\n").trim();
     const content = [metadata.content, blockContent].filter(Boolean).join("\n\n").trim();
     if (!content) continue;
+
     items.push({
       id: page.id,
-      title: pageTitle(page),
+      title,
       universe: metadata.universe,
       content,
       tags: [...metadata.tags, "notion-workspace"],
       isMock: false,
     });
   }
+
   return items;
 }
