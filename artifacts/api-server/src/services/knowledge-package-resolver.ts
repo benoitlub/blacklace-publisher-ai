@@ -96,6 +96,16 @@ function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
   return score;
 }
 
+function rankItems(items: BlacklaceKnowledgeItem[], slug: string): BlacklaceKnowledgeItem[] {
+  return items
+    .filter(isUsableKnowledgeItem)
+    .map((item) => ({ item, score: scoreItem(item, slug) }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
+    .map(({ item }) => item);
+}
+
 function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[], digested: KnowledgeItem[]): string {
   return [
     "KNOWLEDGE PACKAGE PUBLISHER VÉRIFIÉ — SOURCE DE VÉRITÉ",
@@ -144,39 +154,35 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   const slug = canonicalSlug(candidates);
   const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics();
   let pool = diagnostics.items.filter((item) => !item.isMock);
-  let discoveredItems = 0;
-  let ranked = pool
-    .filter(isUsableKnowledgeItem)
-    .map((item) => ({ item, score: scoreItem(item, slug) }))
-    .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 10);
+  let items = rankItems(pool, slug);
+  const discovered = new Map<string, BlacklaceKnowledgeItem>();
 
-  // Database rows can match a parcel by title or metadata while their actual
-  // knowledge lives in page blocks. Empty rows must not suppress workspace
-  // discovery; only a usable, non-mock item is allowed to satisfy the package.
-  if (ranked.length === 0) {
-    const queries = [slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? []), ""];
-    const discovered = new Map<string, BlacklaceKnowledgeItem>();
-    for (const query of queries) {
-      for (const item of await searchNotionWorkspaceKnowledge(query, slug)) discovered.set(item.id, item);
+  if (items.length === 0) {
+    const targetedQueries = [...new Set([slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])])];
+
+    for (const query of targetedQueries) {
+      const results = await searchNotionWorkspaceKnowledge(query, slug);
+      for (const item of results) discovered.set(item.id, item);
+      const merged = new Map(pool.map((item) => [item.id, item]));
+      for (const item of discovered.values()) merged.set(item.id, item);
+      pool = [...merged.values()];
+      items = rankItems(pool, slug);
+      if (items.length > 0) break;
     }
-    discoveredItems = discovered.size;
-    const merged = new Map(pool.map((item) => [item.id, item]));
-    for (const item of discovered.values()) merged.set(item.id, item);
-    pool = [...merged.values()];
-    ranked = pool
-      .filter(isUsableKnowledgeItem)
-      .map((item) => ({ item, score: scoreItem(item, slug) }))
-      .filter(({ score }) => score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+
+    if (items.length === 0) {
+      const results = await searchNotionWorkspaceKnowledge("", slug);
+      for (const item of results) discovered.set(item.id, item);
+      const merged = new Map(pool.map((item) => [item.id, item]));
+      for (const item of discovered.values()) merged.set(item.id, item);
+      pool = [...merged.values()];
+      items = rankItems(pool, slug);
+    }
   }
 
-  const items = ranked.map(({ item }) => item);
   const verified = items.length > 0 && items.every(isUsableKnowledgeItem);
   const source: "notion" | "mock" = verified ? "notion" : diagnostics.source;
-  const connected = diagnostics.connected || discoveredItems > 0;
+  const connected = diagnostics.connected || discovered.size > 0;
   const error = verified ? null : diagnostics.error;
 
   if (verified) await digestNotionItems(slug, items);
@@ -198,7 +204,7 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
       error,
       totalItems: pool.length,
       matchedItems: items.length,
-      discoveredItems,
+      discoveredItems: discovered.size,
       digestedItems: digested.length,
     },
   };
