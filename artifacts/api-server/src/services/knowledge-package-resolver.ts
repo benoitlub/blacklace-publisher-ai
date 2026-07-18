@@ -139,7 +139,7 @@ async function digestNotionItems(slug: string, items: BlacklaceKnowledgeItem[]):
 export async function resolveKnowledgePackage(candidates: unknown[]): Promise<ResolvedKnowledgePackage> {
   const slug = canonicalSlug(candidates);
   const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics();
-  let pool = diagnostics.items;
+  let pool = diagnostics.items.filter((item) => !item.isMock);
   let discoveredItems = 0;
   let ranked = pool
     .map((item) => ({ item, score: scoreItem(item, slug) }))
@@ -147,7 +147,9 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
-  if (ranked.length === 0 && diagnostics.connected) {
+  // La recherche workspace doit fonctionner même si aucune ancienne base/page
+  // Notion n'est configurée. Le helper retourne simplement [] sans clé API.
+  if (ranked.length === 0) {
     const queries = [slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])];
     const discovered = new Map<string, BlacklaceKnowledgeItem>();
     for (const query of queries) {
@@ -163,7 +165,11 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   }
 
   const items = ranked.map(({ item }) => item);
-  const verified = diagnostics.source === "notion" && items.length > 0 && items.every((item) => !item.isMock && Boolean(item.content.trim()));
+  const verified = items.length > 0 && items.every((item) => !item.isMock && Boolean(item.content.trim()));
+  const source: "notion" | "mock" = verified ? "notion" : diagnostics.source;
+  const connected = diagnostics.connected || discoveredItems > 0;
+  const error = verified ? null : diagnostics.error;
+
   if (verified) await digestNotionItems(slug, items);
   const digested = verified ? await selectKnowledgeForMission({
     missionType: "generation",
@@ -175,12 +181,12 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   return {
     slug,
     verified,
-    source: diagnostics.source,
+    source,
     items,
     prompt: verified ? buildPrompt(slug, items, digested) : "",
     diagnostics: {
-      connected: diagnostics.connected,
-      error: diagnostics.error,
+      connected,
+      error,
       totalItems: pool.length,
       matchedItems: items.length,
       discoveredItems,
