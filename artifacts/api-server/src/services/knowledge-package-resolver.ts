@@ -1,6 +1,6 @@
 import { fetchBlacklaceKnowledgeWithDiagnostics, type BlacklaceKnowledgeItem } from "./notion";
 import { searchNotionWorkspaceKnowledge } from "./notion-workspace-search";
-import { digestObservation, selectKnowledgeForMission, type KnowledgeItem } from "./knowledge-digestion";
+import { digestObservation } from "./knowledge-digestion";
 
 export interface ResolvedKnowledgePackage {
   slug: string;
@@ -77,13 +77,30 @@ function isUsableKnowledgeItem(item: BlacklaceKnowledgeItem): boolean {
   return !item.isMock && Boolean(item.content.trim());
 }
 
+function fieldMatchesAlias(value: string, aliases: string[]): boolean {
+  return aliases.some((alias) => value === alias || value.includes(alias));
+}
+
+function belongsToParcel(item: BlacklaceKnowledgeItem, slug: string): boolean {
+  const aliases = aliasesFor(slug);
+  const title = normalizedText(item.title);
+  const universe = normalizedText(item.universe);
+  const tags = item.tags.map(normalizedText);
+
+  // Content is deliberately excluded here. A page that merely mentions another
+  // universe must never become a knowledge source for that universe.
+  return fieldMatchesAlias(title, aliases)
+    || fieldMatchesAlias(universe, aliases)
+    || tags.some((tag) => fieldMatchesAlias(tag, aliases));
+}
+
 function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
   const aliases = aliasesFor(slug);
   const title = normalizedText(item.title);
   const universe = normalizedText(item.universe);
   const tags = item.tags.map(normalizedText);
-  const content = normalizedText(item.content);
   let score = 0;
+
   for (const alias of aliases) {
     if (title === alias) score += 20;
     else if (title.includes(alias)) score += 12;
@@ -91,14 +108,15 @@ function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
     else if (universe.includes(alias)) score += 8;
     if (tags.some((tag) => tag === alias)) score += 10;
     else if (tags.some((tag) => tag.includes(alias))) score += 5;
-    if (content.includes(alias)) score += 2;
   }
+
   return score;
 }
 
 function rankItems(items: BlacklaceKnowledgeItem[], slug: string): BlacklaceKnowledgeItem[] {
   return items
     .filter(isUsableKnowledgeItem)
+    .filter((item) => belongsToParcel(item, slug))
     .map((item) => ({ item, score: scoreItem(item, slug) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
@@ -106,32 +124,29 @@ function rankItems(items: BlacklaceKnowledgeItem[], slug: string): BlacklaceKnow
     .map(({ item }) => item);
 }
 
-function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[], digested: KnowledgeItem[]): string {
+function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[]): string {
   return [
-    "KNOWLEDGE PACKAGE PUBLISHER VÉRIFIÉ — SOURCE DE VÉRITÉ",
+    "KNOWLEDGE PACKAGE PUBLISHER VÉRIFIÉ — SOURCE DE VÉRITÉ FERMÉE",
     `Parcelle / produit : ${slug}`,
+    "PÉRIMÈTRE STRICT : les seules connaissances autorisées sont les sources Notion ci-dessous.",
+    "Ignore toute connaissance mémorisée, digérée ou provenant d'une autre parcelle, même si elle appartient au même écosystème Blacklace.",
     ...items.map((item, index) => [
-      `SOURCE NOTION ${index + 1}: ${item.title}`,
+      `SOURCE NOTION AUTORISÉE ${index + 1}: ${item.title}`,
       `Univers: ${item.universe}`,
       item.tags.length ? `Tags: ${item.tags.join(" | ")}` : "",
       item.content,
     ].filter(Boolean).join("\n")),
-    digested.length ? "CONNAISSANCES DIGÉRÉES ET SÉLECTIONNÉES PAR PUBLISHER" : "",
-    ...digested.map((item, index) => [
-      `CONNAISSANCE ${index + 1}: ${item.title}`,
-      `Maturité: ${item.maturity} · Confiance: ${item.confidence}`,
-      item.summary,
-      item.sources.length ? `Sources: ${item.sources.map((source) => source.label).join(" | ")}` : "",
-    ].filter(Boolean).join("\n")),
-    "Utilise uniquement les faits présents dans ce package ou explicitement fournis dans la mission.",
-    "N'invente aucun produit, prix, lien, personnage, témoignage, statistique, fonctionnalité ou preuve.",
+    "Utilise uniquement les faits explicitement présents dans ces sources ou fournis dans la mission.",
+    "N'ajoute aucune relation transmedia ou inter-univers qui ne soit pas explicitement écrite dans ces sources.",
+    "N'invente aucun produit, prix, disponibilité, lien, personnage, espèce, citation, témoignage, statistique, fonctionnalité ou preuve.",
+    "Quand une information manque, omets-la. Ne la complète pas par vraisemblance.",
   ].filter(Boolean).join("\n\n");
 }
 
 async function digestNotionItems(slug: string, items: BlacklaceKnowledgeItem[]): Promise<void> {
   for (const item of items) {
     await digestObservation({
-      id: `notion-${item.id}`,
+      id: `notion-${slug}-${item.id}`,
       title: item.title,
       summary: item.content.slice(0, 1800),
       kind: "source",
@@ -186,26 +201,20 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   const error = verified ? null : diagnostics.error;
 
   if (verified) await digestNotionItems(slug, items);
-  const digested = verified ? await selectKnowledgeForMission({
-    missionType: "generation",
-    audienceTags: [slug],
-    expertises: ["editorial", "project-context"],
-    limit: 8,
-  }) : [];
 
   return {
     slug,
     verified,
     source,
     items,
-    prompt: verified ? buildPrompt(slug, items, digested) : "",
+    prompt: verified ? buildPrompt(slug, items) : "",
     diagnostics: {
       connected,
       error,
       totalItems: pool.length,
       matchedItems: items.length,
       discoveredItems: discovered.size,
-      digestedItems: digested.length,
+      digestedItems: 0,
     },
   };
 }
