@@ -166,9 +166,10 @@ async function searchPages(query: string): Promise<NotionPageResult[]> {
   return pages;
 }
 
-export async function searchNotionWorkspaceKnowledge(query: string, _requestedUniverse: string): Promise<BlacklaceKnowledgeItem[]> {
+export async function searchNotionWorkspaceKnowledge(query: string, requestedUniverse: string): Promise<BlacklaceKnowledgeItem[]> {
   if (!notionApiKey()) return [];
   const normalizedQuery = query.trim();
+  const normalizedUniverse = requestedUniverse.trim();
   const pages = await searchPages(normalizedQuery);
   const items: BlacklaceKnowledgeItem[] = [];
 
@@ -182,9 +183,9 @@ export async function searchNotionWorkspaceKnowledge(query: string, _requestedUn
     items.push({
       id: page.id,
       title,
-      universe: metadata.universe,
+      universe: metadata.universe || normalizedUniverse,
       content,
-      tags: [...metadata.tags, "notion-workspace"],
+      tags: [...new Set([...metadata.tags, normalizedUniverse, normalizedQuery, "notion-workspace"].filter(Boolean))],
       isMock: false,
     });
   }
