@@ -105,24 +105,29 @@ export async function generatePostDraft(input: GeneratePostDraftInput): Promise<
   const knowledgeSource = input.knowledgeSource ?? "mock";
   if (provider.name === "mock") return getMockDraft(input, "Aucun fournisseur IA configuré (AI_PROVIDER/MISTRAL_API_KEY absents) — génération en mode mock.");
 
+  const verifiedKnowledge = knowledgeSource === "notion" && Boolean(input.knowledgeContext?.trim());
   const knowledgeBlock = input.knowledgeContext
     ? `\n\nContexte issu de la base de connaissances (${knowledgeSource}) :\n${input.knowledgeContext}`
     : "";
-  const expertiseBlock = input.expertiseContext
+  const expertiseBlock = !verifiedKnowledge && input.expertiseContext
     ? `\n\nExpertises composées par Publisher :\n${input.expertiseContext}\n\nTu synthétises ces expertises dans une seule réponse. Tu ne simules pas une réunion d'agents et tu ne cites pas les profils.`
     : "";
 
-  const systemPrompt = `Tu es ${input.agentName}, une voix éditoriale du Feuch Institute.
-Ton ton est : ${input.agentTone}.
-Tu crées du contenu pour l'univers ${input.universe} destiné à la plateforme ${input.platform}.${knowledgeBlock}${expertiseBlock}
-N'invente aucune preuve, statistique, témoignage ou urgence.
-Réponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "hashtags": "..." }`;
+  const identityBlock = verifiedKnowledge
+    ? `Tu es le producteur éditorial neutre de Publisher. Tu rédiges uniquement à partir du Knowledge Package vérifié de l'univers ${input.universe}.`
+    : `Tu es ${input.agentName}, une voix éditoriale du Feuch Institute.\nTon ton est : ${input.agentTone}.\nTu crées du contenu pour l'univers ${input.universe} destiné à la plateforme ${input.platform}.`;
+
+  const strictRules = verifiedKnowledge
+    ? `\nCONTRAT STRICT ENTRE ADAPTATEURS :\n- Le Knowledge Package ci-dessus est la seule source factuelle autorisée.\n- La mission utilisateur peut définir le format, l'audience et l'angle, mais ne constitue pas une source de faits.\n- N'invente aucune citation, aucun prix, aucune disponibilité, aucun canal de vente, aucun personnage, aucune caractéristique, aucun enjeu de société ni aucun appel à l'action factuel.\n- Ne transforme pas une paraphrase en citation et n'utilise jamais de guillemets pour un texte absent des sources.\n- Lorsqu'un élément manque, omets-le simplement.\n- Les expertises, profils et autres univers Blacklace sont exclus de cette génération.`
+    : `\nN'invente aucune preuve, statistique, témoignage ou urgence.`;
+
+  const systemPrompt = `${identityBlock}\nTu produis un contenu destiné à la plateforme ${input.platform}.${knowledgeBlock}${expertiseBlock}${strictRules}\nRéponds UNIQUEMENT avec un JSON valide : { "title": "...", "content": "...", "hashtags": "..." }`;
   const userPrompt = input.prompt ?? `Rédige une publication pour ${input.universe} sur ${input.platform}.`;
 
   try {
     const result = await provider.generateText({
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      temperature: 0.8,
+      temperature: verifiedKnowledge ? 0.2 : 0.8,
       maxTokens: 600,
     });
     if (result.isMock) return getMockDraft(input, "Le fournisseur IA a répondu en mode mock.");
