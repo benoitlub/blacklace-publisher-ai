@@ -1,6 +1,6 @@
 import { logger } from "../lib/logger";
 
-const NOTION_API_KEY = process.env.NOTION_API_KEY;
+const NOTION_API_KEY = process.env.NOTION_API_KEY || process.env.NOTION_TOKEN || process.env.NOTION_API_TOKEN;
 const NOTION_DATABASE_ID = process.env.NOTION_DATABASE_ID;
 const NOTION_PAGE_ID = process.env.NOTION_PAGE_ID;
 const NOTION_API_URL = "https://api.notion.com/v1";
