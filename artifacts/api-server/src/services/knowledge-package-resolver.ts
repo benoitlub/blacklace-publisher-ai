@@ -73,6 +73,10 @@ function aliasesFor(slug: string): string[] {
   ])].filter(Boolean);
 }
 
+function isUsableKnowledgeItem(item: BlacklaceKnowledgeItem): boolean {
+  return !item.isMock && Boolean(item.content.trim());
+}
+
 function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
   const aliases = aliasesFor(slug);
   const title = normalizedText(item.title);
@@ -142,14 +146,15 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   let pool = diagnostics.items.filter((item) => !item.isMock);
   let discoveredItems = 0;
   let ranked = pool
+    .filter(isUsableKnowledgeItem)
     .map((item) => ({ item, score: scoreItem(item, slug) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
-  // Try targeted Notion searches first, then score every page shared with the
-  // integration. This covers packages whose page title does not contain the
-  // parcel slug but whose body or metadata does.
+  // Database rows can match a parcel by title or metadata while their actual
+  // knowledge lives in page blocks. Empty rows must not suppress workspace
+  // discovery; only a usable, non-mock item is allowed to satisfy the package.
   if (ranked.length === 0) {
     const queries = [slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? []), ""];
     const discovered = new Map<string, BlacklaceKnowledgeItem>();
@@ -157,8 +162,11 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
       for (const item of await searchNotionWorkspaceKnowledge(query, slug)) discovered.set(item.id, item);
     }
     discoveredItems = discovered.size;
-    pool = [...pool, ...discovered.values()];
+    const merged = new Map(pool.map((item) => [item.id, item]));
+    for (const item of discovered.values()) merged.set(item.id, item);
+    pool = [...merged.values()];
     ranked = pool
+      .filter(isUsableKnowledgeItem)
       .map((item) => ({ item, score: scoreItem(item, slug) }))
       .filter(({ score }) => score > 0)
       .sort((a, b) => b.score - a.score)
@@ -166,7 +174,7 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   }
 
   const items = ranked.map(({ item }) => item);
-  const verified = items.length > 0 && items.every((item) => !item.isMock && Boolean(item.content.trim()));
+  const verified = items.length > 0 && items.every(isUsableKnowledgeItem);
   const source: "notion" | "mock" = verified ? "notion" : diagnostics.source;
   const connected = diagnostics.connected || discoveredItems > 0;
   const error = verified ? null : diagnostics.error;
