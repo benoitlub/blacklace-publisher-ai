@@ -121,9 +121,10 @@ function rankItems(items: BlacklaceKnowledgeItem[], slug: string): BlacklaceKnow
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score);
 
-  if (ranked.length === 0) return [];
+  const best = ranked[0];
+  if (!best) return [];
 
-  const bestScore = ranked[0].score;
+  const bestScore = best.score;
   const minimumScore = bestScore >= 20 ? Math.max(12, bestScore * 0.55) : bestScore;
 
   // Keep only the strongest parcel-specific sources. This restores discovery
