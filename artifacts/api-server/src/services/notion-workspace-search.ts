@@ -1,7 +1,7 @@
 import type { BlacklaceKnowledgeItem } from "./notion";
 
 const NOTION_API_URL = "https://api.notion.com/v1";
-const NOTION_API_KEY = process.env.NOTION_API_KEY;
+const NOTION_API_KEY = process.env.NOTION_API_KEY || process.env.NOTION_TOKEN || process.env.NOTION_API_TOKEN;
 const NOTION_VERSION = "2022-06-28";
 
 interface NotionPageResult {

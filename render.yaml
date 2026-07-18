@@ -31,7 +31,13 @@ services:
       - key: OCTOPUS_ENGINE_URL
         value: https://octopus-engine.onrender.com
       - key: KNOWLEDGE_CONNECTOR
-        value: mock
+        value: notion
+      - key: NOTION_API_KEY
+        sync: false
+      - key: NOTION_TOKEN
+        sync: false
+      - key: NOTION_API_TOKEN
+        sync: false
 
   - type: web
     name: blacklace-publisher-web
