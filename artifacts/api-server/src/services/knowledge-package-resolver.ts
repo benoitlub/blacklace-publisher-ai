@@ -5,7 +5,7 @@ import { digestObservation, selectKnowledgeForMission, type KnowledgeItem } from
 export interface ResolvedKnowledgePackage {
   slug: string;
   verified: boolean;
-  source: "notion" | "mock";
+  source: "notion" | "built-in" | "mock";
   items: BlacklaceKnowledgeItem[];
   prompt: string;
   diagnostics: {
@@ -30,6 +30,22 @@ const KNOWN_ALIASES: Record<string, string[]> = {
   "feuch-institute": ["feuch institute"],
   "bazar-du-feuch": ["bazar du feuch"],
   "poulpe-fiction": ["poulpe fiction"],
+};
+
+const SAFE_BUILT_IN_PACKAGES: Record<string, BlacklaceKnowledgeItem> = {
+  "gerard-et-gerard": {
+    id: "built-in-gerard-et-gerard",
+    title: "Gérard et Gérard — garde-fou éditorial",
+    universe: "gerard-et-gerard",
+    content: [
+      "Ce package de secours ne contient volontairement aucun fait produit inventé.",
+      "La rédaction doit s'appuyer uniquement sur le titre, l'objectif, le contenu et les contraintes explicitement fournis par la mission Poulpe-Fiction.",
+      "Si une information factuelle manque, ne pas la fabriquer : produire une proposition éditoriale prudente, signaler l'information manquante ou formuler une question de clarification dans la récolte.",
+      "Ne jamais inventer de prix, lien, témoignage, statistique, fonctionnalité, partenaire, date, résultat ou preuve.",
+    ].join("\n"),
+    tags: ["gerard-et-gerard", "built-in", "editorial-guardrail"],
+    isMock: false,
+  },
 };
 
 export function normalizeKnowledgeSlug(value: unknown): string {
@@ -97,7 +113,7 @@ function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[], digested: Kn
     "KNOWLEDGE PACKAGE PUBLISHER VÉRIFIÉ — SOURCE DE VÉRITÉ",
     `Parcelle / produit : ${slug}`,
     ...items.map((item, index) => [
-      `SOURCE NOTION ${index + 1}: ${item.title}`,
+      `SOURCE ${item.tags.includes("built-in") ? "INTÉGRÉE" : "NOTION"} ${index + 1}: ${item.title}`,
       `Univers: ${item.universe}`,
       item.tags.length ? `Tags: ${item.tags.join(" | ")}` : "",
       item.content,
@@ -147,9 +163,6 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
-  // Try targeted Notion searches first, then score every page shared with the
-  // integration. This covers packages whose page title does not contain the
-  // parcel slug but whose body or metadata does.
   if (ranked.length === 0) {
     const queries = [slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? []), ""];
     const discovered = new Map<string, BlacklaceKnowledgeItem>();
@@ -165,13 +178,20 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
       .slice(0, 10);
   }
 
-  const items = ranked.map(({ item }) => item);
+  let items = ranked.map(({ item }) => item);
+  let source: "notion" | "built-in" | "mock" = "notion";
+  if (items.length === 0 && SAFE_BUILT_IN_PACKAGES[slug]) {
+    items = [SAFE_BUILT_IN_PACKAGES[slug]];
+    source = "built-in";
+  }
+
   const verified = items.length > 0 && items.every((item) => !item.isMock && Boolean(item.content.trim()));
-  const source: "notion" | "mock" = verified ? "notion" : diagnostics.source;
-  const connected = diagnostics.connected || discoveredItems > 0;
+  if (!verified) source = diagnostics.source;
+  const connected = diagnostics.connected || discoveredItems > 0 || source === "built-in";
   const error = verified ? null : diagnostics.error;
 
-  if (verified) await digestNotionItems(slug, items);
+  const notionItems = source === "notion" ? items : [];
+  if (notionItems.length > 0) await digestNotionItems(slug, notionItems);
   const digested = verified ? await selectKnowledgeForMission({
     missionType: "generation",
     audienceTags: [slug],
