@@ -77,15 +77,21 @@ function isUsableKnowledgeItem(item: BlacklaceKnowledgeItem): boolean {
   return !item.isMock && Boolean(item.content.trim());
 }
 
-function countOccurrences(text: string, needle: string): number {
-  if (!needle) return 0;
-  let count = 0;
-  let offset = 0;
-  while ((offset = text.indexOf(needle, offset)) !== -1) {
-    count += 1;
-    offset += needle.length;
-  }
-  return count;
+function fieldMatchesAlias(value: string, aliases: string[]): boolean {
+  return aliases.some((alias) => value === alias || value.includes(alias));
+}
+
+function belongsToParcel(item: BlacklaceKnowledgeItem, slug: string): boolean {
+  const aliases = aliasesFor(slug);
+  const title = normalizedText(item.title);
+  const universe = normalizedText(item.universe);
+  const tags = item.tags.map(normalizedText);
+
+  // Content is deliberately excluded here. A page that merely mentions another
+  // universe must never become a knowledge source for that universe.
+  return fieldMatchesAlias(title, aliases)
+    || fieldMatchesAlias(universe, aliases)
+    || tags.some((tag) => fieldMatchesAlias(tag, aliases));
 }
 
 function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
@@ -93,45 +99,28 @@ function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
   const title = normalizedText(item.title);
   const universe = normalizedText(item.universe);
   const tags = item.tags.map(normalizedText);
-  const content = normalizedText(item.content);
   let score = 0;
 
   for (const alias of aliases) {
-    if (title === alias) score += 30;
-    else if (title.includes(alias)) score += 20;
-    if (universe === alias) score += 24;
-    else if (universe.includes(alias)) score += 14;
-    if (tags.some((tag) => tag === alias)) score += 18;
-    else if (tags.some((tag) => tag.includes(alias))) score += 10;
-
-    // Legacy Knowledge Packages are sometimes stored in generic Notion pages
-    // without a parcel property. Repeated mentions in their body remain useful
-    // for discovery, but carry much less weight than title/metadata matches.
-    const occurrences = countOccurrences(content, alias);
-    score += Math.min(occurrences, 6) * 2;
+    if (title === alias) score += 20;
+    else if (title.includes(alias)) score += 12;
+    if (universe === alias) score += 16;
+    else if (universe.includes(alias)) score += 8;
+    if (tags.some((tag) => tag === alias)) score += 10;
+    else if (tags.some((tag) => tag.includes(alias))) score += 5;
   }
 
   return score;
 }
 
 function rankItems(items: BlacklaceKnowledgeItem[], slug: string): BlacklaceKnowledgeItem[] {
-  const ranked = items
+  return items
     .filter(isUsableKnowledgeItem)
+    .filter((item) => belongsToParcel(item, slug))
     .map((item) => ({ item, score: scoreItem(item, slug) }))
     .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score);
-
-  const best = ranked[0];
-  if (!best) return [];
-
-  const bestScore = best.score;
-  const minimumScore = bestScore >= 20 ? Math.max(12, bestScore * 0.55) : bestScore;
-
-  // Keep only the strongest parcel-specific sources. This restores discovery
-  // for old packages while excluding pages that merely mention the universe.
-  return ranked
-    .filter(({ score }) => score >= minimumScore)
-    .slice(0, 5)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10)
     .map(({ item }) => item);
 }
 
