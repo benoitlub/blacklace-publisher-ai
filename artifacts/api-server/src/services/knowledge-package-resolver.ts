@@ -20,6 +20,7 @@ export interface ResolvedKnowledgePackage {
 
 const KNOWN_ALIASES: Record<string, string[]> = {
   terra: ["terra"],
+  "gerard-et-gerard": ["gerard et gerard", "gerard & gerard", "gerard gerard", "gérard et gérard", "gérard & gérard"],
   "neverland-ltd": ["neverland ltd", "neverland", "peter pan"],
   "la-feulette-tachetee": ["la feulette tachetee", "feulette tachetee"],
   "420-dice": ["420 dice", "420 dice game"],
