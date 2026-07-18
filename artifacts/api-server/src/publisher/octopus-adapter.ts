@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { productionEngine, type ProductionRequest } from "./production-engine";
 import { generatePostDraft } from "../services/mistral";
 import { composeExpertise } from "../services/expertise-composer";
@@ -114,7 +115,8 @@ async function writeContent(
   const platform = platformFor(mission, capability);
   const prompt = productionPrompt(mission, capability);
   const expertise = composeExpertise({ universe: knowledge.slug, platform, prompt });
-  const draft = await generatePostDraft({
+  const generationInput = {
+    traceId: mission.operationId,
     universe: knowledge.slug,
     agentName: stringValue(metadataValue(mission, "agentName")) ?? "Sofia",
     agentTone: stringValue(metadataValue(mission, "agentTone")) ?? "clair, documenté, créatif et sans promesse invérifiable",
@@ -125,9 +127,26 @@ async function writeContent(
     expertiseContext: expertise.promptBlock,
     expertiseIds: expertise.profiles.map((profile) => profile.id),
     expertiseRecipeId: expertise.recipeId,
-  });
+  } as const;
 
-  return {
+  logger.info({
+    trace: "octopus-publisher-mistral",
+    traceId: mission.operationId,
+    stage: "publisher-to-mistral",
+    capability,
+    payload: generationInput,
+  }, "Publisher sends generation payload to Mistral");
+
+  const draft = await generatePostDraft(generationInput);
+
+  logger.info({
+    trace: "octopus-publisher-mistral",
+    traceId: mission.operationId,
+    stage: "mistral-to-publisher",
+    response: draft,
+  }, "Publisher receives generation result from Mistral");
+
+  const result = {
     operationId: mission.operationId,
     status: "completed" as const,
     summary: `${capability} exécuté à partir du Knowledge Package ${knowledge.slug}.`,
@@ -159,6 +178,15 @@ async function writeContent(
       fallbackReason: draft.fallbackReason,
     },
   };
+
+  logger.info({
+    trace: "octopus-publisher-mistral",
+    traceId: mission.operationId,
+    stage: "publisher-to-octopus",
+    response: result,
+  }, "Publisher returns adapter result to Octopus");
+
+  return result;
 }
 
 async function searchKnowledge(mission: OctopusAdapterMission) {
@@ -210,6 +238,13 @@ async function generateLanding(mission: OctopusAdapterMission) {
 }
 
 export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) {
+  logger.info({
+    trace: "octopus-publisher-mistral",
+    traceId: envelope.mission?.operationId,
+    stage: "octopus-to-publisher",
+    envelope,
+  }, "Publisher receives adapter envelope from Octopus");
+
   if (envelope.contract !== "octopus-adapter-execution-v1") {
     return { operationId: envelope.mission?.operationId, status: "failed" as const, summary: "Contrat d’adaptateur non pris en charge.", output: {} };
   }
