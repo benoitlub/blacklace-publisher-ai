@@ -1,7 +1,6 @@
 import type { BlacklaceKnowledgeItem } from "./notion";
 
 const NOTION_API_URL = "https://api.notion.com/v1";
-const NOTION_API_KEY = process.env.NOTION_API_KEY || process.env.NOTION_TOKEN || process.env.NOTION_API_TOKEN;
 const NOTION_VERSION = "2022-06-28";
 
 interface NotionPageResult {
@@ -18,9 +17,13 @@ interface NotionBlock {
   [key: string]: unknown;
 }
 
+function notionApiKey(): string | undefined {
+  return process.env.NOTION_API_KEY || process.env.NOTION_TOKEN || process.env.NOTION_API_TOKEN;
+}
+
 function headers() {
   return {
-    Authorization: `Bearer ${NOTION_API_KEY}`,
+    Authorization: `Bearer ${notionApiKey()}`,
     "Notion-Version": NOTION_VERSION,
     "Content-Type": "application/json",
   };
@@ -54,7 +57,7 @@ function blockText(block: NotionBlock): string {
 }
 
 async function readBlocks(blockId: string, depth = 0): Promise<string[]> {
-  if (!NOTION_API_KEY || depth > 2) return [];
+  if (!notionApiKey() || depth > 2) return [];
   const texts: string[] = [];
   let cursor: string | undefined;
   do {
@@ -75,16 +78,19 @@ async function readBlocks(blockId: string, depth = 0): Promise<string[]> {
 }
 
 export async function searchNotionWorkspaceKnowledge(query: string, universe: string): Promise<BlacklaceKnowledgeItem[]> {
-  if (!NOTION_API_KEY || !query.trim()) return [];
+  if (!notionApiKey()) return [];
+  const normalizedQuery = query.trim();
+  const body: Record<string, unknown> = {
+    filter: { property: "object", value: "page" },
+    sort: { direction: "descending", timestamp: "last_edited_time" },
+    page_size: 100,
+  };
+  if (normalizedQuery) body.query = normalizedQuery;
+
   const response = await fetch(`${NOTION_API_URL}/search`, {
     method: "POST",
     headers: headers(),
-    body: JSON.stringify({
-      query: query.trim(),
-      filter: { property: "object", value: "page" },
-      sort: { direction: "descending", timestamp: "last_edited_time" },
-      page_size: 20,
-    }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) return [];
   const payload = await response.json() as { results?: NotionPageResult[] };
@@ -98,7 +104,7 @@ export async function searchNotionWorkspaceKnowledge(query: string, universe: st
       title,
       universe,
       content,
-      tags: [universe, query, "notion-workspace"],
+      tags: [universe, normalizedQuery, "notion-workspace"].filter(Boolean),
       isMock: false,
     });
   }
