@@ -147,10 +147,11 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
     .sort((a, b) => b.score - a.score)
     .slice(0, 10);
 
-  // La recherche workspace doit fonctionner même si aucune ancienne base/page
-  // Notion n'est configurée. Le helper retourne simplement [] sans clé API.
+  // Try targeted Notion searches first, then score every page shared with the
+  // integration. This covers packages whose page title does not contain the
+  // parcel slug but whose body or metadata does.
   if (ranked.length === 0) {
-    const queries = [slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])];
+    const queries = [slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? []), ""];
     const discovered = new Map<string, BlacklaceKnowledgeItem>();
     for (const query of queries) {
       for (const item of await searchNotionWorkspaceKnowledge(query, slug)) discovered.set(item.id, item);
