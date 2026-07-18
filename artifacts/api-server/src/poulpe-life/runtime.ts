@@ -92,7 +92,8 @@ export async function tickPoulpeLife() {
     }>(`
       SELECT id, parcel_id, title, status, maturity, last_tick_at, payload
       FROM poulpe_seeds
-      WHERE status NOT IN ('harvested', 'composted', 'adventure')
+      WHERE status NOT IN ('bag-ready', 'harvested', 'composted', 'adventure')
+        AND maturity < 100
       ORDER BY updated_at ASC
       FOR UPDATE SKIP LOCKED
       LIMIT 32
@@ -106,6 +107,7 @@ export async function tickPoulpeLife() {
       const gain = Math.min(MAX_GAIN, Math.max(0.2, elapsedMinutes * 0.35));
       const maturity = Math.min(100, Number(seed.maturity || 0) + gain);
       const status = maturity >= 78 ? "bag-ready" : maturity >= 28 ? "growing" : "observing";
+      const reachedBagReady = seed.status !== "bag-ready" && status === "bag-ready";
       const payload = {
         ...(seed.payload || {}),
         maturity: Math.round(maturity * 10) / 10,
@@ -113,17 +115,29 @@ export async function tickPoulpeLife() {
         gardener: "gerard",
         lastCultivatedAt: now.toISOString(),
         runtime: "server",
+        ...(reachedBagReady ? { bagReadyAt: now.toISOString(), harvestRequested: true } : {}),
       };
 
       await client.query(
         `UPDATE poulpe_seeds SET maturity = $2, status = $3, payload = $4::jsonb, last_tick_at = $5, updated_at = $5 WHERE id = $1`,
         [seed.id, payload.maturity, status, JSON.stringify(payload), now],
       );
+
+      const kind = reachedBagReady ? "harvest-requested" : "cultivation";
+      const label = reachedBagReady ? `Récolte demandée · ${seed.title}` : `Gérard cultive · ${seed.title}`;
       await client.query(
         `INSERT INTO poulpe_events (id, parcel_id, seed_id, kind, label, payload, created_at)
-         VALUES ($1, $2, $3, 'cultivation', $4, $5::jsonb, $6)
+         VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)
          ON CONFLICT (id) DO NOTHING`,
-        [eventId(seed.id, now), seed.parcel_id, seed.id, `Gérard cultive · ${seed.title}`, JSON.stringify({ maturity: payload.maturity, status, runtime: "server" }), now],
+        [
+          eventId(seed.id, now),
+          seed.parcel_id,
+          seed.id,
+          kind,
+          label,
+          JSON.stringify({ maturity: payload.maturity, status, runtime: "server", harvestRequested: reachedBagReady }),
+          now,
+        ],
       );
     }
     await client.query("COMMIT");
