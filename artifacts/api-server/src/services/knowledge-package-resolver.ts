@@ -37,7 +37,7 @@ export function normalizeKnowledgeSlug(value: unknown): string {
     .replace(/&/g, " et ")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
-    .replace(/-+/g, "");
+    .replace(/-+/g, "-");
 }
 
 function normalizedText(value: unknown): string {
