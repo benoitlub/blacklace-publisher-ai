@@ -2,6 +2,7 @@ import { logger } from "../lib/logger";
 import { PUBLISHER_ADAPTER_CAPABILITIES } from "./octopus-adapter";
 
 const DEFAULT_OCTOPUS_URL = "https://octopus-engine.onrender.com";
+const DEFAULT_REGISTRATION_REFRESH_MS = 60_000;
 
 function publicBaseUrl(): string | undefined {
   const value = process.env.PUBLISHER_PUBLIC_URL ?? process.env.RENDER_EXTERNAL_URL;
@@ -49,7 +50,7 @@ export async function registerPublisherWithOctopus(): Promise<void> {
 
 export function schedulePublisherRegistration(): void {
   void registerPublisherWithOctopus();
-  const intervalMs = Number(process.env.OCTOPUS_ADAPTER_REFRESH_MS ?? 15 * 60 * 1000);
+  const intervalMs = Number(process.env.OCTOPUS_ADAPTER_REFRESH_MS ?? DEFAULT_REGISTRATION_REFRESH_MS);
   if (Number.isFinite(intervalMs) && intervalMs >= 60_000) {
     const timer = setInterval(() => void registerPublisherWithOctopus(), intervalMs);
     timer.unref();
