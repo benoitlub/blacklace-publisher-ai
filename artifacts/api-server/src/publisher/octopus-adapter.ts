@@ -216,38 +216,39 @@ async function generateLanding(mission: OctopusAdapterMission) {
   const plan = productionEngine.plan(request);
   const report = await productionEngine.execute(plan, request);
   const htmlArtifact = report.artifacts.find((artifact) => artifact.mimeType?.startsWith("text/html") && typeof artifact.content === "string");
-  const publishRequested = booleanValue(metadataValue(mission, "publishToGitHub"), true);
-  const publication = htmlArtifact && publishRequested
+  const reviewRequested = booleanValue(metadataValue(mission, "publishToGitHub"), true);
+  const publication = htmlArtifact && reviewRequested
     ? await publishGitHubPage({
       slug: stringValue(metadataValue(mission, "siteSlug")) ?? knowledge.slug ?? mission.context.id,
       html: htmlArtifact.content!,
-      commitMessage: `Publisher: publish ${mission.context.label ?? mission.title}`,
+      title: `Publisher: ${mission.context.label ?? mission.title}`,
+      commitMessage: `Publisher: prepare ${mission.context.label ?? mission.title}`,
     })
-    : { status: "not-configured" as const, message: htmlArtifact ? "GitHub publication disabled for this mission." : "No HTML artifact was produced." };
+    : { status: "not-configured" as const, message: htmlArtifact ? "GitHub review disabled for this mission." : "No HTML artifact was produced." };
 
-  const publishedArtifact = publication.status === "published" && publication.url ? {
-    id: `deployed-${mission.operationId}`,
+  const reviewArtifact = publication.status === "review-ready" && publication.pullRequestUrl ? {
+    id: `review-${mission.operationId}`,
     requestId: mission.operationId,
-    stepId: "github-pages-publish",
+    stepId: "github-pages-review",
     producerId: "github-pages",
     capability: "publish" as const,
-    type: "deployed-site",
+    type: "site-review",
     title: mission.title,
-    url: publication.url,
+    url: publication.pullRequestUrl,
     downloadUrl: publication.commitUrl ?? null,
     mimeType: "text/html; charset=utf-8",
     createdAt: new Date().toISOString(),
-    metadata: { ...publication, sourceArtifactId: htmlArtifact?.id },
+    metadata: { ...publication, sourceArtifactId: htmlArtifact?.id, publicationUrlAfterMerge: publication.url },
   } : null;
-  const artifacts = publishedArtifact ? [...report.artifacts, publishedArtifact] : report.artifacts;
+  const artifacts = reviewArtifact ? [...report.artifacts, reviewArtifact] : report.artifacts;
 
   return {
     operationId: mission.operationId,
     status: report.status === "completed" ? "completed" as const : "failed" as const,
     summary: report.status === "completed"
-      ? publication.status === "published"
-        ? `Landing page publiée sur GitHub Pages avec le Knowledge Package ${knowledge.slug}.`
-        : `Landing page produite avec le Knowledge Package ${knowledge.slug}; publication GitHub Pages ${publication.status}.`
+      ? publication.status === "review-ready"
+        ? `Landing page préparée dans une Pull Request GitHub avec le Knowledge Package ${knowledge.slug}. Fusion requise avant publication.`
+        : `Landing page produite avec le Knowledge Package ${knowledge.slug}; préparation GitHub ${publication.status}.`
       : "La production de la landing page a échoué.",
     output: {
       capability: "landing.generate",
@@ -255,7 +256,9 @@ async function generateLanding(mission: OctopusAdapterMission) {
       errors: report.errors,
       artifacts,
       publication,
-      previewUrl: publication.url ?? null,
+      reviewUrl: publication.pullRequestUrl ?? null,
+      publicationUrlAfterMerge: publication.url ?? null,
+      previewUrl: null,
       knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: true },
     },
     artifacts,
