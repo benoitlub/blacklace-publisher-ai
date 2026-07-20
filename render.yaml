@@ -38,6 +38,14 @@ services:
         sync: false
       - key: NOTION_API_TOKEN
         sync: false
+      - key: PUBLISHER_GITHUB_TOKEN
+        sync: false
+      - key: PUBLISHER_PAGES_REPOSITORY
+        sync: false
+      - key: PUBLISHER_PAGES_BRANCH
+        value: main
+      - key: PUBLISHER_PAGES_ROOT
+        value: harvests
 
   - type: web
     name: blacklace-publisher-web
