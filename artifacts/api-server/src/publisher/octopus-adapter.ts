@@ -3,6 +3,7 @@ import { productionEngine, type ProductionRequest } from "./production-engine";
 import { generatePostDraft } from "../services/mistral";
 import { composeExpertise } from "../services/expertise-composer";
 import { resolveKnowledgePackage } from "../services/knowledge-package-resolver";
+import { publishGitHubPage } from "../services/github-pages-publisher";
 
 export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "copy.generate",
@@ -37,6 +38,15 @@ export interface OctopusAdapterEnvelope {
 
 function stringValue(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
+}
+
+function booleanValue(value: unknown, fallback = false): boolean {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "string") {
+    if (["true", "1", "yes", "oui"].includes(value.trim().toLowerCase())) return true;
+    if (["false", "0", "no", "non"].includes(value.trim().toLowerCase())) return false;
+  }
+  return fallback;
 }
 
 function metadataValue(mission: OctopusAdapterMission, key: string): unknown {
@@ -129,22 +139,9 @@ async function writeContent(
     expertiseRecipeId: expertise.recipeId,
   } as const;
 
-  logger.info({
-    trace: "octopus-publisher-mistral",
-    traceId: mission.operationId,
-    stage: "publisher-to-mistral",
-    capability,
-    payload: generationInput,
-  }, "Publisher sends generation payload to Mistral");
-
+  logger.info({ trace: "octopus-publisher-mistral", traceId: mission.operationId, stage: "publisher-to-mistral", capability, payload: generationInput }, "Publisher sends generation payload to Mistral");
   const draft = await generatePostDraft(generationInput);
-
-  logger.info({
-    trace: "octopus-publisher-mistral",
-    traceId: mission.operationId,
-    stage: "mistral-to-publisher",
-    response: draft,
-  }, "Publisher receives generation result from Mistral");
+  logger.info({ trace: "octopus-publisher-mistral", traceId: mission.operationId, stage: "mistral-to-publisher", response: draft }, "Publisher receives generation result from Mistral");
 
   const result = {
     operationId: mission.operationId,
@@ -168,24 +165,13 @@ async function writeContent(
       provider: draft.provider,
       model: draft.model,
       knowledgeSource: draft.knowledgeSource,
-      knowledgePackage: {
-        slug: knowledge.slug,
-        source: knowledge.source,
-        verified: true,
-        itemCount: knowledge.items.length,
-      },
+      knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: true, itemCount: knowledge.items.length },
       isMock: draft.isMock,
       fallbackReason: draft.fallbackReason,
     },
   };
 
-  logger.info({
-    trace: "octopus-publisher-mistral",
-    traceId: mission.operationId,
-    stage: "publisher-to-octopus",
-    response: result,
-  }, "Publisher returns adapter result to Octopus");
-
+  logger.info({ trace: "octopus-publisher-mistral", traceId: mission.operationId, stage: "publisher-to-octopus", response: result }, "Publisher returns adapter result to Octopus");
   return result;
 }
 
@@ -211,6 +197,7 @@ async function searchKnowledge(mission: OctopusAdapterMission) {
 async function generateLanding(mission: OctopusAdapterMission) {
   const knowledge = await resolveKnowledgePackage(packageCandidates(mission));
   if (!knowledge.verified) return needsKnowledge(mission, knowledge.diagnostics);
+
   const request: ProductionRequest = {
     id: mission.operationId,
     capability: "landing-page",
@@ -228,22 +215,55 @@ async function generateLanding(mission: OctopusAdapterMission) {
   };
   const plan = productionEngine.plan(request);
   const report = await productionEngine.execute(plan, request);
+  const htmlArtifact = report.artifacts.find((artifact) => artifact.mimeType?.startsWith("text/html") && typeof artifact.content === "string");
+  const publishRequested = booleanValue(metadataValue(mission, "publishToGitHub"), true);
+  const publication = htmlArtifact && publishRequested
+    ? await publishGitHubPage({
+      slug: stringValue(metadataValue(mission, "siteSlug")) ?? knowledge.slug ?? mission.context.id,
+      html: htmlArtifact.content!,
+      commitMessage: `Publisher: publish ${mission.context.label ?? mission.title}`,
+    })
+    : { status: "not-configured" as const, message: htmlArtifact ? "GitHub publication disabled for this mission." : "No HTML artifact was produced." };
+
+  const publishedArtifact = publication.status === "published" && publication.url ? {
+    id: `deployed-${mission.operationId}`,
+    requestId: mission.operationId,
+    stepId: "github-pages-publish",
+    producerId: "github-pages",
+    capability: "publish" as const,
+    type: "deployed-site",
+    title: mission.title,
+    url: publication.url,
+    downloadUrl: publication.commitUrl ?? null,
+    mimeType: "text/html; charset=utf-8",
+    createdAt: new Date().toISOString(),
+    metadata: { ...publication, sourceArtifactId: htmlArtifact?.id },
+  } : null;
+  const artifacts = publishedArtifact ? [...report.artifacts, publishedArtifact] : report.artifacts;
+
   return {
     operationId: mission.operationId,
     status: report.status === "completed" ? "completed" as const : "failed" as const,
-    summary: report.status === "completed" ? `Landing page produite avec le Knowledge Package ${knowledge.slug}.` : "La production de la landing page a échoué.",
-    output: { capability: "landing.generate", plan, errors: report.errors, artifacts: report.artifacts, knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: true } },
-    artifacts: report.artifacts,
+    summary: report.status === "completed"
+      ? publication.status === "published"
+        ? `Landing page publiée sur GitHub Pages avec le Knowledge Package ${knowledge.slug}.`
+        : `Landing page produite avec le Knowledge Package ${knowledge.slug}; publication GitHub Pages ${publication.status}.`
+      : "La production de la landing page a échoué.",
+    output: {
+      capability: "landing.generate",
+      plan,
+      errors: report.errors,
+      artifacts,
+      publication,
+      previewUrl: publication.url ?? null,
+      knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: true },
+    },
+    artifacts,
   };
 }
 
 export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) {
-  logger.info({
-    trace: "octopus-publisher-mistral",
-    traceId: envelope.mission?.operationId,
-    stage: "octopus-to-publisher",
-    envelope,
-  }, "Publisher receives adapter envelope from Octopus");
+  logger.info({ trace: "octopus-publisher-mistral", traceId: envelope.mission?.operationId, stage: "octopus-to-publisher", envelope }, "Publisher receives adapter envelope from Octopus");
 
   if (envelope.contract !== "octopus-adapter-execution-v1") {
     return { operationId: envelope.mission?.operationId, status: "failed" as const, summary: "Contrat d’adaptateur non pris en charge.", output: {} };
