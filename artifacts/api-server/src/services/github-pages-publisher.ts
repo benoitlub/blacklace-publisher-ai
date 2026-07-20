@@ -1,9 +1,11 @@
 export interface GitHubPagesPublication {
-  status: "published" | "not-configured" | "failed";
+  status: "review-ready" | "not-configured" | "failed";
   repository?: string;
   branch?: string;
+  baseBranch?: string;
   path?: string;
   url?: string;
+  pullRequestUrl?: string;
   commitUrl?: string;
   message?: string;
 }
@@ -11,6 +13,7 @@ export interface GitHubPagesPublication {
 export interface PublishGitHubPageInput {
   slug: string;
   html: string;
+  title?: string;
   commitMessage?: string;
 }
 
@@ -38,17 +41,20 @@ function pagesUrl(owner: string, repo: string, folder: string): string {
   return `https://${owner.toLowerCase()}.github.io/${repo}/${folder}/`;
 }
 
+async function githubJson<T>(url: string, init: RequestInit, headers: Record<string, string>): Promise<{ ok: boolean; status: number; payload: T }> {
+  const response = await fetch(url, { ...init, headers: { ...headers, ...(init.headers ?? {}) }, cache: "no-store" });
+  const payload = await response.json().catch(() => ({})) as T;
+  return { ok: response.ok, status: response.status, payload };
+}
+
 export async function publishGitHubPage(input: PublishGitHubPageInput): Promise<GitHubPagesPublication> {
   const token = process.env.PUBLISHER_GITHUB_TOKEN?.trim();
   const repository = process.env.PUBLISHER_PAGES_REPOSITORY?.trim();
-  const branch = process.env.PUBLISHER_PAGES_BRANCH?.trim() || "main";
+  const baseBranch = process.env.PUBLISHER_PAGES_BRANCH?.trim() || "main";
   const root = (process.env.PUBLISHER_PAGES_ROOT?.trim() || "harvests").replace(/^\/+|\/+$/g, "");
 
   if (!token || !repository) {
-    return {
-      status: "not-configured",
-      message: "GitHub Pages publishing requires PUBLISHER_GITHUB_TOKEN and PUBLISHER_PAGES_REPOSITORY.",
-    };
+    return { status: "not-configured", message: "GitHub review requires PUBLISHER_GITHUB_TOKEN and PUBLISHER_PAGES_REPOSITORY." };
   }
 
   const parts = repositoryParts(repository);
@@ -57,7 +63,8 @@ export async function publishGitHubPage(input: PublishGitHubPageInput): Promise<
   const slug = cleanSlug(input.slug);
   const folder = root ? `${root}/${slug}` : slug;
   const path = `${folder}/index.html`;
-  const endpoint = `https://api.github.com/repos/${encodeURIComponent(parts.owner)}/${encodeURIComponent(parts.repo)}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+  const branch = `publisher/${slug}-${Date.now()}`;
+  const api = `https://api.github.com/repos/${encodeURIComponent(parts.owner)}/${encodeURIComponent(parts.repo)}`;
   const headers = {
     Accept: "application/vnd.github+json",
     Authorization: `Bearer ${token}`,
@@ -67,61 +74,78 @@ export async function publishGitHubPage(input: PublishGitHubPageInput): Promise<
   };
 
   try {
-    const current = await fetch(`${endpoint}?ref=${encodeURIComponent(branch)}`, { headers, cache: "no-store" });
-    const currentPayload = await current.json().catch(() => ({})) as { sha?: unknown; message?: unknown };
-    if (!current.ok && current.status !== 404) {
-      return {
-        status: "failed",
-        repository,
-        branch,
-        path,
-        message: typeof currentPayload.message === "string" ? currentPayload.message : `GitHub lookup failed (${current.status}).`,
-      };
+    const base = await githubJson<{ object?: { sha?: string }; message?: string }>(
+      `${api}/git/ref/heads/${encodeURIComponent(baseBranch)}`,
+      { method: "GET" },
+      headers,
+    );
+    const baseSha = base.payload.object?.sha;
+    if (!base.ok || !baseSha) {
+      return { status: "failed", repository, baseBranch, path, message: base.payload.message ?? `GitHub base branch lookup failed (${base.status}).` };
     }
 
+    const ref = await githubJson<{ message?: string }>(
+      `${api}/git/refs`,
+      { method: "POST", body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseSha }) },
+      headers,
+    );
+    if (!ref.ok) return { status: "failed", repository, branch, baseBranch, path, message: ref.payload.message ?? `GitHub branch creation failed (${ref.status}).` };
+
+    const endpoint = `${api}/contents/${path.split("/").map(encodeURIComponent).join("/")}`;
+    const current = await githubJson<{ sha?: string; message?: string }>(`${endpoint}?ref=${encodeURIComponent(branch)}`, { method: "GET" }, headers);
     const body: Record<string, unknown> = {
-      message: input.commitMessage?.trim() || `Publish ${slug} landing page`,
+      message: input.commitMessage?.trim() || `Publisher: prepare ${slug} landing page`,
       content: base64Utf8(input.html),
       branch,
     };
-    if (typeof currentPayload.sha === "string") body.sha = currentPayload.sha;
+    if (current.ok && current.payload.sha) body.sha = current.payload.sha;
+    if (!current.ok && current.status !== 404) {
+      return { status: "failed", repository, branch, baseBranch, path, message: current.payload.message ?? `GitHub file lookup failed (${current.status}).` };
+    }
 
-    const response = await fetch(endpoint, {
-      method: "PUT",
+    const commit = await githubJson<{ commit?: { html_url?: string }; message?: string }>(
+      endpoint,
+      { method: "PUT", body: JSON.stringify(body) },
       headers,
-      body: JSON.stringify(body),
-    });
-    const payload = await response.json().catch(() => ({})) as {
-      content?: { html_url?: unknown };
-      commit?: { html_url?: unknown };
-      message?: unknown;
-    };
-    if (!response.ok) {
-      return {
-        status: "failed",
-        repository,
-        branch,
-        path,
-        message: typeof payload.message === "string" ? payload.message : `GitHub publication failed (${response.status}).`,
-      };
+    );
+    if (!commit.ok) return { status: "failed", repository, branch, baseBranch, path, message: commit.payload.message ?? `GitHub commit failed (${commit.status}).` };
+
+    const pull = await githubJson<{ html_url?: string; message?: string }>(
+      `${api}/pulls`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          title: input.title?.trim() || `Publisher: ${slug}`,
+          head: branch,
+          base: baseBranch,
+          body: [
+            "## Récolte Blacklace Publisher",
+            "",
+            `Landing générée dans \`${path}\`.`,
+            "",
+            "La fusion de cette PR publiera ou mettra à jour la page via GitHub Pages.",
+            "Aucune publication directe n’a été effectuée par Publisher.",
+          ].join("\n"),
+        }),
+      },
+      headers,
+    );
+    if (!pull.ok || !pull.payload.html_url) {
+      return { status: "failed", repository, branch, baseBranch, path, commitUrl: commit.payload.commit?.html_url, message: pull.payload.message ?? `Pull request creation failed (${pull.status}).` };
     }
 
     return {
-      status: "published",
+      status: "review-ready",
       repository,
       branch,
+      baseBranch,
       path,
       url: pagesUrl(parts.owner, parts.repo, folder),
-      commitUrl: typeof payload.commit?.html_url === "string" ? payload.commit.html_url : undefined,
-      message: "Landing page committed to the configured GitHub Pages repository.",
+      pullRequestUrl: pull.payload.html_url,
+      commitUrl: commit.payload.commit?.html_url,
+      message: "Landing page committed on a review branch; merge the pull request to publish it.",
     };
   } catch (error) {
-    return {
-      status: "failed",
-      repository,
-      branch,
-      path,
-      message: error instanceof Error ? error.message : "GitHub publication failed.",
-    };
+    return { status: "failed", repository, baseBranch, path, message: error instanceof Error ? error.message : "GitHub review preparation failed." };
   }
 }
