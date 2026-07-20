@@ -3,7 +3,7 @@ import { productionEngine, type ProductionRequest } from "./production-engine";
 import { generatePostDraft } from "../services/mistral";
 import { composeExpertise } from "../services/expertise-composer";
 import { resolveKnowledgePackage } from "../services/knowledge-package-resolver";
-import { publishGitHubPage } from "../services/github-pages-publisher";
+import { publishGitHubPage, type GitHubPagesPublication } from "../services/github-pages-publisher";
 
 export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "copy.generate",
@@ -217,14 +217,17 @@ async function generateLanding(mission: OctopusAdapterMission) {
   const report = await productionEngine.execute(plan, request);
   const htmlArtifact = report.artifacts.find((artifact) => artifact.mimeType?.startsWith("text/html") && typeof artifact.content === "string");
   const reviewRequested = booleanValue(metadataValue(mission, "publishToGitHub"), true);
-  const publication = htmlArtifact && reviewRequested
+  const publication: GitHubPagesPublication = htmlArtifact && reviewRequested
     ? await publishGitHubPage({
       slug: stringValue(metadataValue(mission, "siteSlug")) ?? knowledge.slug ?? mission.context.id,
       html: htmlArtifact.content!,
       title: `Publisher: ${mission.context.label ?? mission.title}`,
       commitMessage: `Publisher: prepare ${mission.context.label ?? mission.title}`,
     })
-    : { status: "not-configured" as const, message: htmlArtifact ? "GitHub review disabled for this mission." : "No HTML artifact was produced." };
+    : {
+      status: "not-configured",
+      message: htmlArtifact ? "GitHub review disabled for this mission." : "No HTML artifact was produced.",
+    };
 
   const reviewArtifact = publication.status === "review-ready" && publication.pullRequestUrl ? {
     id: `review-${mission.operationId}`,
