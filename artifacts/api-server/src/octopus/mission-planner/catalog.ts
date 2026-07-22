@@ -1,4 +1,4 @@
-import type { MissionDefinition } from "octopus-engine";
+import type { MissionDefinition } from "../contracts";
 
 /**
  * MissionCatalog — registre versionné des missions reconnues.
