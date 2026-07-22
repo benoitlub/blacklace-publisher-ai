@@ -36,12 +36,12 @@ const NAV_GROUPS = [
   },
 ] as const;
 
-interface SidebarProps {
+interface LayoutProps {
   isOpen?: boolean;
   onClose?: () => void;
 }
 
-export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
+export function Sidebar({ isOpen = false, onClose }: LayoutProps) {
   const [location] = useLocation();
 
   return (
@@ -98,10 +98,9 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       </nav>
 
       <div className="border-t border-border p-4">
-        <p className="mb-2 text-xs text-muted-foreground">Gérard prépare les ensembles ; Publisher conserve les Knowledge Packages et met les récoltes à disposition.</p>
-        <a href="https://poulpe-fiction.onrender.com" target="_blank" rel="noreferrer" className="block rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-center font-mono text-xs text-primary hover:bg-primary/10">
-          Ouvrir Poulpe Fiction
-        </a>
+        <p className="text-xs text-muted-foreground">
+          Aucun hébergement externe payant n’est appelé par défaut. Les services doivent être configurés explicitement dans le Local technique.
+        </p>
       </div>
     </aside>
   );
