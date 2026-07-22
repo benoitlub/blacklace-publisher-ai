@@ -1,147 +1,139 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { ObservationMemoryEntry } from "@/models/observation-memory";
-import { buildGreenhouse } from "@/knowledge/build-greenhouse";
-import { loadObservationMemory, OBSERVATION_MEMORY_CHANGED_EVENT } from "@/memory/observation-memory";
-import { Ear, Eye, Send, Sprout } from "lucide-react";
+import { Download, Loader2, PackageCheck, RefreshCw, Sparkles } from "lucide-react";
 
-function formatDate(value?: string): string {
-  if (!value) return "Aucun signal";
-  return new Intl.DateTimeFormat("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(value));
-}
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "https://blacklace-publisher-api.onrender.com").replace(/\/$/, "");
 
-function SignalCard({
-  title,
-  value,
-  detail,
-  icon: Icon,
-}: {
-  title: string;
-  value: string;
-  detail: string;
-  icon: typeof Eye;
-}) {
-  return (
-    <Card className="border-border bg-card shadow-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 font-serif text-lg">
-          <Icon className="h-5 w-5 text-primary" />
-          {title}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <p className="text-base font-medium text-foreground">{value}</p>
-        <p className="text-sm leading-relaxed text-muted-foreground">{detail}</p>
-      </CardContent>
-    </Card>
-  );
+type HarvestAsset = {
+  id?: string;
+  filename?: string;
+  mediaType?: string;
+  content?: string;
+  deliverableKind?: string;
+};
+
+type Harvest = {
+  id: string;
+  parcelId: string;
+  parcelName: string;
+  knowledgePackageVersion: number;
+  status: string;
+  assetCount: number;
+  assets: HarvestAsset[];
+  preparedAt: string;
+};
+
+function downloadAsset(asset: HarvestAsset) {
+  const blob = new Blob([asset.content || ""], { type: asset.mediaType || "text/plain" });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = asset.filename || "livrable.txt";
+  anchor.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function Greenhouse() {
-  const [entries, setEntries] = useState<ObservationMemoryEntry[]>([]);
+  const [harvests, setHarvests] = useState<Harvest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [preparing, setPreparing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const refresh = () => setEntries(loadObservationMemory());
-    refresh();
-    window.addEventListener(OBSERVATION_MEMORY_CHANGED_EVENT, refresh);
-    window.addEventListener("storage", refresh);
-    return () => {
-      window.removeEventListener(OBSERVATION_MEMORY_CHANGED_EVENT, refresh);
-      window.removeEventListener("storage", refresh);
-    };
-  }, []);
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/deliverables/harvests`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Publisher API ${response.status}`);
+      const payload = await response.json();
+      setHarvests(Array.isArray(payload) ? payload : []);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Récoltes indisponibles");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const report = useMemo(() => buildGreenhouse(entries), [entries]);
-  const latest = entries
-    .slice()
-    .sort((a, b) => new Date(b.lastObservedAt).getTime() - new Date(a.lastObservedAt).getTime())[0];
-  const strongest = report.clusters
-    .slice()
-    .sort((a, b) => b.averageConfidence - a.averageConfidence)[0];
+  const prepareAll = async () => {
+    setPreparing(true);
+    try {
+      const response = await fetch(`${API_BASE}/api/deliverables/prepare-all`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!response.ok) throw new Error(`Préparation impossible (${response.status})`);
+      await refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Préparation impossible");
+    } finally {
+      setPreparing(false);
+    }
+  };
+
+  useEffect(() => { void refresh(); }, []);
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header>
-        <Badge variant="outline" className="mb-3 gap-2 font-mono uppercase tracking-widest">
-          <Eye className="h-3.5 w-3.5" />
-          Yeux et oreilles
-        </Badge>
-        <h1 className="text-3xl font-serif font-bold tracking-tight text-foreground sm:text-4xl">
-          Publisher observe le monde.
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-          Il repère les signaux, écoute ce qui revient, puis prépare ce qui mérite d’être transmis à Octopus Engine.
-        </p>
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <Badge variant="outline" className="mb-3 gap-2 font-mono uppercase tracking-widest">
+            <PackageCheck className="h-3.5 w-3.5" /> Récoltes
+          </Badge>
+          <h1 className="text-3xl font-serif font-bold tracking-tight sm:text-4xl">Tout ce que Gérard a préparé.</h1>
+          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+            Chaque parcelle rassemble un ensemble exploitable : landing page, visuels et posts, newsletter et documentation. Les livrables restent groupés par livre ou application.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => void refresh()} disabled={loading} className="gap-2">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Actualiser
+          </Button>
+          <Button onClick={() => void prepareAll()} disabled={preparing} className="gap-2">
+            {preparing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Préparer toutes les récoltes
+          </Button>
+        </div>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-3" aria-label="Résumé Publisher">
-        <SignalCard
-          title="Ce qu’il vient de voir"
-          value={latest?.name || "Rien de nouveau"}
-          detail={latest ? `${latest.lastSummary} · ${formatDate(latest.lastObservedAt)}` : "Publisher continue d’observer sans fabriquer de faux signal."}
-          icon={Eye}
-        />
-        <SignalCard
-          title="Ce qu’il vient d’entendre"
-          value={strongest?.title || "Aucun motif confirmé"}
-          detail={strongest ? `${strongest.observationCount} observation(s), confiance ${Math.round(strongest.averageConfidence * 100)}%.` : "Les observations ne forment pas encore un motif assez solide."}
-          icon={Ear}
-        />
-        <SignalCard
-          title="Ce qu’il peut transmettre"
-          value={strongest ? "Une ressource est prête à être examinée" : "Rien à transmettre"}
-          detail={strongest ? "Octopus Engine peut maintenant décider si ce signal mérite une action." : "Publisher garde le silence tant qu’il n’a rien d’utile à envoyer."}
-          icon={Send}
-        />
-      </section>
+      {error ? <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">{error}</div> : null}
 
-      <section className="space-y-3">
-        <div className="flex items-center justify-between gap-3 border-b border-border pb-2">
-          <div>
-            <h2 className="font-serif text-xl font-semibold">Signaux retenus</h2>
-            <p className="text-xs text-muted-foreground">Les observations réelles déjà mémorisées.</p>
-          </div>
-          <Badge variant="outline">{entries.length}</Badge>
-        </div>
+      {!loading && !harvests.length ? (
+        <Card className="border-dashed">
+          <CardContent className="p-10 text-center text-sm text-muted-foreground">
+            Aucune récolte n’est encore prête. Gérard doit d’abord disposer de Knowledge Packages exploitables pour les livres et les applications.
+          </CardContent>
+        </Card>
+      ) : null}
 
-        {entries.length ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {entries.slice(0, 6).map((entry) => (
-              <Card key={entry.id} className="border-border bg-card/80">
-                <CardContent className="space-y-2 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium text-foreground">{entry.name}</p>
-                      <p className="mt-1 text-sm text-muted-foreground">{entry.lastSummary}</p>
-                    </div>
-                    <Badge variant="outline" className="shrink-0 font-mono text-[10px] uppercase">
-                      {Math.round(entry.averageConfidence * 100)}%
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Dernier signal : {formatDate(entry.lastObservedAt)}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        ) : (
-          <Card className="border-dashed border-border bg-card/50">
-            <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
-              <Sprout className="h-8 w-8 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">Aucun signal utile n’est encore remonté. Publisher écoute.</p>
+      <div className="grid gap-5">
+        {harvests.map((harvest) => (
+          <Card key={harvest.id} className="overflow-hidden border-primary/20">
+            <CardHeader className="border-b border-border bg-primary/5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="font-serif text-2xl">{harvest.parcelName}</CardTitle>
+                  <p className="mt-1 text-xs text-muted-foreground">Knowledge Package v{harvest.knowledgePackageVersion} · {new Date(harvest.preparedAt).toLocaleString("fr-FR")}</p>
+                </div>
+                <Badge>{harvest.assetCount} livrables</Badge>
+              </div>
+            </CardHeader>
+            <CardContent className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
+              {harvest.assets.map((asset, index) => (
+                <div key={`${harvest.id}:${asset.filename || index}`} className="flex flex-col rounded-lg border border-border bg-background/50 p-4">
+                  <p className="font-medium">{asset.filename || asset.deliverableKind || "Livrable"}</p>
+                  <p className="mt-1 flex-1 text-xs text-muted-foreground">{asset.mediaType || "fichier prêt"}</p>
+                  <Button variant="outline" size="sm" className="mt-4 gap-2" onClick={() => downloadAsset(asset)}>
+                    <Download className="h-4 w-4" /> Télécharger
+                  </Button>
+                </div>
+              ))}
             </CardContent>
           </Card>
-        )}
-      </section>
-
-      <p className="rounded-xl border border-dashed border-border bg-card/40 p-4 text-sm text-muted-foreground">
-        Publisher ne jardine pas. Le Garden et Gérard restent dans Poulpe Fiction ; Publisher voit, entend et transmet.
-      </p>
+        ))}
+      </div>
     </div>
   );
 }
