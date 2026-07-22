@@ -5,12 +5,28 @@ const composio = vi.hoisted(() => ({
   configured: true,
   accounts: [] as Array<{ id: string; toolkitSlug: string; status: string; raw: unknown }>,
   executeResult: {} as unknown,
+  tools: [
+    {
+      slug: "CANVA_POST_DESIGNS",
+      name: "Create Canva post designs",
+      description: "Create a social post design",
+      inputSchema: {
+        type: "object",
+        properties: {
+          design_type: { type: "string" },
+          title: { type: "string" },
+        },
+        required: ["design_type"],
+      },
+    },
+  ],
 }));
 
 vi.mock("../../services/composio", () => ({
   isComposioConfigured: () => composio.configured,
   isActiveComposioStatus: (status: string) => status === "ACTIVE",
   listComposioConnectedAccounts: async () => composio.accounts,
+  listComposioTools: async () => composio.tools,
   executeComposioTool: async () => composio.executeResult,
 }));
 
@@ -46,12 +62,10 @@ describe("production route", () => {
           configured: boolean;
           canvaConnected: boolean;
           elevenLabsConnected: boolean;
-          connectedAccount: string | null;
           connectedAccounts: Array<{ id: string; toolkitSlug: string; status: string }>;
-          availableActions: Array<{ slug: string; requiredFields: string[] }>;
         };
-        canva: { status: string; connected: boolean; connectedAccount: string | null };
-        elevenLabs: { status: string; connected: boolean; connectedAccount: string | null };
+        canva: { status: string; connected: boolean; discoveredToolCount: number; executable: boolean };
+        elevenLabs: { status: string; connected: boolean };
         mistral: { configured: boolean; available: boolean };
       };
       expect(response.ok).toBe(true);
@@ -60,14 +74,10 @@ describe("production route", () => {
           configured: true,
           canvaConnected: true,
           elevenLabsConnected: false,
-          connectedAccount: "canva-1",
           connectedAccounts: [{ id: "canva-1", toolkitSlug: "canva", status: "ACTIVE" }],
-          availableActions: expect.arrayContaining([
-            expect.objectContaining({ slug: "CANVA_POST_DESIGNS", requiredFields: ["design_type"] }),
-          ]),
         },
-        canva: { status: "connected", connected: true, connectedAccount: "canva-1" },
-        elevenLabs: { status: "not-connected", connected: false, connectedAccount: null },
+        canva: { status: "executable", connected: true, discoveredToolCount: 1 },
+        elevenLabs: { status: "not-connected", connected: false },
         mistral: { configured: true, available: true },
       });
       expect(JSON.stringify(body)).not.toContain("secret-key");
@@ -86,15 +96,11 @@ describe("production route", () => {
       const response = await fetch(`${baseUrl}/production/diagnostics`);
       const body = await response.json() as {
         composio: { elevenLabsConnected: boolean };
-        elevenLabs: { status: string; connected: boolean; connectedAccount: string | null };
+        elevenLabs: { status: string; connected: boolean };
       };
       expect(response.ok).toBe(true);
       expect(body.composio.elevenLabsConnected).toBe(true);
-      expect(body.elevenLabs).toMatchObject({
-        status: "connected",
-        connected: true,
-        connectedAccount: "eleven-1",
-      });
+      expect(body.elevenLabs).toMatchObject({ status: "connected", connected: true });
     } finally {
       server.close();
     }
@@ -125,7 +131,6 @@ describe("production route", () => {
         body: JSON.stringify({ capability: "landing-page", input: { title: "Yaebali" } }),
       });
       const body = await response.json() as { plan: { status: string; steps: Array<{ producerId: string | null }> } };
-
       expect(response.ok).toBe(true);
       expect(body.plan.status).toBe("ready");
       expect(body.plan.steps[0]?.producerId).toBe("html-local");
@@ -143,7 +148,6 @@ describe("production route", () => {
         body: JSON.stringify({ tool: "html-local", action: "create_landing_page", input: { title: "Yaebali" } }),
       });
       const body = await response.json() as { status: string; tool: string; artifact: { producerId: string; content: string } };
-
       expect(response.ok).toBe(true);
       expect(body.status).toBe("completed");
       expect(body.tool).toBe("html-local");
@@ -175,7 +179,7 @@ describe("production route", () => {
       expect(body.action).toBe("CANVA_POST_DESIGNS");
       expect(body.artifact).toMatchObject({
         id: "design-1",
-        kind: "instagram-visual",
+        kind: "social-visual",
         url: "https://canva.example/design-1",
         downloadUrl: null,
         rawReference: { designId: "design-1" },
