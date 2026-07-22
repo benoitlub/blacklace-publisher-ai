@@ -104,7 +104,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       <div className="border-t border-border p-4">
         <p className="mb-2 text-xs text-muted-foreground">Poulpe Fiction reste l’entrée principale pour parler à Gérard et suivre les parcelles.</p>
         <a
-          href="https://poulpe-fiction.onrender.com"
+          href="https://benoitlub.github.io/poulpe-fiction/"
           target="_blank"
           rel="noreferrer"
           className="block rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-center font-mono text-xs text-primary hover:bg-primary/10"
