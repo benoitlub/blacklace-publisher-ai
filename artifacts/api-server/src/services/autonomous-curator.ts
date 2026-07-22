@@ -212,7 +212,7 @@ export class AutonomousCurator {
       };
     }
 
-    if (score.duplicationPenalty > 0.5 && score.total < this.#policy.promotionThreshold + 0.1) {
+    if (score.duplicationPenalty > 0.5) {
       return {
         signalId: signal.id,
         decision: "knowledge-updated",
