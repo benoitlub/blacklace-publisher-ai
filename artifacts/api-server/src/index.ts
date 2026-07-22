@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startPoulpeLife } from "./poulpe-life/runtime";
+import { startPublisherLife } from "./publisher-life/runtime";
 import { schedulePublisherRegistration } from "./publisher/octopus-registration";
 
 const rawPort = process.env["PORT"];
@@ -24,6 +25,7 @@ app.listen(port, (err) => {
   }
 
   startPoulpeLife();
+  startPublisherLife();
   schedulePublisherRegistration();
   logger.info({ port }, "Server listening");
 });
