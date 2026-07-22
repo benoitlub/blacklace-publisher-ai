@@ -7,38 +7,31 @@ import { KnowledgeSourceStatus } from "@/components/knowledge-source-status";
 import { ActivityEcho } from "@/components/activity-echo";
 import { toActivityEchoEvents } from "@/lib/activity-echo-events";
 import { loadActivityEntries, PUBLISHER_LOOP_CHANGED_EVENT, type ActivityEntry } from "@/lib/missions";
-import { Activity, Ear, Eye, PackageCheck, Radio, RefreshCw, Send, Sparkles, Sprout } from "lucide-react";
+import { Activity, Ear, ExternalLink, Eye, PackageCheck, Radio, RefreshCw, Send, Sparkles, Sprout } from "lucide-react";
 
 const CAPTURE_TYPES = new Set<string>(["radar-launched", "candidate-detected", "observation-memorized", "seed-created"]);
 const PREPARED_TYPES = new Set<string>(["knowledge-pack-created", "harvest-draft-created", "publication-draft-generated", "publication-draft-updated"]);
 const TRANSMITTED_TYPES = new Set<string>(["mission-sent", "provider-call-started", "recommendation-applied", "test-in-progress", "fallback-used", "blockage-detected"]);
-const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "https://blacklace-publisher-api.onrender.com").replace(/\/$/, "");
 
-type PoulpeSeed = {
-  id: string;
+const GITHUB_FEED_URL = "https://raw.githubusercontent.com/benoitlub/octopus-engine/main/garden-feed/latest.json";
+const GITHUB_ACTIONS_URL = "https://github.com/benoitlub/octopus-engine/actions/workflows/gerard-autonomous.yml";
+
+type Harvest = {
+  operationId?: string;
   parcelId?: string;
+  seedId?: string | null;
   title?: string;
   status?: string;
-  maturity?: number;
-  lastCultivatedAt?: string;
+  completedAt?: string | null;
+  error?: string | null;
+  notionUrl?: string | null;
+  source?: string;
 };
 
-type PoulpeParcel = {
-  id: string;
-  name?: string;
-  title?: string;
-};
-
-type PoulpeEvent = {
-  id: string;
-  label?: string;
-  createdAt?: string;
-};
-
-type PoulpeLifeState = {
-  parcels: PoulpeParcel[];
-  seeds: PoulpeSeed[];
-  events: PoulpeEvent[];
+type GardenFeed = {
+  generatedAt?: string;
+  runUrl?: string;
+  harvests?: Harvest[];
 };
 
 function latestOf(entries: readonly ActivityEntry[], accepted: ReadonlySet<string>): ActivityEntry | undefined {
@@ -68,24 +61,20 @@ function SignalCard({ title, empty, entry, icon: Icon }: { title: string; empty:
 }
 
 function GerardGardenTile() {
-  const [life, setLife] = useState<PoulpeLifeState | null>(null);
+  const [feed, setFeed] = useState<GardenFeed | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/poulpe-life/state`, { cache: "no-store" });
-      if (!response.ok) throw new Error(`Publisher API ${response.status}`);
-      const payload = await response.json() as Partial<PoulpeLifeState>;
-      setLife({
-        parcels: Array.isArray(payload.parcels) ? payload.parcels : [],
-        seeds: Array.isArray(payload.seeds) ? payload.seeds : [],
-        events: Array.isArray(payload.events) ? payload.events : [],
-      });
+      const response = await fetch(`${GITHUB_FEED_URL}?t=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`GitHub feed ${response.status}`);
+      const payload = await response.json() as GardenFeed;
+      setFeed(payload);
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Vie du jardin indisponible");
+      setError(cause instanceof Error ? cause.message : "Flux GitHub indisponible");
     } finally {
       setLoading(false);
     }
@@ -98,17 +87,16 @@ function GerardGardenTile() {
   }, []);
 
   const summary = useMemo(() => {
-    const seeds = life?.seeds ?? [];
-    const active = seeds.filter((seed) => ["observing", "growing"].includes(String(seed.status))).length;
-    const ready = seeds.filter((seed) => seed.status === "bag-ready").length;
-    const missions = seeds.filter((seed) => seed.status === "adventure").length;
-    const average = seeds.length
-      ? Math.round((seeds.reduce((total, seed) => total + Number(seed.maturity || 0), 0) / seeds.length) * 10) / 10
-      : 0;
-    return { active, ready, missions, average };
-  }, [life]);
+    const harvests = feed?.harvests ?? [];
+    return {
+      total: harvests.length,
+      completed: harvests.filter((item) => item.status === "completed").length,
+      failed: harvests.filter((item) => item.status === "failed").length,
+      parcels: new Set(harvests.map((item) => item.parcelId).filter(Boolean)).size,
+    };
+  }, [feed]);
 
-  const latestEvent = life?.events?.[0];
+  const latest = feed?.harvests?.[0];
 
   return (
     <Card className="overflow-hidden border-primary/30 bg-card shadow-sm">
@@ -116,50 +104,52 @@ function GerardGardenTile() {
         <div>
           <CardTitle className="flex items-center gap-2 font-serif text-xl">
             <Sprout className="h-5 w-5 text-primary" />
-            Gérard travaille sur toutes les parcelles
+            Runtime Gérard sur GitHub
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Vue Publisher de la culture persistante. Gérard répartit ses tentacules sans changer manuellement de parcelle.
+            Publisher lit directement le flux produit par GitHub Actions. Aucun service Render n’est appelé.
           </p>
         </div>
-        <Button variant="outline" size="sm" className="gap-2" onClick={() => void refresh()} disabled={loading}>
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-          Actualiser
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => void refresh()} disabled={loading}>
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+            Actualiser
+          </Button>
+          <a href={GITHUB_ACTIONS_URL} target="_blank" rel="noreferrer">
+            <Button size="sm" className="gap-2"><ExternalLink className="h-4 w-4" />Lancer Gérard</Button>
+          </a>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4 pt-5">
         {error ? (
           <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
-            La mémoire du jardin ne répond pas encore : {error}
+            Le flux GitHub ne répond pas : {error}
           </div>
         ) : null}
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Parcelles</p><p className="mt-1 text-2xl font-semibold">{life?.parcels.length ?? "—"}</p></div>
-          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Seeds</p><p className="mt-1 text-2xl font-semibold">{life?.seeds.length ?? "—"}</p></div>
-          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">En pousse</p><p className="mt-1 text-2xl font-semibold">{life ? summary.active : "—"}</p></div>
-          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Sacs prêts</p><p className="mt-1 text-2xl font-semibold">{life ? summary.ready : "—"}</p></div>
-          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Maturité moyenne</p><p className="mt-1 text-2xl font-semibold">{life ? `${summary.average}%` : "—"}</p></div>
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Récoltes</p><p className="mt-1 text-2xl font-semibold">{feed ? summary.total : "—"}</p></div>
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Parcelles</p><p className="mt-1 text-2xl font-semibold">{feed ? summary.parcels : "—"}</p></div>
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Terminées</p><p className="mt-1 text-2xl font-semibold">{feed ? summary.completed : "—"}</p></div>
+          <div className="rounded-lg border border-border bg-background/50 p-3"><p className="text-xs uppercase text-muted-foreground">Échecs</p><p className="mt-1 text-2xl font-semibold">{feed ? summary.failed : "—"}</p></div>
         </div>
 
         <div className="grid gap-3 lg:grid-cols-3">
           <div className="rounded-lg border border-border p-3">
-            <p className="flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4 text-primary" />Activité parallèle</p>
-            <p className="mt-2 text-sm text-muted-foreground">{summary.active} Seed(s) en observation ou croissance, {summary.missions} en aventure.</p>
+            <p className="flex items-center gap-2 text-sm font-medium"><Activity className="h-4 w-4 text-primary" />Dernière récolte</p>
+            <p className="mt-2 text-sm text-muted-foreground">{latest?.title || (loading ? "Lecture du flux GitHub…" : "Aucune récolte publiée.")}</p>
           </div>
           <div className="rounded-lg border border-border p-3">
-            <p className="flex items-center gap-2 text-sm font-medium"><PackageCheck className="h-4 w-4 text-primary" />Récoltes à autoriser</p>
-            <p className="mt-2 text-sm text-muted-foreground">{summary.ready} sac(s) prêt(s) attendent un départ ou une validation humaine.</p>
+            <p className="flex items-center gap-2 text-sm font-medium"><PackageCheck className="h-4 w-4 text-primary" />État</p>
+            <p className="mt-2 text-sm text-muted-foreground">{latest?.status || "Aucun état disponible"}{latest?.error ? ` · ${latest.error}` : ""}</p>
           </div>
           <div className="rounded-lg border border-border p-3">
-            <p className="flex items-center gap-2 text-sm font-medium"><Sprout className="h-4 w-4 text-primary" />Dernière trace réelle</p>
-            <p className="mt-2 text-sm text-muted-foreground">{latestEvent?.label || (loading ? "Lecture du jardin…" : "Aucun événement enregistré.")}</p>
+            <p className="flex items-center gap-2 text-sm font-medium"><Sprout className="h-4 w-4 text-primary" />Dernière synchronisation</p>
+            <p className="mt-2 text-sm text-muted-foreground">{feed?.generatedAt ? new Date(feed.generatedAt).toLocaleString("fr-FR") : "—"}</p>
           </div>
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Publisher observe et mémorise. Les décisions et départs restent confiés à Poulpe Fiction et Octopus Engine.
-        </p>
+        {feed?.runUrl ? <a href={feed.runUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-xs text-primary hover:underline"><ExternalLink className="h-3.5 w-3.5" />Ouvrir le dernier run GitHub</a> : null}
       </CardContent>
     </Card>
   );
@@ -223,10 +213,6 @@ export default function Dashboard() {
         </div>
         <ActivityEcho events={toActivityEchoEvents(activityEntries.slice(0, 8))} emptyMessage="Publisher écoute. Aucun signal utile n’est encore remonté." />
       </section>
-
-      <div className="rounded-xl border border-dashed border-border bg-card/40 p-4 text-sm text-muted-foreground">
-        Le Garden, Gérard et ses parcelles restent dans Poulpe Fiction. Les clés, fournisseurs et autorisations restent dans le Local technique.
-      </div>
     </div>
   );
 }
