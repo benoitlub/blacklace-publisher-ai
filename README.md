@@ -1,12 +1,10 @@
 # Feuch Institute — Blacklace Publisher AI
 
-Publisher Studio est en cours de pivot : il passe d'un assistant de rédaction/publication à un **Knowledge Observatory** pour Octopus Engine.
+Publisher Studio est un **Knowledge Observatory** pour les applications Blacklace.
 
-Sa nouvelle mission : observer des sources, extraire des connaissances structurées, les transformer en Knowledge Packs, puis préparer les outils, coûts, connexions et routes utilisables par les applications.
+Sa mission : observer des sources, extraire des connaissances structurées, les transformer en Knowledge Packs, puis préparer les outils, coûts, connexions et routes utilisables par les applications.
 
 > **Règle produit** : Publisher observe et prépare. Octopus exécute. Poulpe Fiction possède le Garden et Gérard jardine.
-
----
 
 ## Positionnement
 
@@ -53,31 +51,19 @@ Il regroupe uniquement :
 
 La route historique `/connectors` reste disponible pour compatibilité. L'entrée UI canonique devient `/local-technique`.
 
----
+## État actuel
 
-## Etat actuel
+Le déploiement Render historique a été retiré du dépôt. Publisher ne doit plus présenter une production Render comme active.
 
-Production Render : opérationnelle.
+État honnête :
 
-Services attendus :
-
-- `blacklace-publisher-web` : frontend statique ;
-- `blacklace-publisher-api` : backend Node / Express ;
-- `blacklace-publisher-db` : PostgreSQL.
-
-Correctifs récents appliqués :
-
-- `pnpm-workspace.yaml` autorise maintenant le build `octopus-engine` par nom de package ;
-- `MISTRAL_API_KEY` active automatiquement le provider Mistral si `AI_PROVIDER` n'est pas explicitement défini ;
-- si aucune clé IA n'est présente, le système reste en mode mock.
-
-Voir aussi : `docs/REPO_STATUS_2026-07-08.md`.
-
----
+- le code du frontend et de l'API reste présent dans le monorepo ;
+- aucune URL Render n'est considérée comme source de vérité ;
+- les connexions permanentes doivent être reconfigurées explicitement avant d'être déclarées opérationnelles ;
+- sans clé externe, l'application doit rester utilisable en mode mock ;
+- une simple réparation UI ne doit jamais modifier Octopus Engine.
 
 ## Pivot Observatory attendu
-
-Le pivot cible le flux suivant :
 
 ```txt
 Source
@@ -103,8 +89,6 @@ Sources prévues côté UI :
 
 Aucun vrai scraping, aucun LLM obligatoire, aucun connecteur externe nécessaire pour la première fondation.
 
----
-
 ## Ce qui doit rester séparé
 
 Ne pas toucher à Octopus Engine depuis Publisher pour une simple évolution UI.
@@ -118,8 +102,6 @@ Ne pas modifier sans raison :
 - runtime Octopus Engine.
 
 Publisher produit des objets exportables et prépare des routes techniques. Poulpe Fiction conserve ses concepts de Garden, Seed, Sprout, parcelle et récolte.
-
----
 
 ## Fonctionnalités historiques encore présentes
 
@@ -136,8 +118,6 @@ L'application conserve ses fonctions éditoriales existantes :
 
 Ces éléments doivent être réinterprétés progressivement, pas dupliqués. Les anciens usages du vocabulaire Garden dans Publisher sont historiques et ne définissent plus une responsabilité métier.
 
----
-
 ## Stack technique
 
 | Couche | Technologie |
@@ -151,8 +131,6 @@ Ces éléments doivent être réinterprétés progressivement, pas dupliqués. L
 | Validation | Zod + drizzle-zod |
 | Logging | Pino |
 | Monorepo | pnpm workspaces |
-
----
 
 ## Installation locale
 
@@ -180,15 +158,13 @@ API locale :
 http://localhost:5000/api
 ```
 
----
-
 ## Variables d'environnement
 
 Voir `.env.example` pour la liste complète.
 
 | Variable | Requis | Description |
 |----------|--------|-------------|
-| `DATABASE_URL` | Oui en prod | Connexion PostgreSQL |
+| `DATABASE_URL` | Oui pour PostgreSQL | Connexion PostgreSQL |
 | `MISTRAL_API_KEY` | Non | Active Mistral si `AI_PROVIDER` absent |
 | `AI_PROVIDER` | Non | Force `mock`, `mistral`, `openai`, `anthropic`, `gemini`, `ollama`, `openrouter` ou `custom` |
 | `AI_MODEL` | Non | Modèle à utiliser selon provider |
@@ -201,8 +177,6 @@ Voir `.env.example` pour la liste complète.
 
 Sans clé externe, l'application doit rester utilisable en mode mock.
 
----
-
 ## Scripts utiles
 
 ```bash
@@ -212,55 +186,4 @@ pnpm --filter @workspace/api-spec run codegen
 pnpm --filter @workspace/db run push
 pnpm --filter @workspace/api-server run dev
 pnpm --filter @workspace/blacklace-publisher run dev
-```
-
----
-
-## Architecture des dossiers
-
-```txt
-blacklace-publisher-ai/
-├── artifacts/
-│   ├── api-server/          # Backend Express
-│   │   └── src/
-│   │       ├── routes/
-│   │       ├── services/
-│   │       ├── ai/
-│   │       └── lib/
-│   └── blacklace-publisher/ # Frontend React + Vite
-│       └── src/
-│           ├── pages/
-│           ├── components/
-│           └── lib/
-├── lib/
-│   ├── api-spec/            # OpenAPI
-│   ├── api-client-react/    # Hooks React Query générés
-│   ├── api-zod/             # Schémas Zod générés
-│   └── db/                  # Schéma Drizzle PostgreSQL
-├── docs/
-├── .env.example
-├── pnpm-workspace.yaml
-└── README.md
-```
-
-Ajouter de nouveaux dossiers seulement si aucun équivalent n'existe déjà.
-
----
-
-## Limites actuelles
-
-- Pas de publication automatique réelle sur les réseaux sociaux.
-- Meta API, TikTok API et KDP non intégrés.
-- Pas d'authentification utilisateur.
-- La génération reste mock si aucune clé IA n'est configurée.
-- Le pivot Observatory n'est pas considéré complet tant que la route `/observatory` n'est pas visible en production.
-
----
-
-## Frontières canoniques
-
-```txt
-Poulpe Fiction possède le monde et le Garden.
-Publisher connaît les ressources, les outils et les connexions.
-Octopus Engine exécute sans connaître le monde.
 ```
