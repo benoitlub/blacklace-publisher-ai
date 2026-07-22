@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startKnowledgeGardener } from "./knowledge/gardener";
 import { startPoulpeLife } from "./poulpe-life/runtime";
 import { startPublisherLife } from "./publisher-life/runtime";
 import { schedulePublisherRegistration } from "./publisher/octopus-registration";
@@ -26,6 +27,7 @@ app.listen(port, (err) => {
 
   startPoulpeLife();
   startPublisherLife();
+  startKnowledgeGardener();
   schedulePublisherRegistration();
   logger.info({ port }, "Server listening");
 });
