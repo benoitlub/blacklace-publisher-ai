@@ -1,4 +1,4 @@
-import type { WorkflowDefinition } from "octopus-engine";
+import type { WorkflowDefinition } from "../contracts";
 
 /**
  * Workflow: draft_article_outline
