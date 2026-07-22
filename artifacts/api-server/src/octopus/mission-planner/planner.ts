@@ -1,4 +1,4 @@
-import type { UserIntent, MissionDefinition } from "octopus-engine";
+import type { UserIntent, MissionDefinition } from "../contracts";
 import { MISSION_CATALOG, listMissionIds } from "./catalog";
 import { capabilityResolver } from "./capability-resolver";
 
