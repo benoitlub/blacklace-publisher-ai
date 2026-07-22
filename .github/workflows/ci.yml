@@ -36,7 +36,15 @@ jobs:
         run: pnpm run build
 
       - name: Test API server
-        run: pnpm --filter @workspace/api-server test
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! pnpm --filter @workspace/api-server test > /tmp/api-test.log 2>&1; then
+            echo "API tests failed. Last 120 lines:"
+            tail -n 120 /tmp/api-test.log
+            exit 1
+          fi
+          cat /tmp/api-test.log
 
       - name: Test Publisher
         run: pnpm --filter @workspace/blacklace-publisher test
