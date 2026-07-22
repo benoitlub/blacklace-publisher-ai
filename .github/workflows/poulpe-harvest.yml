@@ -1,0 +1,136 @@
+name: Poulpe harvest
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: poulpe-harvest
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    if: startsWith(github.event.issue.title, '[POULPE]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate harvest with Publisher
+        env:
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python - <<'PY'
+          import json, os, pathlib, urllib.request, datetime
+
+          body = os.environ.get('ISSUE_BODY', '').strip()
+          mission = json.loads(body)
+          operation_id = mission.get('operationId') or f"issue-{os.environ['ISSUE_NUMBER']}"
+          title = mission.get('title') or 'Récolte Publisher'
+          objective = mission.get('objective') or ''
+          prompt = mission.get('prompt') or ''
+          context = mission.get('context') or {}
+          metadata = context.get('metadata') or {}
+          parcel_id = mission.get('parcelId') or context.get('id') or 'poulpe-fiction'
+          seed_id = metadata.get('seedId') or None
+          knowledge_slug = metadata.get('knowledgeSlug') or ''
+          expected = metadata.get('expectedHarvest') or ''
+          platform = metadata.get('platform') or ''
+
+          system = (
+            "Tu es Blacklace Publisher. Tu transformes une mission Poulpe Fiction en livrable directement utilisable. "
+            "Respecte les faits fournis, n'invente ni prix, ni lien, ni fonctionnalité. "
+            "Ne réponds pas par un questionnaire. Produis le livrable demandé en français, avec un titre clair."
+          )
+          user = "\n".join([
+            f"Mission: {title}",
+            f"Objectif: {objective}",
+            f"Parcelle: {parcel_id}",
+            f"Knowledge slug: {knowledge_slug}",
+            f"Plateforme: {platform}",
+            f"Récolte attendue: {expected}",
+            f"Consigne détaillée: {prompt}",
+          ])
+
+          key = os.environ.get('MISTRAL_API_KEY', '').strip()
+          if not key:
+            raise RuntimeError('Le secret MISTRAL_API_KEY manque dans blacklace-publisher-ai')
+
+          request_body = json.dumps({
+            'model': 'mistral-small-latest',
+            'messages': [
+              {'role': 'system', 'content': system},
+              {'role': 'user', 'content': user},
+            ],
+            'temperature': 0.4,
+          }).encode('utf-8')
+          req = urllib.request.Request(
+            'https://api.mistral.ai/v1/chat/completions',
+            data=request_body,
+            headers={'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'},
+            method='POST',
+          )
+          with urllib.request.urlopen(req, timeout=120) as response:
+            answer = json.load(response)
+          content = answer['choices'][0]['message']['content'].strip()
+          now = datetime.datetime.now(datetime.timezone.utc).isoformat()
+
+          feed_path = pathlib.Path('harvest-feed/latest.json')
+          feed_path.parent.mkdir(parents=True, exist_ok=True)
+          try:
+            feed = json.loads(feed_path.read_text(encoding='utf-8'))
+          except Exception:
+            feed = {'harvests': []}
+          harvests = [h for h in feed.get('harvests', []) if h.get('operationId') != operation_id]
+          harvests.insert(0, {
+            'operationId': operation_id,
+            'parcelId': parcel_id,
+            'seedId': seed_id,
+            'title': title,
+            'status': 'completed',
+            'completedAt': now,
+            'source': 'blacklace-publisher-ai',
+            'content': content,
+            'result': {
+              'output': {
+                'text': content,
+                'artifacts': [{
+                  'title': title,
+                  'content': content,
+                  'mimeType': 'text/markdown; charset=utf-8'
+                }]
+              }
+            },
+            'issueUrl': os.environ['ISSUE_URL'],
+          })
+          feed = {
+            'generatedAt': now,
+            'runUrl': os.environ['RUN_URL'],
+            'harvests': harvests[:50],
+          }
+          feed_path.write_text(json.dumps(feed, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          pathlib.Path('/tmp/harvest-comment.md').write_text(
+            f"## 🌾 Récolte Publisher\n\n{content}\n\n---\nOpération `{operation_id}` · [voir le run]({os.environ['RUN_URL']})\n",
+            encoding='utf-8'
+          )
+          PY
+
+      - name: Commit harvest feed
+        run: |
+          git config user.name "Blacklace Publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add harvest-feed/latest.json
+          git commit -m "harvest: publish Poulpe mission #${{ github.event.issue.number }}" || exit 0
+          git push
+
+      - name: Comment harvest on issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue comment "${{ github.event.issue.number }}" --body-file /tmp/harvest-comment.md
