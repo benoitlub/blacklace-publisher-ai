@@ -37,6 +37,7 @@ jobs:
         env:
           PORT: 5173
           BASE_PATH: /blacklace-publisher-ai/
+          VITE_API_BASE_URL: https://blacklace-publisher-api.onrender.com
         run: pnpm --filter @workspace/blacklace-publisher build
 
       - name: Prepare Pages artifact
