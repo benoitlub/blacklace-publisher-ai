@@ -36,15 +36,25 @@ jobs:
         run: pnpm run build
 
       - name: Test API server
+        id: api_tests
         shell: bash
         run: |
-          set -o pipefail
-          if ! pnpm --filter @workspace/api-server test > /tmp/api-test.log 2>&1; then
-            echo "API tests failed. Last 120 lines:"
-            tail -n 120 /tmp/api-test.log
-            exit 1
-          fi
-          cat /tmp/api-test.log
+          set +e
+          pnpm --filter @workspace/api-server test > api-test.log 2>&1
+          status=$?
+          tail -n 160 api-test.log > api-test-tail.log
+          cat api-test-tail.log
+          exit $status
+
+      - name: Upload API test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-test-report
+          path: |
+            api-test.log
+            api-test-tail.log
+          if-no-files-found: error
 
       - name: Test Publisher
         run: pnpm --filter @workspace/blacklace-publisher test
