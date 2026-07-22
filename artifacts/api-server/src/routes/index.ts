@@ -23,12 +23,14 @@ import productionConnectionsRouter from "./production-connections";
 import contactIntelligenceRouter from "./contact-intelligence";
 import curatorRouter from "./curator";
 import poulpeLifeRouter from "./poulpe-life";
+import poulpeHarvestRouter from "./poulpe-harvest";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(greenhouseRouter);
 router.use(poulpeLifeRouter);
+router.use("/poulpe", poulpeHarvestRouter);
 router.use("/octopus-adapter", octopusAdapterRouter);
 router.use("/knowledge-packs", knowledgePacksRouter);
 router.use("/knowledge-digestion", knowledgeDigestionRouter);
