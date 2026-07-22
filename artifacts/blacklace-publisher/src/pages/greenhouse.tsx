@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Download, Loader2, PackageCheck, RefreshCw, Sparkles } from "lucide-react";
 
-const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "https://blacklace-publisher-api.onrender.com").replace(/\/$/, "");
+const API_BASE = String(import.meta.env.VITE_API_BASE_URL || "").replace(/\/$/, "");
 
 type HarvestAsset = {
   id?: string;
@@ -25,6 +25,11 @@ type Harvest = {
   preparedAt: string;
 };
 
+function apiUrl(path: string): string {
+  if (!API_BASE) throw new Error("Aucune API Publisher n’est configurée. Render n’est pas utilisé par défaut.");
+  return `${API_BASE}${path}`;
+}
+
 function downloadAsset(asset: HarvestAsset) {
   const blob = new Blob([asset.content || ""], { type: asset.mediaType || "text/plain" });
   const url = URL.createObjectURL(blob);
@@ -44,7 +49,7 @@ export default function Greenhouse() {
   const refresh = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE}/api/deliverables/harvests`, { cache: "no-store" });
+      const response = await fetch(apiUrl("/api/deliverables/harvests"), { cache: "no-store" });
       if (!response.ok) throw new Error(`Publisher API ${response.status}`);
       const payload = await response.json();
       setHarvests(Array.isArray(payload) ? payload : []);
@@ -59,7 +64,7 @@ export default function Greenhouse() {
   const prepareAll = async () => {
     setPreparing(true);
     try {
-      const response = await fetch(`${API_BASE}/api/deliverables/prepare-all`, {
+      const response = await fetch(apiUrl("/api/deliverables/prepare-all"), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({}),
@@ -88,10 +93,10 @@ export default function Greenhouse() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => void refresh()} disabled={loading} className="gap-2">
+          <Button variant="outline" onClick={() => void refresh()} disabled={loading || !API_BASE} className="gap-2">
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Actualiser
           </Button>
-          <Button onClick={() => void prepareAll()} disabled={preparing} className="gap-2">
+          <Button onClick={() => void prepareAll()} disabled={preparing || !API_BASE} className="gap-2">
             {preparing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             Préparer toutes les récoltes
           </Button>
