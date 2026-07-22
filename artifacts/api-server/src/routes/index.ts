@@ -23,6 +23,7 @@ import productionConnectionsRouter from "./production-connections";
 import contactIntelligenceRouter from "./contact-intelligence";
 import curatorRouter from "./curator";
 import poulpeLifeRouter from "./poulpe-life";
+import mcpLabRouter from "./mcp-lab";
 
 const router: IRouter = Router();
 
@@ -35,6 +36,7 @@ router.use("/knowledge-digestion", knowledgeDigestionRouter);
 router.use("/global-state", globalStateRouter);
 router.use("/tool-packs", toolPacksRouter);
 router.use("/connection-broker", connectionBrokerRouter);
+router.use("/mcp-lab", mcpLabRouter);
 router.use("/contact-intelligence", contactIntelligenceRouter);
 router.use("/curator", curatorRouter);
 router.use("/production", productionConnectionsRouter);
