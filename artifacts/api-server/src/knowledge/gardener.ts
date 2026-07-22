@@ -1,10 +1,11 @@
+import { pool } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { listGlobalState, readGlobalState, writeGlobalState } from "../services/global-state";
 import { harvestKnowledgeSource, type KnowledgeObservation, type KnowledgeSourceRecord } from "./harvesters";
 import { synthesizeKnowledgePackage, type KnowledgePackage } from "./synthesizer";
 
 const DEFAULT_INTERVAL_MS = 10 * 60_000;
-const MAX_PARCELS_PER_TICK = 8;
+const MAX_PARCELS_PER_TICK = 32;
 let timer: NodeJS.Timeout | null = null;
 let ticking = false;
 
@@ -38,6 +39,45 @@ function parcelKey(parcel: KnowledgeParcel) {
   return parcel.id;
 }
 
+async function syncPoulpeParcels(): Promise<void> {
+  if (!pool) return;
+  const parcels = await pool.query<{ id: string; name: string; payload: Record<string, unknown> }>(
+    "SELECT id, name, payload FROM poulpe_parcels ORDER BY updated_at DESC",
+  ).catch(() => ({ rows: [] as Array<{ id: string; name: string; payload: Record<string, unknown> }> }));
+
+  for (const parcel of parcels.rows) {
+    const seeds = await pool.query<{ id: string; title: string; status: string; maturity: number; payload: Record<string, unknown> }>(
+      "SELECT id, title, status, maturity, payload FROM poulpe_seeds WHERE parcel_id = $1 ORDER BY updated_at DESC",
+      [parcel.id],
+    ).catch(() => ({ rows: [] as Array<{ id: string; title: string; status: string; maturity: number; payload: Record<string, unknown> }> }));
+
+    await writeGlobalState<KnowledgeParcel>("knowledge-parcels", parcel.id, {
+      id: parcel.id,
+      name: parcel.name,
+      status: "current",
+      enabled: true,
+      sourceIds: [`poulpe:${parcel.id}`],
+    });
+
+    const details = [
+      `Parcelle : ${parcel.name}.`,
+      `Identifiant : ${parcel.id}.`,
+      ...Object.entries(parcel.payload || {}).map(([key, value]) => `${key} : ${typeof value === "string" ? value : JSON.stringify(value)}.`),
+      ...seeds.rows.map((seed) => `Projet ou ressource : ${seed.title}. Statut : ${seed.status}. Maturité : ${seed.maturity}%. Données : ${JSON.stringify(seed.payload || {})}.`),
+    ].join("\n");
+
+    await writeGlobalState<KnowledgeSourceRecord>("knowledge-sources", `poulpe:${parcel.id}`, {
+      id: `poulpe:${parcel.id}`,
+      parcelId: parcel.id,
+      kind: "document",
+      title: `Dossier vivant · ${parcel.name}`,
+      text: details,
+      metadata: { origin: "poulpe-life", seedCount: seeds.rows.length },
+      updatedAt: new Date().toISOString(),
+    });
+  }
+}
+
 async function observationsForParcel(parcelId: string): Promise<KnowledgeObservation[]> {
   const records = await listGlobalState<KnowledgeObservation>("knowledge-observations");
   return records.map((record) => record.value).filter((item) => item?.parcelId === parcelId);
@@ -61,6 +101,7 @@ async function harvestParcelSources(parcel: KnowledgeParcel): Promise<number> {
 }
 
 async function prioritizedParcels(): Promise<KnowledgeParcel[]> {
+  await syncPoulpeParcels();
   const records = await listGlobalState<KnowledgeParcel>("knowledge-parcels");
   const scored = await Promise.all(records
     .map((record) => record.value)
@@ -75,31 +116,11 @@ async function prioritizedParcels(): Promise<KnowledgeParcel[]> {
 export async function tickKnowledgeGardener(): Promise<KnowledgeGardenerStatus> {
   if (ticking) {
     const existing = await readGlobalState<KnowledgeGardenerStatus>("knowledge-gardener", "status").catch(() => null);
-    return existing?.value ?? {
-      running: true,
-      intervalMs: intervalMs(),
-      lastTickAt: null,
-      lastSuccessAt: null,
-      parcelsSeen: 0,
-      sourcesHarvested: 0,
-      packagesWritten: 0,
-      lowestCoverage: null,
-      errors: ["tick-already-running"],
-    };
+    return existing?.value ?? { running: true, intervalMs: intervalMs(), lastTickAt: null, lastSuccessAt: null, parcelsSeen: 0, sourcesHarvested: 0, packagesWritten: 0, lowestCoverage: null, errors: ["tick-already-running"] };
   }
 
   ticking = true;
-  const status: KnowledgeGardenerStatus = {
-    running: true,
-    intervalMs: intervalMs(),
-    lastTickAt: new Date().toISOString(),
-    lastSuccessAt: null,
-    parcelsSeen: 0,
-    sourcesHarvested: 0,
-    packagesWritten: 0,
-    lowestCoverage: null,
-    errors: [],
-  };
+  const status: KnowledgeGardenerStatus = { running: true, intervalMs: intervalMs(), lastTickAt: new Date().toISOString(), lastSuccessAt: null, parcelsSeen: 0, sourcesHarvested: 0, packagesWritten: 0, lowestCoverage: null, errors: [] };
 
   try {
     const parcels = await prioritizedParcels();
@@ -109,18 +130,11 @@ export async function tickKnowledgeGardener(): Promise<KnowledgeGardenerStatus> 
         status.sourcesHarvested += await harvestParcelSources(parcel);
         const observations = await observationsForParcel(parcel.id);
         const previous = await readGlobalState<KnowledgePackage>("knowledge-packages", parcelKey(parcel));
-        const knowledgePackage = synthesizeKnowledgePackage({
-          parcelId: parcel.id,
-          parcelName: parcel.name,
-          observations,
-          previous: previous?.value ?? null,
-        });
+        const knowledgePackage = synthesizeKnowledgePackage({ parcelId: parcel.id, parcelName: parcel.name, observations, previous: previous?.value ?? null });
         await writeGlobalState("knowledge-packages", parcelKey(parcel), knowledgePackage);
         await writeGlobalState("publisher-activity", `knowledge:${parcel.id}:${Date.now()}`, {
           kind: "knowledge-package-updated",
-          label: knowledgePackage.coverage === 0
-            ? `Publisher doit apprendre ${parcel.name}`
-            : `Publisher connaît ${parcel.name} à ${knowledgePackage.coverage}%`,
+          label: knowledgePackage.coverage === 0 ? `Publisher doit apprendre ${parcel.name}` : `Publisher connaît ${parcel.name} à ${knowledgePackage.coverage}%`,
           parcelId: parcel.id,
           parcelName: parcel.name,
           version: knowledgePackage.version,
@@ -129,9 +143,7 @@ export async function tickKnowledgeGardener(): Promise<KnowledgeGardenerStatus> 
           generatedAt: knowledgePackage.generatedAt,
         });
         status.packagesWritten += 1;
-        status.lowestCoverage = status.lowestCoverage === null
-          ? knowledgePackage.coverage
-          : Math.min(status.lowestCoverage, knowledgePackage.coverage);
+        status.lowestCoverage = status.lowestCoverage === null ? knowledgePackage.coverage : Math.min(status.lowestCoverage, knowledgePackage.coverage);
       } catch (error) {
         status.errors.push(`${parcel.id}:${error instanceof Error ? error.message : String(error)}`);
       }
