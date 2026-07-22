@@ -22,12 +22,24 @@ export interface McpQualificationCandidate {
   source?: string;
 }
 
+interface McpObservation {
+  id?: string;
+  source?: string;
+  mcp?: McpServerDescriptor;
+  descriptor?: McpServerDescriptor;
+  capabilityRequests?: CapabilityRequest[];
+  requests?: CapabilityRequest[];
+  refreshAfterMinutes?: number;
+  enabled?: boolean;
+}
+
 export interface PublisherLifeStatus {
   running: boolean;
   intervalMs: number;
   lastTickAt: string | null;
   lastSuccessAt: string | null;
   candidatesSeen: number;
+  candidatesDiscovered: number;
   packsWritten: number;
   rejected: number;
   errors: string[];
@@ -38,12 +50,8 @@ function intervalMs(): number {
   return Number.isFinite(configured) && configured >= 60_000 ? configured : DEFAULT_TICK_MS;
 }
 
-function candidateKey(candidate: McpQualificationCandidate): string {
-  return candidate.id || candidate.descriptor.id;
-}
-
-function packKey(pack: McpToolPack): string {
-  return pack.id.replace(/^mcp-tool-pack:/, "");
+function packKeyFor(descriptor: McpServerDescriptor, request: CapabilityRequest): string {
+  return `${normalize(descriptor.id)}:${normalize(request.capability)}`;
 }
 
 function due(candidate: McpQualificationCandidate, updatedAt?: string): boolean {
@@ -51,6 +59,42 @@ function due(candidate: McpQualificationCandidate, updatedAt?: string): boolean 
   const minutes = Math.max(1, candidate.refreshAfterMinutes ?? 24 * 60);
   const age = Date.now() - new Date(updatedAt).getTime();
   return !Number.isFinite(age) || age >= minutes * 60_000;
+}
+
+function normalize(value: unknown): string {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+async function discoverCandidatesFromObservatory(): Promise<number> {
+  const records = await listGlobalState<McpObservation | McpObservation[]>("observations");
+  let discovered = 0;
+  for (const record of records) {
+    const observations = Array.isArray(record.value) ? record.value : [record.value];
+    for (const observation of observations) {
+      const descriptor = observation?.mcp ?? observation?.descriptor;
+      const requests = observation?.capabilityRequests ?? observation?.requests;
+      if (!descriptor?.id || !Array.isArray(descriptor.tools) || !Array.isArray(requests) || requests.length === 0) continue;
+      const id = observation.id || `observed:${descriptor.id}`;
+      const existing = await readGlobalState<McpQualificationCandidate>("mcp-candidates", id);
+      if (existing && JSON.stringify(existing.value.descriptor) === JSON.stringify(descriptor) && JSON.stringify(existing.value.requests) === JSON.stringify(requests)) continue;
+      await writeGlobalState<McpQualificationCandidate>("mcp-candidates", id, {
+        id,
+        descriptor,
+        requests,
+        enabled: observation.enabled !== false,
+        refreshAfterMinutes: observation.refreshAfterMinutes,
+        discoveredAt: new Date().toISOString(),
+        source: observation.source ?? record.key,
+      });
+      discovered += 1;
+    }
+  }
+  return discovered;
 }
 
 export async function tickPublisherLife(): Promise<PublisherLifeStatus> {
@@ -62,6 +106,7 @@ export async function tickPublisherLife(): Promise<PublisherLifeStatus> {
       lastTickAt: null,
       lastSuccessAt: null,
       candidatesSeen: 0,
+      candidatesDiscovered: 0,
       packsWritten: 0,
       rejected: 0,
       errors: ["tick-already-running"],
@@ -75,12 +120,14 @@ export async function tickPublisherLife(): Promise<PublisherLifeStatus> {
     lastTickAt: new Date().toISOString(),
     lastSuccessAt: null,
     candidatesSeen: 0,
+    candidatesDiscovered: 0,
     packsWritten: 0,
     rejected: 0,
     errors: [],
   };
 
   try {
+    status.candidatesDiscovered = await discoverCandidatesFromObservatory();
     const records = await listGlobalState<McpQualificationCandidate>("mcp-candidates");
     const candidates = records
       .filter((record) => record.value?.enabled !== false)
@@ -89,22 +136,23 @@ export async function tickPublisherLife(): Promise<PublisherLifeStatus> {
     for (const record of candidates) {
       const candidate = record.value;
       status.candidatesSeen += 1;
-      const previous = await readGlobalState<McpToolPack>("mcp-tool-packs", candidateKey(candidate));
-      if (!due(candidate, previous?.updatedAt)) continue;
 
       for (const request of candidate.requests ?? []) {
+        const storageKey = packKeyFor(candidate.descriptor, request);
+        const previous = await readGlobalState<McpToolPack>("mcp-tool-packs", storageKey);
+        if (!due(candidate, previous?.updatedAt)) continue;
         try {
           const pack = qualifyMcpServer(candidate.descriptor, request);
-          await writeGlobalState("mcp-tool-packs", packKey(pack), {
+          await writeGlobalState("mcp-tool-packs", storageKey, {
             ...pack,
             autonomy: {
               qualifiedBy: "publisher-life",
-              candidateId: candidateKey(candidate),
+              candidateId: candidate.id,
               source: candidate.source ?? candidate.descriptor.source ?? "publisher-memory",
               checkedAt: new Date().toISOString(),
             },
           });
-          await writeGlobalState("publisher-activity", `mcp:${packKey(pack)}:${Date.now()}`, {
+          await writeGlobalState("publisher-activity", `mcp:${storageKey}:${Date.now()}`, {
             kind: "mcp-qualified",
             label: pack.status === "verified"
               ? `Publisher a appris ${pack.capability}`
@@ -119,7 +167,7 @@ export async function tickPublisherLife(): Promise<PublisherLifeStatus> {
           status.packsWritten += 1;
           if (pack.status === "rejected") status.rejected += 1;
         } catch (error) {
-          status.errors.push(`${candidateKey(candidate)}:${request.capability}:${error instanceof Error ? error.message : String(error)}`);
+          status.errors.push(`${candidate.id}:${request.capability}:${error instanceof Error ? error.message : String(error)}`);
         }
       }
     }
