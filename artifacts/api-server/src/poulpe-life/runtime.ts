@@ -9,6 +9,14 @@ let ticking = false;
 let schemaReady = false;
 let bootstrapReady = false;
 
+type DatabaseClient = {
+  query<T extends Record<string, unknown> = Record<string, unknown>>(
+    text: string,
+    values?: unknown[],
+  ): Promise<{ rows: T[] }>;
+  release(): void;
+};
+
 function eventId(seedId: string, at: Date) {
   return `life:${seedId}:${at.toISOString()}`;
 }
@@ -76,10 +84,10 @@ export async function ensureBlacklaceBootstrap() {
 export async function tickPoulpeLife() {
   if (!pool || ticking) return;
   ticking = true;
-  let client: Awaited<ReturnType<typeof pool.connect>> | null = null;
+  let client: DatabaseClient | null = null;
   try {
     await ensureBlacklaceBootstrap();
-    client = await pool.connect();
+    client = await pool.connect() as DatabaseClient;
     await client.query("BEGIN");
     const result = await client.query<{
       id: string;
