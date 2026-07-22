@@ -10,6 +10,15 @@ function markdownFacts(facts: string[]): string {
   return facts.length ? facts.map((fact) => `- ${fact}`).join("\n") : "- Aucun fait exploitable.";
 }
 
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function produceDeliverable(request: ProductionRequest): ProducedDeliverable {
   const slug = request.parcelId.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "parcel";
 
@@ -24,7 +33,7 @@ export function produceDeliverable(request: ProductionRequest): ProducedDelivera
       return {
         filename: `${slug}-landing-page.html`,
         mediaType: "text/html",
-        content: `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${request.title}</title></head><body><main><h1>${request.parcelName}</h1><p>${request.summary}</p><h2>À retenir</h2><ul>${request.facts.map((fact) => `<li>${fact}</li>`).join("")}</ul></main></body></html>`,
+        content: `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(request.title)}</title></head><body><main><h1>${escapeHtml(request.parcelName)}</h1><p>${escapeHtml(request.summary)}</p><h2>À retenir</h2><ul>${request.facts.map((fact) => `<li>${escapeHtml(fact)}</li>`).join("")}</ul></main></body></html>`,
       };
     case "newsletter":
       return {
