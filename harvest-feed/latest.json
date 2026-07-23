@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-07-23T13:55:45.332355+00:00",
+  "runUrl": "https://github.com/benoitlub/blacklace-publisher-ai/actions/runs/30013405233",
+  "harvests": [
+    {
+      "operationId": "demo-link-20260723-1550",
+      "parcelId": "PARCEL-001",
+      "seedId": "test-publisher-link",
+      "title": "Test de liaison Publisher → Poulpe Fiction",
+      "status": "completed",
+      "completedAt": "2026-07-23T13:55:45.332355+00:00",
+      "source": "blacklace-publisher-ai",
+      "content": "**Confirmation de traitement de mission Poulpe Fiction → Blacklace Publisher**\n\n**Mission traitée :**\n- **Parcelle** : PARCEL-001\n- **Slug Knowledge** : blacklace-demo\n- **Plateforme source** : Poulpe Fiction\n\n**Statut** : La mission a été reçue et traitée par Blacklace Publisher.\n\n*Document généré automatiquement – Vérification de la chaîne de transmission validée.*",
+      "result": {
+        "output": {
+          "text": "**Confirmation de traitement de mission Poulpe Fiction → Blacklace Publisher**\n\n**Mission traitée :**\n- **Parcelle** : PARCEL-001\n- **Slug Knowledge** : blacklace-demo\n- **Plateforme source** : Poulpe Fiction\n\n**Statut** : La mission a été reçue et traitée par Blacklace Publisher.\n\n*Document généré automatiquement – Vérification de la chaîne de transmission validée.*",
+          "artifacts": [
+            {
+              "title": "Test de liaison Publisher → Poulpe Fiction",
+              "content": "**Confirmation de traitement de mission Poulpe Fiction → Blacklace Publisher**\n\n**Mission traitée :**\n- **Parcelle** : PARCEL-001\n- **Slug Knowledge** : blacklace-demo\n- **Plateforme source** : Poulpe Fiction\n\n**Statut** : La mission a été reçue et traitée par Blacklace Publisher.\n\n*Document généré automatiquement – Vérification de la chaîne de transmission validée.*",
+              "mimeType": "text/markdown; charset=utf-8"
+            }
+          ]
+        }
+      },
+      "issueUrl": "https://github.com/benoitlub/blacklace-publisher-ai/issues/75"
+    }
+  ]
+}
