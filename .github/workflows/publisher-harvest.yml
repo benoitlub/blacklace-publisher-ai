@@ -5,20 +5,25 @@ on:
     inputs:
       parcel_id:
         description: Identifiant de la parcelle
-        required: true
-        default: terra
+        required: false
+        default: ""
       parcel_name:
         description: Nom lisible de la parcelle
-        required: true
-        default: TERRA
+        required: false
+        default: ""
       objective:
         description: Récolte demandée
-        required: true
-        default: Préparer une campagne de lancement exploitable.
+        required: false
+        default: ""
       context:
         description: Contexte vérifié à utiliser
         required: false
         default: ""
+  push:
+    branches:
+      - main
+    paths:
+      - public/missions/request.json
 
 permissions:
   contents: write
@@ -59,5 +64,5 @@ jobs:
             echo "No harvest change to commit"
             exit 0
           fi
-          git commit -m "harvest(publisher): ${{ inputs.parcel_id }}"
+          git commit -m "harvest(publisher): publish latest harvest"
           git push
