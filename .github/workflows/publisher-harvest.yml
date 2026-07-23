@@ -1,0 +1,63 @@
+name: Publisher Harvest
+
+on:
+  workflow_dispatch:
+    inputs:
+      parcel_id:
+        description: Identifiant de la parcelle
+        required: true
+        default: terra
+      parcel_name:
+        description: Nom lisible de la parcelle
+        required: true
+        default: TERRA
+      objective:
+        description: Récolte demandée
+        required: true
+        default: Préparer une campagne de lancement exploitable.
+      context:
+        description: Contexte vérifié à utiliser
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publisher-harvest
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    env:
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+      HARVEST_PARCEL_ID: ${{ inputs.parcel_id }}
+      HARVEST_PARCEL_NAME: ${{ inputs.parcel_name }}
+      HARVEST_OBJECTIVE: ${{ inputs.objective }}
+      HARVEST_CONTEXT: ${{ inputs.context }}
+      MISTRAL_MODEL: mistral-small-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Generate harvest with Publisher
+        run: node scripts/github-harvest.mjs
+
+      - name: Commit harvest
+        run: |
+          git config user.name "Blacklace Publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/harvests
+          if git diff --cached --quiet; then
+            echo "No harvest change to commit"
+            exit 0
+          fi
+          git commit -m "harvest(publisher): ${{ inputs.parcel_id }}"
+          git push
