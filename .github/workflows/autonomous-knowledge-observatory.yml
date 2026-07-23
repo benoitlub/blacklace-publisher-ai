@@ -1,0 +1,54 @@
+name: Autonomous Knowledge Observatory
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 5 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: autonomous-knowledge-observatory
+  cancel-in-progress: false
+
+jobs:
+  refresh-knowledge-packs:
+    runs-on: ubuntu-latest
+    env:
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check Notion configuration
+        run: |
+          if [ -z "$NOTION_API_KEY" ]; then
+            echo "NOTION_API_KEY is not configured. Nothing was changed."
+            exit 1
+          fi
+
+      - name: Observe sources and refresh Knowledge Packs
+        run: node scripts/autonomous-knowledge-observatory.mjs
+
+      - name: Commit refreshed packs
+        run: |
+          if [ ! -d public/knowledge-packs ]; then
+            echo "No knowledge-pack output directory was produced."
+            exit 1
+          fi
+          git config user.name "Blacklace Publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/knowledge-packs
+          if git diff --cached --quiet; then
+            echo "No Knowledge Pack change to commit"
+            exit 0
+          fi
+          git commit -m "knowledge(publisher): refresh autonomous packs"
+          git push
