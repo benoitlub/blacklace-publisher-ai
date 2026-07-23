@@ -15,6 +15,7 @@ export interface ResolvedKnowledgePackage {
     matchedItems: number;
     discoveredItems: number;
     digestedItems: number;
+    attemptedQueries: string[];
   };
 }
 
@@ -86,9 +87,6 @@ function belongsToParcel(item: BlacklaceKnowledgeItem, slug: string): boolean {
   const title = normalizedText(item.title);
   const universe = normalizedText(item.universe);
   const tags = item.tags.map(normalizedText);
-
-  // Content is deliberately excluded here. A page that merely mentions another
-  // universe must never become a knowledge source for that universe.
   return fieldMatchesAlias(title, aliases)
     || fieldMatchesAlias(universe, aliases)
     || tags.some((tag) => fieldMatchesAlias(tag, aliases));
@@ -100,7 +98,6 @@ function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
   const universe = normalizedText(item.universe);
   const tags = item.tags.map(normalizedText);
   let score = 0;
-
   for (const alias of aliases) {
     if (title === alias) score += 20;
     else if (title.includes(alias)) score += 12;
@@ -109,7 +106,6 @@ function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
     if (tags.some((tag) => tag === alias)) score += 10;
     else if (tags.some((tag) => tag.includes(alias))) score += 5;
   }
-
   return score;
 }
 
@@ -122,6 +118,23 @@ function rankItems(items: BlacklaceKnowledgeItem[], slug: string): BlacklaceKnow
     .sort((a, b) => b.score - a.score)
     .slice(0, 10)
     .map(({ item }) => item);
+}
+
+function researchQueries(slug: string, candidates: unknown[]): string[] {
+  const phrases = candidates
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => value.trim())
+    .filter(Boolean);
+  const compact = phrases.flatMap((phrase) => {
+    const words = normalizedText(phrase).split(" ").filter((word) => word.length >= 4);
+    return [phrase, words.slice(0, 6).join(" "), ...words.slice(0, 8)];
+  });
+  return [...new Set([
+    slug.replace(/-/g, " "),
+    ...(KNOWN_ALIASES[slug] ?? []),
+    ...compact,
+    "",
+  ].map((value) => value.trim()))];
 }
 
 function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[]): string {
@@ -171,11 +184,11 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   let pool = diagnostics.items.filter((item) => !item.isMock);
   let items = rankItems(pool, slug);
   const discovered = new Map<string, BlacklaceKnowledgeItem>();
+  const attemptedQueries: string[] = [];
 
   if (items.length === 0) {
-    const targetedQueries = [...new Set([slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])])];
-
-    for (const query of targetedQueries) {
+    for (const query of researchQueries(slug, candidates)) {
+      attemptedQueries.push(query || "<workspace complet>");
       const results = await searchNotionWorkspaceKnowledge(query, slug);
       for (const item of results) discovered.set(item.id, item);
       const merged = new Map(pool.map((item) => [item.id, item]));
@@ -183,15 +196,6 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
       pool = [...merged.values()];
       items = rankItems(pool, slug);
       if (items.length > 0) break;
-    }
-
-    if (items.length === 0) {
-      const results = await searchNotionWorkspaceKnowledge("", slug);
-      for (const item of results) discovered.set(item.id, item);
-      const merged = new Map(pool.map((item) => [item.id, item]));
-      for (const item of discovered.values()) merged.set(item.id, item);
-      pool = [...merged.values()];
-      items = rankItems(pool, slug);
     }
   }
 
@@ -214,7 +218,8 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
       totalItems: pool.length,
       matchedItems: items.length,
       discoveredItems: discovered.size,
-      digestedItems: 0,
+      digestedItems: verified ? items.length : 0,
+      attemptedQueries,
     },
   };
 }
