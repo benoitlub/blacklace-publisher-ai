@@ -16,7 +16,7 @@ jobs:
   refresh-knowledge-packs:
     runs-on: ubuntu-latest
     env:
-      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY }}
+      NOTION_API_KEY: ${{ secrets.NOTION_API_KEY || secrets.NOTION_TOKEN || secrets.NOTION_API_TOKEN }}
 
     steps:
       - name: Checkout
@@ -30,7 +30,7 @@ jobs:
       - name: Check Notion configuration
         run: |
           if [ -z "$NOTION_API_KEY" ]; then
-            echo "NOTION_API_KEY is not configured. Nothing was changed."
+            echo "No supported Notion token is configured."
             exit 1
           fi
 
