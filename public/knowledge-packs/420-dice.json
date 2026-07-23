@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "slug": "420-dice",
+  "status": "verified",
+  "source": "github-project-repository",
+  "aliases": ["420 dice", "420 dice game", "420-dice", "420-dice-game-reboot"],
+  "sources": [
+    {
+      "id": "benoitlub/420-dice-game-reboot:README.md",
+      "title": "420 Dice Game Reboot — documentation du projet",
+      "url": "https://github.com/benoitlub/420-dice-game-reboot/blob/main/README.md",
+      "content": "Application mobile-first 420 Dice Game Reboot v1.1.1. Déploiement GitHub Pages automatique. Interface disponible en français, espagnol et anglais. Fonctionnalités documentées : thèmes nuit et jour, trophées et statistiques, bulles Feuch Institute, premium PayPal, sons et haptique. URL publique : https://benoitlub.github.io/420-dice-game-reboot/.",
+      "capturedAt": "2026-07-23T21:00:00.000Z"
+    }
+  ],
+  "sourceCount": 1,
+  "generatedAt": "2026-07-23T21:00:00.000Z"
+}
