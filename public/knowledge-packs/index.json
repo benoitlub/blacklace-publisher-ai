@@ -1,0 +1,72 @@
+{
+  "version": 1,
+  "generatedAt": "2026-07-24T07:43:16.906Z",
+  "packs": [
+    {
+      "slug": "terra",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:05.921Z"
+    },
+    {
+      "slug": "gerard-et-gerard",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:09.104Z"
+    },
+    {
+      "slug": "neverland-ltd",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:09.512Z"
+    },
+    {
+      "slug": "la-feulette-tachetee",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:10.140Z"
+    },
+    {
+      "slug": "420-dice",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:10.613Z"
+    },
+    {
+      "slug": "pro-hibited-online",
+      "status": "verified",
+      "sourceCount": 1,
+      "generatedAt": "2026-07-24T07:43:15.091Z"
+    },
+    {
+      "slug": "blacklace-dice",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:15.303Z"
+    },
+    {
+      "slug": "creature-sync",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:15.754Z"
+    },
+    {
+      "slug": "feuch-institute",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:15.973Z"
+    },
+    {
+      "slug": "bazar-du-feuch",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:16.685Z"
+    },
+    {
+      "slug": "poulpe-fiction",
+      "status": "empty",
+      "sourceCount": 0,
+      "generatedAt": "2026-07-24T07:43:16.906Z"
+    }
+  ]
+}
