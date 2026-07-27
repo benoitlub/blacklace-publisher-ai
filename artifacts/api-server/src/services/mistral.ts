@@ -108,7 +108,7 @@ export async function generatePostDraft(input: GeneratePostDraftInput): Promise<
     const result = await provider.generateText({
       messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
       temperature: verifiedKnowledge ? 0.2 : 0.8,
-      maxTokens: 600,
+      maxTokens: 1600,
     });
     if (result.isMock) return getMockDraft(input, "Le fournisseur IA a répondu en mode mock.");
 
