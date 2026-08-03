@@ -1,112 +1,124 @@
 # TERRA
 
-### **Récolte éditoriale pour TERRA (yaelbali) – Campagne de lancement**
+### **Récolte éditoriale pour TERRA (Terra) – Campagne de lancement**
+*Par Blacklace Publisher*
 
 ---
 
-#### **1. Résultat**
-**Angle de campagne :**
-**"TERRA : Une fable cosmique pour repenser notre place dans l’univers"**
-→ Mise en avant de l’aspect philosophique, poétique et accessible du livre, avec un focus sur son originalité et son universalité (disponible en français et espagnol).
-→ Cible : lecteurs de science-fiction contemplative, de philosophie accessible, et de récits métaphoriques (ex : fans de *Le Petit Prince*, *La Horde du Contrevent*, ou *Les Thanatonautes*).
-→ Ton : mystérieux mais engageant, avec des questions ouvertes pour susciter la curiosité.
+### **📌 Résultat**
+Une campagne de lancement **immédiatement exploitable**, centrée sur l’angle **"Fable cosmique à découvrir"**, avec :
+✅ **Un texte principal** (adaptable pour réseaux sociaux, newsletter, site web).
+✅ **Un appel à l’action (CTA)** direct vers Amazon (à compléter).
+✅ **Un plan d’action sur 7 jours** (priorités et timing).
+✅ **Des éléments vérifiables** (sans invention de données).
+
+**Objectif** : Maximiser la visibilité du livre dès sa sortie, en ciblant les amateurs de **science-fiction philosophique, de fables modernes et de récits cosmiques**.
 
 ---
 
-#### **2. Texte prêt à publier**
-*(À adapter selon les plateformes : réseaux sociaux, newsletter, blog, etc.)*
+### **📝 Texte prêt à publier**
+*(Adaptable selon le support : post LinkedIn, tweet, newsletter, etc.)*
 
-**Version longue (pour réseaux sociaux/Newsletter) :**
----
-**"Et si la Terre n’était qu’un rêve ?**
+**Titre accrocheur (exemples) :**
+- *"TERRA : Une fable cosmique qui questionne notre place dans l’univers."*
+- *"Et si la Terre n’était qu’un rêve ? Découvrez TERRA, la nouvelle fable qui secoue les étoiles."*
+- *"TERRA – Un récit poétique et vertigineux entre science et mythologie."*
 
-TERRA, la nouvelle fable cosmique de **yaelbali**, nous plonge dans une réflexion vertigineuse sur notre existence. À travers une narration poétique et des images sidérantes, l’auteur nous invite à questionner notre rapport au temps, à l’espace, et à la place de l’humanité dans l’univers.
+**Corps du texte :**
+*"TERRA est une fable cosmique où la Terre, personnifiée, se réveille dans un univers en crise. Entre poésie et réflexion, ce livre explore notre rapport à la planète, aux autres et à nous-mêmes à travers un prisme à la fois scientifique et mythologique.
 
-**Pourquoi lire TERRA ?**
-✔ Une **fable moderne**, entre science-fiction et philosophie, qui rappelle *Le Petit Prince* ou *Sapiens*.
-✔ Un **style unique**, où chaque mot compte et chaque page ouvre une porte vers l’inconnu.
-✔ Une **œuvre accessible**, disponible en **français et en espagnol**, pour toucher un public international.
+🌍 **Pourquoi lire TERRA ?**
+✔ Une narration immersive, entre conte philosophique et récit de science-fiction.
+✔ Une réflexion sur l’écologie, l’humanité et notre place dans le cosmos.
+✔ Un style accessible, idéal pour les amateurs de récits courts et percutants.
 
-*"TERRA n’est pas un livre, c’est une expérience."*
+📖 **Disponible en français et en espagnol** (lien Amazon à insérer).
 
-👉 **Disponible dès maintenant sur [Amazon – Lien à compléter]**
-📖 **En version papier et numérique**
-🌍 **Lisez-le dans la langue qui vous parle le mieux**
+💡 **Un livre à offrir, à partager, à discuter.**
 
-#TERRA #FableCosmique #ScienceFictionPhilosophique #yaelbali #LectureIncontournable"
+👉 **Lisez-le, et laissez-vous emporter par cette fable qui résonne avec notre époque."**
 
----
-
-**Version courte (pour Twitter/Instagram Stories) :**
----
-**"TERRA – Une fable cosmique qui vous fera voir la Terre… et l’univers différemment.**
-
-📖 Disponible en FR & ES sur [Amazon – Lien]
-#TERRA #LectureEssentielle"**
+**Hashtags suggérés :**
+`#TERRA #FableCosmique #ScienceFictionPhilosophique #LectureEngagée #NouveauLivre`
 
 ---
-
-**Version "Question intrigante" (pour accrocher) :**
----
-**"Et si la Terre n’était qu’un rêve ?**
-
-TERRA, la nouvelle fable de **yaelbali**, explore cette hypothèse avec poésie et profondeur.
-
-📖 [Amazon – Lien]
-#TERRA #ScienceFictionPhilosophique"**
+**Variantes pour réseaux sociaux :**
+- **Twitter/X** : Version raccourcie + image du livre (si disponible).
+- **Instagram** : Texte + visuel (couverture ou extrait).
+- **Newsletter** : Ajouter un extrait court + lien d’achat.
 
 ---
 
-#### **3. Plan d’action (7 jours)**
-**Objectif :** Maximiser la visibilité du livre dès sa sortie avec un effort concentré.
+### **🚀 Plan d’action (7 jours)**
+**Jour 1 : Préparation**
+- Finaliser le texte principal et les variantes.
+- Préparer les visuels (couverture du livre, extraits, bannières).
+- Créer un lien Amazon unique (via Bitly ou outil similaire pour tracking).
 
-| **Jour** | **Action**                                                                 | **Plateformes/Cibles**               | **Outils**                     |
-|----------|----------------------------------------------------------------------------|---------------------------------------|--------------------------------|
-| **J1**   | Publication du texte long + visuel (couverture du livre) sur :             | Facebook, Instagram, Twitter, LinkedIn | Canva (création visuel)        |
-|          | - Page auteur (yaelbali)                                                   |                                       |                                |
-|          | - Groupes Facebook (SF, philosophie, lecture)                              |                                       |                                |
-|          | - Newsletter (si existante)                                                |                                       | Mailchimp/Substack             |
-| **J2**   | Story Instagram/Twitter avec version courte + lien Amazon                  | Instagram, Twitter                    | Canva (format story)           |
-| **J3**   | Partage dans des communautés en ligne :                                    | Reddit (r/books, r/scifi), forums     | Liens directs                  |
-|          | - Reddit (r/books, r/scifi, r/philosophy)                                  |                                       |                                |
-|          | - Forums (Babelio, SensCritique si autorisé)                               |                                       |                                |
-| **J4**   | Envoi d’un email personnalisé aux contacts (amis, famille, beta-lecteurs)   | Email personnel                       | Gmail/Outlook                  |
-| **J5**   | Publication d’un extrait (1ère page ou passage marquant) + question engageante | Instagram, Twitter, Blog              | Google Docs (extrait)          |
-| **J6**   | Partage par des influenceurs micro (blogueurs SF/philosophie)              | Blogs, comptes spécialisés           | Contact direct (DM ou email)   |
-| **J7**   | Relance avec une version "dernière chance" (ex : "Derniers jours pour découvrir TERRA") | Réseaux sociaux, email                | Canva (visuel "urgent")        |
+**Jour 2 : Lancement (J-0)**
+- **Post principal** sur tous les réseaux (LinkedIn, Twitter/X, Facebook, Instagram).
+- **Newsletter** (si liste existante) avec lien d’achat.
+- **Message privé** aux contacts proches (amis, famille, partenaires).
 
----
-**Notes :**
-- **Visuel :** Utiliser la couverture du livre (format carré pour Instagram, rectangle pour Twitter).
-- **Hashtags :** #TERRA #FableCosmique #ScienceFictionPhilosophique #yaelbali #LivreFR #LibroES
-- **Timing :** Publier aux heures de pointe (12h-14h et 18h-21h en France/Espagne).
+**Jour 3 : Relance ciblée**
+- **Partage sur groupes Facebook/Reddit** (communautés SF, écologie, philosophie).
+- **Commentaires sur Goodreads/Amazon** (si autorisé) avec un extrait percutant.
+- **Story Instagram** avec un extrait du livre + lien.
 
----
+**Jour 4 : Collaboration**
+- **Contactez 2-3 influenceurs/micro-influenceurs** (SF, écologie, littérature) pour un partage (offrir un exemplaire en échange).
+- **Proposez un article invité** sur un blog littéraire ou un média spécialisé.
 
-#### **4. Éléments à vérifier**
-✅ **Liens Amazon :**
-- Vérifier que les liens FR et ES fonctionnent (pas de redirection erronée).
-- Préparer des liens trackés (ex : via Amazon Associates si applicable).
+**Jour 5 : Engagement**
+- **Répondez aux commentaires** (merci, questions, discussions).
+- **Partagez des extraits courts** (en story ou post) avec des citations marquantes.
+- **Lancez un mini-concours** (ex : "Likez + partagez ce post pour tenter de gagner un exemplaire").
 
-✅ **Visuels :**
-- Avoir une version haute résolution de la couverture.
-- Créer 2-3 templates Canva (1 pour réseaux sociaux, 1 pour stories).
+**Jour 6 : Amplification**
+- **Relance sur les réseaux** avec un angle différent (ex : "Pourquoi TERRA parle à notre époque ?").
+- **Contactez la presse locale** (si pertinent) pour un article ou une interview.
+- **Partagez sur des plateformes de lecture** (Goodreads, SensCritique).
 
-✅ **Autorisations :**
-- Si utilisation de citations du livre, s’assurer que l’extrait est autorisé (ou utiliser un passage court et générique).
-- Vérifier les règles des groupes/communautés avant partage (ex : pas de spam sur Reddit).
-
-✅ **Contact influenceurs :**
-- Préparer une liste de 5-10 micro-influenceurs (blogs, comptes Instagram/Twitter spécialisés en SF/philosophie).
-- Message type :
-  *"Bonjour [Nom],
-  Je suis l’auteur de TERRA, une fable cosmique disponible en FR/ES. Je me demandais si vous seriez intéressé(e) par un envoi gratuit du livre pour un retour honnête ? Merci pour votre temps !"*
-
-✅ **Budget (si applicable) :**
-- Prévoir un petit budget pour booster un post sur Facebook/Instagram (5-10€ pour tester l’engagement).
+**Jour 7 : Bilan & ajustement**
+- **Analyse des stats** (portée, clics, conversions).
+- **Relance ciblée** vers les personnes ayant interagi (message personnalisé).
+- **Préparation d’une 2ème vague** (si besoin : témoignages, critiques, etc.).
 
 ---
-**Prochaine étape :**
-- Finaliser les liens Amazon.
-- Créer les visuels.
-- Lancer la campagne dès que le livre est disponible en précommande ou à la vente.
+**Outils recommandés :**
+- **Canva** (création de visuels).
+- **Bitly** (lien trackable).
+- **Mailchimp/ConvertKit** (si newsletter).
+- **Trello/Notion** (suivi des actions).
+
+---
+
+### **✅ Éléments à vérifier**
+*(À compléter avant lancement)*
+
+1. **Liens Amazon** :
+   - Lien **français** : [À insérer]
+   - Lien **espagnol** : [À insérer]
+   - Vérifier que les liens fonctionnent et redirigent bien vers les bonnes versions.
+
+2. **Visuels** :
+   - Couverture du livre (format carré pour Instagram, rectangle pour LinkedIn).
+   - Extraits textuels (1-2 phrases percutantes à partager en story/post).
+
+3. **Mentions légales** :
+   - Vérifier que le texte ne contient pas de spoilers majeurs.
+   - Respecter les droits d’auteur (ne pas utiliser d’images non libres de droits).
+
+4. **Ciblage** :
+   - Identifier 5-10 comptes/communautés à contacter (ex : groupes Facebook "Science-Fiction Française").
+   - Préparer un message type pour les influenceurs (court et personnalisable).
+
+5. **Budget (si applicable)** :
+   - Prévoir un petit budget pour booster un post (ex : 5-10€ sur Facebook/Instagram pour toucher + de monde).
+
+---
+**🔹 Prochaine étape** :
+- Valider le texte et les visuels avec l’auteur/éditeur.
+- Lancer la campagne dès que tout est prêt !
+
+*Blacklace Publisher – Stratégie éditoriale concrète et révisable.*
