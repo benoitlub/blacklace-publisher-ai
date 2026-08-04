@@ -1,72 +1,72 @@
 {
   "version": 1,
-  "generatedAt": "2026-08-03T08:43:59.171Z",
+  "generatedAt": "2026-08-04T07:49:28.158Z",
   "packs": [
     {
       "slug": "terra",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:48.725Z"
+      "generatedAt": "2026-08-04T07:49:17.451Z"
     },
     {
       "slug": "gerard-et-gerard",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:50.036Z"
+      "generatedAt": "2026-08-04T07:49:18.742Z"
     },
     {
       "slug": "neverland-ltd",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:50.434Z"
+      "generatedAt": "2026-08-04T07:49:19.164Z"
     },
     {
       "slug": "la-feulette-tachetee",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:50.979Z"
+      "generatedAt": "2026-08-04T07:49:19.785Z"
     },
     {
       "slug": "420-dice",
-      "status": "empty",
-      "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:53.319Z"
+      "status": "verified",
+      "sourceCount": 1,
+      "generatedAt": "2026-08-04T07:49:21.312Z"
     },
     {
       "slug": "pro-hibited-online",
       "status": "verified",
       "sourceCount": 1,
-      "generatedAt": "2026-08-03T08:43:56.702Z"
+      "generatedAt": "2026-08-04T07:49:25.484Z"
     },
     {
       "slug": "blacklace-dice",
-      "status": "empty",
-      "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:56.882Z"
+      "status": "verified",
+      "sourceCount": 1,
+      "generatedAt": "2026-08-04T07:49:26.439Z"
     },
     {
       "slug": "creature-sync",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:57.288Z"
+      "generatedAt": "2026-08-04T07:49:26.955Z"
     },
     {
       "slug": "feuch-institute",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:57.492Z"
+      "generatedAt": "2026-08-04T07:49:27.210Z"
     },
     {
       "slug": "bazar-du-feuch",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:58.968Z"
+      "generatedAt": "2026-08-04T07:49:27.949Z"
     },
     {
       "slug": "poulpe-fiction",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-08-03T08:43:59.171Z"
+      "generatedAt": "2026-08-04T07:49:28.157Z"
     }
   ]
 }
