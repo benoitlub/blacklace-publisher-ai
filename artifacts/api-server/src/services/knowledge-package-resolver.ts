@@ -177,7 +177,7 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
   let items = rankItems(pool, slug);
   const discovered = new Map<string, BlacklaceKnowledgeItem>();
 
-  if (items.length === 0) {
+  if (items.length < 2) {
     const targetedQueries = [...new Set([slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])])];
 
     for (const query of targetedQueries) {
@@ -219,7 +219,7 @@ export async function resolveKnowledgePackage(candidates: unknown[]): Promise<Re
       totalItems: pool.length,
       matchedItems: items.length,
       discoveredItems: discovered.size,
-      digestedItems: 0,
+      digestedItems: verified ? items.length : 0,
     },
   };
 }
