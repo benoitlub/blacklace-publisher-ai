@@ -14,8 +14,9 @@ function eventId(seedId: string, at: Date) {
 }
 
 export async function ensurePoulpeLifeSchema() {
-  if (!pool || schemaReady) return;
-  const client = await pool.connect();
+  const databasePool = pool;
+  if (!databasePool || schemaReady) return;
+  const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
     await client.query(`CREATE TABLE IF NOT EXISTS poulpe_parcels (id TEXT PRIMARY KEY, name TEXT NOT NULL, payload JSONB NOT NULL DEFAULT '{}'::jsonb, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
@@ -38,9 +39,10 @@ export async function ensurePoulpeLifeSchema() {
 }
 
 export async function ensureBlacklaceBootstrap() {
-  if (!pool || bootstrapReady) return;
+  const databasePool = pool;
+  if (!databasePool || bootstrapReady) return;
   await ensurePoulpeLifeSchema();
-  const client = await pool.connect();
+  const client = await databasePool.connect();
   try {
     await client.query("BEGIN");
     await client.query(
@@ -74,12 +76,13 @@ export async function ensureBlacklaceBootstrap() {
 }
 
 export async function tickPoulpeLife() {
-  if (!pool || ticking) return;
+  const databasePool = pool;
+  if (!databasePool || ticking) return;
   ticking = true;
-  let client: Awaited<ReturnType<typeof pool.connect>> | null = null;
+  let client: Awaited<ReturnType<NonNullable<typeof pool>["connect"]>> | null = null;
   try {
     await ensureBlacklaceBootstrap();
-    client = await pool.connect();
+    client = await databasePool.connect();
     await client.query("BEGIN");
     const result = await client.query<{
       id: string;
