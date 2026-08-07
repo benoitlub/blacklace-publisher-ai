@@ -1,3 +1,4 @@
+import type { Request, Response } from "express";
 import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, settingsTable, insertSettingsSchema } from "@workspace/db";
@@ -11,12 +12,13 @@ async function getOrCreateSettings() {
   return settings;
 }
 
-router.get("/", async (_req, res) => {
+router.get("/", async (req: Request, res: Response) => {
+  
   const settings = await getOrCreateSettings();
   return res.json(settings);
 });
 
-router.patch("/", async (req, res) => {
+router.patch("/", async (req: Request, res: Response) => {
   const settings = await getOrCreateSettings();
   const partial = insertSettingsSchema.partial().safeParse(req.body);
   if (!partial.success) return res.status(400).json({ error: "Invalid settings data" });
