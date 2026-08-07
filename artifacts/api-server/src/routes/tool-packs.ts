@@ -21,7 +21,8 @@ interface ObservationTool {
 router.get("/:seedId", async (req: Request, res: Response) => {
   try {
     const deliverable = normalize(String(req.query.deliverable || ""));
-    const seedId = normalize(req.params.seedId);
+    const rawSeedId = Array.isArray(req.params.seedId) ? req.params.seedId[0] : req.params.seedId;
+    const seedId = normalize(rawSeedId);
     const records = await listGlobalState<ObservationTool | ObservationTool[]>("observations");
     const observations = records.flatMap((record) => Array.isArray(record.value) ? record.value : [record.value]);
     const ranked = observations
