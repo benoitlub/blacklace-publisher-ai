@@ -1,4 +1,4 @@
-const DEFAULT_OCTOPUS_ENGINE_URL = "https://69d57f92-9175-4376-9486-b14b302eaa7e-00-ov0lvwjhok0a-bn57596p.janeway.replit.dev/api";
+const DEFAULT_OCTOPUS_ENGINE_URL = "https://octopus-engine-app.benoitlubert.workers.dev";
 
 export type OctopusMissionPayload = Record<string, unknown>;
 export type OctopusMissionResult = Record<string, unknown>;
