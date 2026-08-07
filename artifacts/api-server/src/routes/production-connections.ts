@@ -1,3 +1,4 @@
+import type { Request, Response } from "express";
 import { Router } from "express";
 import {
   findComposioAuthConfig,
@@ -113,7 +114,7 @@ async function initiate(toolkit: string) {
   };
 }
 
-router.get("/connections", async (_req, res) => {
+router.get("/connections", async (req: Request, res: Response) => {
   try {
     if (!isComposioConfigured()) {
       return res.status(503).json({
