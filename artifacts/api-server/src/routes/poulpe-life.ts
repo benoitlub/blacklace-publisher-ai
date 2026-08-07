@@ -1,9 +1,10 @@
 import { Router } from "express";
+import type { Request, Response } from "express";
 import { pool } from "@workspace/db";
 
 const router = Router();
 
-router.get("/poulpe-life/health", async (_req, res) => {
+router.get("/poulpe-life/health", async (req: Request, res: Response) => {
   if (!pool) return res.status(503).json({ status: "unavailable", database: false });
   try {
     const result = await pool.query(`
