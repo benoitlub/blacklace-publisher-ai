@@ -17,6 +17,7 @@ export async function ensurePoulpeLifeSchema() {
   const databasePool = pool;
   if (!databasePool || schemaReady) return;
   const client = await databasePool.connect();
+  if (!client) throw new Error("Database client is null");
   try {
     await client.query("BEGIN");
     await client.query(`CREATE TABLE IF NOT EXISTS poulpe_parcels (id TEXT PRIMARY KEY, name TEXT NOT NULL, payload JSONB NOT NULL DEFAULT '{}'::jsonb, updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`);
