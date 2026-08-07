@@ -1,3 +1,4 @@
+import type { Request, Response } from "express";
 import { Router } from "express";
 import { listGlobalState } from "../services/global-state";
 
@@ -17,7 +18,7 @@ interface ObservationTool {
   source?: string;
 }
 
-router.get("/:seedId", async (req, res) => {
+router.get("/:seedId", async (req: Request, res: Response) => {
   try {
     const deliverable = normalize(String(req.query.deliverable || ""));
     const seedId = normalize(req.params.seedId);
