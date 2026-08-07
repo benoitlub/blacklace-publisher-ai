@@ -1,7 +1,7 @@
 import { logger } from "../lib/logger";
 import { PUBLISHER_ADAPTER_CAPABILITIES } from "./octopus-adapter";
 
-const DEFAULT_OCTOPUS_URL = "https://69d57f92-9175-4376-9486-b14b302eaa7e-00-ov0lvwjhok0a-bn57596p.janeway.replit.dev/api";
+const DEFAULT_OCTOPUS_URL = "https://octopus-engine-app.benoitlubert.workers.dev";
 const DEFAULT_REGISTRATION_REFRESH_MS = 60_000;
 
 function publicBaseUrl(): string | undefined {
