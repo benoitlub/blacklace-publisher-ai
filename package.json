@@ -10,7 +10,8 @@
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "esbuild"
+      "esbuild",
+      "octopus-engine"
     ]
   },
   "private": true,
