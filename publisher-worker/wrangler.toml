@@ -10,3 +10,8 @@ compatibility_date = "2024-11-01"
 binding = "MISTRAL_API_KEY"
 store_id = "6cd697779c5d45a0ab6b8833a434adc6"
 secret_name = "MISTRAL_API_KEY"
+
+[[secrets_store_secrets]]
+binding = "COMPOSIO_API_KEY"
+store_id = "6cd697779c5d45a0ab6b8833a434adc6"
+secret_name = "COMPOSIO_API_KEY"
