@@ -5,6 +5,8 @@ type Env = {
   MISTRAL_API_KEY?: string;
   AI_API_KEY?: string;
   MISTRAL_MODEL?: string;
+  COMPOSIO_API_KEY?: string;
+  COMPOSIO_USER_ID?: string;
 };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -63,6 +65,320 @@ async function executeMistralText(env: Env, request: { title: string; prompt: st
     metadata: { provider: "mistral", model, finishReason: choice?.finish_reason ?? null, usage: payload.usage ?? null },
   };
 }
+
+// ============================================================================
+// Composio (Canva) — real generative execution, ported from
+// artifacts/api-server/src/services/composio.ts + routes/production.ts so
+// the *permanently deployed* worker can actually produce visuals, not just
+// Gérard's local text/HTML fallbacks. Only plain REST calls are used here
+// (no @composio/core SDK, which needs a Node runtime) — this covers tool
+// execution for an *already-connected* account. Connecting a new account
+// (OAuth) still needs the full api-server run once; see docs/DEPLOYMENT.md.
+// ============================================================================
+
+const COMPOSIO_BASE_URL = "https://backend.composio.dev/api/v3";
+
+interface ComposioConnectedAccount { id: string; toolkitSlug: string; status: string; }
+interface ComposioTool { slug: string; name: string; description: string; toolkitSlug: string; inputSchema: Record<string, unknown> | null; }
+
+function isComposioConfigured(env: Env): boolean {
+  return Boolean(env.COMPOSIO_API_KEY?.trim());
+}
+
+function composioUserId(env: Env): string {
+  return env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
+}
+
+async function composioRequest(env: Env, path: string, init: RequestInit = {}): Promise<unknown> {
+  const apiKey = env.COMPOSIO_API_KEY?.trim();
+  if (!apiKey) throw new Error("COMPOSIO_API_KEY is not configured");
+  const response = await fetch(`${COMPOSIO_BASE_URL}${path}`, {
+    ...init,
+    headers: { Accept: "application/json", "Content-Type": "application/json", "x-api-key": apiKey, ...(init.headers || {}) },
+  });
+  const text = await response.text();
+  let payload: unknown = null;
+  try { payload = text ? JSON.parse(text) : null; } catch (_) { payload = { message: text }; }
+  if (!response.ok) {
+    const record = asRecord(payload);
+    const message = typeof record.message === "string" ? record.message : text || `Composio ${response.status}`;
+    throw new Error(`Composio ${response.status}: ${message}`);
+  }
+  return payload;
+}
+
+function asRecord(value: unknown): Record<string, any> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, any> : {};
+}
+
+function stringValue(value: unknown): string | null {
+  const text = typeof value === "string" ? value.trim() : "";
+  return text || null;
+}
+
+function normalize(value: string): string {
+  return String(value || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
+function toolkitFrom(record: Record<string, unknown>): string {
+  const toolkit = asRecord(record.toolkit);
+  const authConfig = asRecord(record.auth_config ?? record.authConfig);
+  const authToolkit = asRecord(authConfig.toolkit);
+  return stringValue(
+    record.toolkit_slug ?? record.toolkitSlug ?? record.app_name ?? record.appName ??
+    toolkit.slug ?? toolkit.name ?? authConfig.toolkit_slug ?? authToolkit.slug ?? authToolkit.name,
+  ) || "";
+}
+
+function extractItems(payload: unknown): unknown[] {
+  if (Array.isArray(payload)) return payload;
+  const record = asRecord(payload);
+  for (const key of ["items", "data", "results", "tools", "connected_accounts"]) {
+    const value = record[key];
+    if (Array.isArray(value)) return value;
+    const nested = asRecord(value);
+    if (Array.isArray(nested.items)) return nested.items;
+    if (Array.isArray(nested.data)) return nested.data;
+    if (Array.isArray(nested.tools)) return nested.tools;
+  }
+  return [];
+}
+
+async function listComposioConnectedAccounts(env: Env): Promise<ComposioConnectedAccount[]> {
+  const userId = composioUserId(env);
+  const paths = [
+    `/connected_accounts?user_ids=${encodeURIComponent(userId)}&limit=100`,
+    `/connected_accounts?user_id=${encodeURIComponent(userId)}&limit=100`,
+    "/connected_accounts?limit=100",
+  ];
+  const found = new Map<string, ComposioConnectedAccount>();
+  let lastError: unknown = null;
+  for (const path of paths) {
+    try {
+      const payload = await composioRequest(env, path);
+      for (const item of extractItems(payload)) {
+        const record = asRecord(item);
+        const id = stringValue(record.id ?? record.connected_account_id);
+        const toolkitSlug = toolkitFrom(record);
+        if (id && toolkitSlug) found.set(id, { id, toolkitSlug: normalize(toolkitSlug), status: String(record.status ?? record.state ?? "UNKNOWN") });
+      }
+      if (found.size > 0) break;
+    } catch (error) { lastError = error; }
+  }
+  if (found.size === 0 && lastError) throw lastError;
+  return [...found.values()];
+}
+
+function isActiveComposioStatus(status: string): boolean {
+  return ["ACTIVE", "CONNECTED", "SUCCESS", "ENABLED"].includes(String(status || "").toUpperCase());
+}
+
+function accountFor(accounts: ComposioConnectedAccount[], toolkitSlug: string): ComposioConnectedAccount | null {
+  return accounts.find((account) => account.toolkitSlug === toolkitSlug && isActiveComposioStatus(account.status)) ?? null;
+}
+
+async function listComposioTools(env: Env, toolkitSlug: string): Promise<ComposioTool[]> {
+  const normalizedToolkit = normalize(toolkitSlug);
+  const queries = [
+    `/tools?toolkit_slugs=${encodeURIComponent(toolkitSlug)}&limit=250`,
+    `/tools?toolkit_slug=${encodeURIComponent(toolkitSlug)}&limit=250`,
+  ];
+  const found = new Map<string, ComposioTool>();
+  let lastError: unknown = null;
+  for (const path of queries) {
+    try {
+      const payload = await composioRequest(env, path);
+      for (const item of extractItems(payload)) {
+        const record = asRecord(item);
+        const slug = stringValue(record.slug ?? record.name ?? record.tool_slug ?? record.toolSlug);
+        if (!slug) continue;
+        const toolkit = normalize(toolkitFrom(record) || normalizedToolkit);
+        if (toolkit && toolkit !== normalizedToolkit) continue;
+        const schema = asRecord(record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
+        found.set(slug, { slug, name: stringValue(record.name ?? record.display_name) || slug, description: stringValue(record.description) || "", toolkitSlug: toolkit || normalizedToolkit, inputSchema: Object.keys(schema).length ? schema : null });
+      }
+      if (found.size > 0) break;
+    } catch (error) { lastError = error; }
+  }
+  if (found.size === 0 && lastError) throw lastError;
+  return [...found.values()];
+}
+
+async function executeComposioTool(env: Env, input: { toolSlug: string; connectedAccountId: string; arguments: Record<string, unknown> }): Promise<unknown> {
+  return composioRequest(env, `/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
+    method: "POST",
+    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId }),
+  });
+}
+
+function toolText(tool: ComposioTool): string {
+  return `${tool.slug} ${tool.name} ${tool.description}`.toLowerCase();
+}
+
+function scoreCanvaCreateTool(tool: ComposioTool): number {
+  const text = toolText(tool);
+  if (!text.includes("design")) return -100;
+  if (/export|metadata|access|format|list|get|fetch|delete|update|comment|folder/.test(text)) return -50;
+  return (/create/.test(text) ? 80 : 0) + (/post/.test(text) ? 45 : 0) + (/designs?/.test(text) ? 30 : 0) + (/instagram|social/.test(text) ? 20 : 0) + (/canva/.test(text) ? 10 : 0);
+}
+
+function selectCanvaCreateTools(tools: ComposioTool[]): ComposioTool[] {
+  return tools.map((tool) => ({ tool, score: scoreCanvaCreateTool(tool) })).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score).map((entry) => entry.tool);
+}
+
+function schemaProperties(tool: ComposioTool): Record<string, Record<string, any>> {
+  const schema = asRecord(tool.inputSchema);
+  const properties = asRecord(schema.properties ?? asRecord(schema.schema).properties);
+  return Object.fromEntries(Object.entries(properties).map(([key, value]) => [key, asRecord(value)]));
+}
+
+function schemaRequired(tool: ComposioTool): string[] {
+  const schema = asRecord(tool.inputSchema);
+  const required = schema.required ?? asRecord(schema.schema).required;
+  return Array.isArray(required) ? required.filter((item): item is string => typeof item === "string") : [];
+}
+
+function preferredEnum(values: unknown[], key: string): unknown {
+  const normalized = values.map((value) => ({ value, text: String(value).toLowerCase() }));
+  const preferences = key.includes("type") ? ["instagram", "social", "post", "custom", "square"] : ["png", "public", "edit", "view"];
+  for (const preference of preferences) {
+    const found = normalized.find((entry) => entry.text.includes(preference));
+    if (found) return found.value;
+  }
+  return values[0];
+}
+
+function schemaValue(key: string, definition: Record<string, any>, title: string): unknown {
+  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const enumValues = Array.isArray(definition.enum) ? definition.enum : [];
+  if (enumValues.length) return preferredEnum(enumValues, normalized);
+  const type = String(definition.type ?? "").toLowerCase();
+  if (/title|name|label/.test(normalized)) return `Visuel principal ${title}`;
+  if (/width|height/.test(normalized)) return 1080;
+  if (/design.?type|format|preset|category/.test(normalized)) return type === "object" ? { type: "custom", width: 1080, height: 1080 } : "instagram_post";
+  if (/description|prompt|content|text/.test(normalized)) return `Créer un visuel Instagram carré pour ${title}.`;
+  if (type === "number" || type === "integer") return 1080;
+  if (type === "boolean") return false;
+  if (type === "array") return [];
+  if (type === "object") return {};
+  return title;
+}
+
+function canvaArguments(tool: ComposioTool, title: string): Record<string, unknown> {
+  const properties = schemaProperties(tool);
+  const required = new Set(schemaRequired(tool));
+  const args: Record<string, unknown> = {};
+  for (const [key, definition] of Object.entries(properties)) {
+    const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (required.has(key) || /title|name|label|width|height|design.?type|format|preset|category|description|prompt|content|text/.test(normalized)) args[key] = schemaValue(key, definition, title);
+  }
+  return Object.keys(args).length ? args : { title: `Visuel principal ${title}`, design_type: "instagram_post" };
+}
+
+function walkPayload(value: unknown, visit: (key: string, item: unknown) => void, depth = 0): void {
+  if (depth > 8 || value === null || value === undefined) return;
+  if (Array.isArray(value)) { value.forEach((item) => walkPayload(item, visit, depth + 1)); return; }
+  if (typeof value !== "object") return;
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    visit(key, item);
+    walkPayload(item, visit, depth + 1);
+  }
+}
+
+function extractCanvaArtifact(payload: unknown, title: string) {
+  const urls: string[] = [];
+  const ids: string[] = [];
+  walkPayload(payload, (key, item) => {
+    if (typeof item !== "string" || !item.trim()) return;
+    if (/url|link|href|thumbnail|download/i.test(key) && /^https?:\/\//i.test(item)) urls.push(item.trim());
+    if (/(^|_)(design_?)?id$|designid/i.test(key) && !/^https?:\/\//i.test(item)) ids.push(item.trim());
+  });
+  const id = ids.find(Boolean) ?? null;
+  const rankedUrls = [...new Set(urls)].sort((a, b) => ((/canva\.com\/design/i.test(b) ? 100 : 0) - (/canva\.com\/design/i.test(a) ? 100 : 0)));
+  const url = rankedUrls[0] ?? (id ? `https://www.canva.com/design/${encodeURIComponent(id)}/edit` : null);
+  if (!id && !url) return null;
+  return { id: id ?? `canva_${Date.now()}`, type: "social-visual", kind: "social-visual", title: `Visuel principal · ${title}`, url, downloadUrl: rankedUrls.find((item) => /download|export|\.png(?:\?|$)|\.jpg(?:\?|$)/i.test(item)) ?? null, mimeType: "image/png", rawReference: { designId: id } };
+}
+
+app.get("/api/production/diagnostics", async (c) => {
+  const env = c.env;
+  try {
+    if (!isComposioConfigured(env)) {
+      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, mistral: { status: (env.AI_API_KEY || env.MISTRAL_API_KEY) ? "executable" : "unavailable" } });
+    }
+    const accounts = await listComposioConnectedAccounts(env);
+    const canva = accountFor(accounts, "canva");
+    const elevenLabs = accountFor(accounts, "elevenlabs");
+    const canvaTools = canva ? await listComposioTools(env, "canva").catch(() => []) : [];
+    const canvaCreationTools = selectCanvaCreateTools(canvaTools);
+    return c.json({
+      composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
+      canva: { status: canvaCreationTools.length ? "executable" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", discoveredToolCount: canvaTools.length },
+      elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
+      mistral: { status: (env.AI_API_KEY || env.MISTRAL_API_KEY) ? "executable" : "unavailable" },
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+function isCopyExecution(tool: string, action: string, body: Record<string, unknown>): boolean {
+  const capability = String(body.capability ?? body.type ?? "").toLowerCase();
+  return tool === "mistral" || action === "generate_text" || action === "copy.generate" || capability === "copy.generate" || capability === "copy" || capability === "text-document";
+}
+
+app.post("/api/production/execute", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as Record<string, any>;
+  const tool = String(body.tool ?? "").toLowerCase();
+  const action = String(body.action ?? "").toLowerCase();
+
+  try {
+    if (isCopyExecution(tool, action, body)) {
+      const input = body.input ?? {};
+      const title = (input.title ?? body.title ?? "Livrable textuel Publisher") as string;
+      const prompt = (input.prompt ?? body.prompt ?? input.objective ?? body.objective ?? "") as string;
+      if (!prompt.trim()) return c.json({ status: "failed", code: "PROMPT_REQUIRED", error: "Un prompt est requis pour copy.generate." }, 400);
+      const artifact = await executeMistralText(c.env, {
+        title,
+        prompt,
+        systemPrompt: input.systemPrompt ?? body.systemPrompt,
+        maxTokens: Number(input.maxTokens ?? body.maxTokens ?? 5000),
+        temperature: Number(input.temperature ?? body.temperature ?? 0.25),
+      });
+      return c.json({ status: "completed", provider: "mistral", tool: "mistral", action: "copy.generate", artifact });
+    }
+
+    const capability = String(body.capability ?? body.type ?? tool).toLowerCase();
+    if (["html", "html-local", "landing", "landing-page"].includes(capability) || tool === "html-local" || action.includes("landing")) {
+      const artifact = generateLandingPage({ title: body.title, input: body.input });
+      return c.json({ status: "completed", provider: "production-engine", tool: "html-local", action: "HTML_LOCAL_LANDING_PAGE", artifact });
+    }
+
+    if (["canva", "visual", "social-visual"].includes(capability) || tool === "canva") {
+      if (!isComposioConfigured(c.env)) return c.json({ status: "waiting-authorization", code: "COMPOSIO_NOT_CONFIGURED", error: "Composio n'est pas configuré dans Publisher." }, 409);
+      const accounts = await listComposioConnectedAccounts(c.env);
+      const account = accountFor(accounts, "canva");
+      if (!account) return c.json({ status: "waiting-authorization", code: "CANVA_NOT_CONNECTED", error: "Canva nécessite une connexion ou une autorisation." }, 409);
+      const candidates = selectCanvaCreateTools(await listComposioTools(c.env, "canva"));
+      const title = (body.input?.title as string) || (body.title as string) || "Production Publisher";
+      const attempts: Array<{ slug: string; error: string }> = [];
+      for (const candidate of candidates) {
+        const args = canvaArguments(candidate, title);
+        try {
+          const result = await executeComposioTool(c.env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
+          const artifact = extractCanvaArtifact(result, title);
+          if (artifact?.url) return c.json({ status: "completed", provider: "composio", tool: "canva", action: candidate.slug, artifact });
+          attempts.push({ slug: candidate.slug, error: "Aucun lien exploitable retourné." });
+        } catch (error) { attempts.push({ slug: candidate.slug, error: error instanceof Error ? error.message : String(error) }); }
+      }
+      return c.json({ status: "failed", code: "CANVA_EXECUTION_FAILED", error: "Aucune action Canva n'a produit de visuel exploitable.", attempts }, 502);
+    }
+
+    return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
+  } catch (error) {
+    return c.json({ status: "failed", code: "PRODUCTION_PROVIDER_ERROR", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#039;" } as Record<string, string>)[char] ?? char);
@@ -200,43 +516,5 @@ function generateLandingPage(request: { title?: string; input?: Record<string, u
     metadata: { producer: "HTML local enrichi", template: "publisher-rich-landing-v2", responsive: true, selfContained: true, sections: ["hero", "offer", "benefits", "steps", "cta"] },
   };
 }
-
-function isCopyExecution(tool: string, action: string, body: Record<string, unknown>): boolean {
-  const capability = String(body.capability ?? body.type ?? "").toLowerCase();
-  return tool === "mistral" || action === "generate_text" || action === "copy.generate" || capability === "copy.generate" || capability === "copy" || capability === "text-document";
-}
-
-app.post("/api/production/execute", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as Record<string, any>;
-  const tool = String(body.tool ?? "").toLowerCase();
-  const action = String(body.action ?? "").toLowerCase();
-
-  try {
-    if (isCopyExecution(tool, action, body)) {
-      const input = body.input ?? {};
-      const title = (input.title ?? body.title ?? "Livrable textuel Publisher") as string;
-      const prompt = (input.prompt ?? body.prompt ?? input.objective ?? body.objective ?? "") as string;
-      if (!prompt.trim()) return c.json({ status: "failed", code: "PROMPT_REQUIRED", error: "Un prompt est requis pour copy.generate." }, 400);
-      const artifact = await executeMistralText(c.env, {
-        title,
-        prompt,
-        systemPrompt: input.systemPrompt ?? body.systemPrompt,
-        maxTokens: Number(input.maxTokens ?? body.maxTokens ?? 5000),
-        temperature: Number(input.temperature ?? body.temperature ?? 0.25),
-      });
-      return c.json({ status: "completed", provider: "mistral", tool: "mistral", action: "copy.generate", artifact });
-    }
-
-    const capability = String(body.capability ?? body.type ?? tool).toLowerCase();
-    if (["html", "html-local", "landing", "landing-page"].includes(capability) || tool === "html-local" || action.includes("landing")) {
-      const artifact = generateLandingPage({ title: body.title, input: body.input });
-      return c.json({ status: "completed", provider: "production-engine", tool: "html-local", action: "HTML_LOCAL_LANDING_PAGE", artifact });
-    }
-
-    return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (Canva/Composio pas encore porté).` }, 400);
-  } catch (error) {
-    return c.json({ status: "failed", code: "PRODUCTION_PROVIDER_ERROR", error: error instanceof Error ? error.message : String(error) }, 502);
-  }
-});
 
 export default app;
