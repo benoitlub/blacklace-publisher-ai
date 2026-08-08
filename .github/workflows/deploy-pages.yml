@@ -43,6 +43,13 @@ jobs:
         run: |
           touch artifacts/blacklace-publisher/dist/public/.nojekyll
           cp artifacts/blacklace-publisher/dist/public/index.html artifacts/blacklace-publisher/dist/public/404.html
+          # Publish the autonomous Knowledge Packs (refreshed daily by the
+          # Autonomous Knowledge Observatory workflow) so consuming apps like
+          # Poulpe Fiction can actually fetch them over HTTP. Without this
+          # copy, public/knowledge-packs/*.json is only ever committed to
+          # the repo and never served anywhere.
+          mkdir -p artifacts/blacklace-publisher/dist/public/knowledge-packs
+          cp public/knowledge-packs/*.json artifacts/blacklace-publisher/dist/public/knowledge-packs/
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
