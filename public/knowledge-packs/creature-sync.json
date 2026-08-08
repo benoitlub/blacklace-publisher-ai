@@ -1,13 +1,21 @@
 {
   "version": 1,
   "slug": "creature-sync",
-  "status": "empty",
+  "status": "verified",
   "source": "notion-autonomous-observatory",
   "aliases": [
     "creature-sync",
     "creature sync"
   ],
-  "sources": [],
-  "sourceCount": 0,
-  "generatedAt": "2026-08-08T05:59:35.572Z"
+  "sources": [
+    {
+      "id": "38739119-7253-8120-9bea-cacaa65ab7b3",
+      "title": "Creature-Sync",
+      "url": "https://app.notion.com/p/Creature-Sync-38739119725381209beacacaa65ab7b3",
+      "content": "Type : Prototype web expérimental  \n\nRayon : Feuch Institut / traduction animale\n\nPitch\n\nCreature-Sync écoute, détecte les sons d’animaux et transforme les chants d’oiseaux en petites révélations sarcastiques.\n\nTexte court bio\n\nCreature-Sync : traduction animale expérimentale du Feuch Institut.\n\nActions\n\nRécolter captures utilisateurs.\n\nAjouter espèces manquantes.\n\nPréparer posts TikTok / Instagram.",
+      "capturedAt": "2026-08-08T14:24:52.055Z"
+    }
+  ],
+  "sourceCount": 1,
+  "generatedAt": "2026-08-08T14:24:52.055Z"
 }
