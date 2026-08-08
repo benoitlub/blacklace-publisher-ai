@@ -5,6 +5,15 @@ on:
     branches:
       - main
   workflow_dispatch:
+  # Commits made by the Autonomous Knowledge Observatory use the default
+  # GITHUB_TOKEN, which never cascade-triggers other workflows via `push`
+  # (GitHub's loop-prevention). Without this, a refreshed Knowledge Pack
+  # sits committed on main but is never actually republished to Pages
+  # until someone happens to push something else or runs this manually.
+  workflow_run:
+    workflows: ["Autonomous Knowledge Observatory"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
@@ -17,6 +26,7 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
