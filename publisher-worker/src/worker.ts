@@ -1,13 +1,37 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 
+// Cloudflare has two different ways to give a Worker a secret value:
+// - classic per-Worker "Variables and Secrets" -> env.KEY is a plain string.
+// - the newer account-wide Secrets Store, bound via [[secrets_store_secrets]]
+//   in wrangler.toml -> env.KEY is a binding object exposing an async
+//   `.get()` that resolves to the string. Support both so this doesn't break
+//   again depending on which one a secret was configured through.
+type SecretsStoreSecret = { get(): Promise<string> };
 type Env = {
-  MISTRAL_API_KEY?: string;
-  AI_API_KEY?: string;
+  MISTRAL_API_KEY?: string | SecretsStoreSecret;
+  AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
-  COMPOSIO_API_KEY?: string;
+  COMPOSIO_API_KEY?: string | SecretsStoreSecret;
   COMPOSIO_USER_ID?: string;
 };
+
+async function resolveSecret(value: string | SecretsStoreSecret | undefined): Promise<string> {
+  if (typeof value === "string") return value.trim();
+  if (value && typeof (value as SecretsStoreSecret).get === "function") {
+    try {
+      const resolved = await (value as SecretsStoreSecret).get();
+      return typeof resolved === "string" ? resolved.trim() : "";
+    } catch (_) {
+      return "";
+    }
+  }
+  return "";
+}
+
+async function mistralApiKey(env: Env): Promise<string> {
+  return (await resolveSecret(env.AI_API_KEY)) || (await resolveSecret(env.MISTRAL_API_KEY));
+}
 
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", cors());
@@ -27,7 +51,7 @@ function safeContent(value: unknown): string {
 }
 
 async function executeMistralText(env: Env, request: { title: string; prompt: string; systemPrompt?: string; maxTokens?: number; temperature?: number }) {
-  const key = (env.AI_API_KEY || env.MISTRAL_API_KEY || "").trim();
+  const key = await mistralApiKey(env);
   if (!key) throw new Error("Mistral n'est pas configuré dans Publisher.");
   if (!request.prompt.trim()) throw new Error("Le prompt Mistral est vide.");
   const model = (env.MISTRAL_MODEL || "mistral-small-latest").trim();
@@ -81,8 +105,8 @@ const COMPOSIO_BASE_URL = "https://backend.composio.dev/api/v3";
 interface ComposioConnectedAccount { id: string; toolkitSlug: string; status: string; }
 interface ComposioTool { slug: string; name: string; description: string; toolkitSlug: string; inputSchema: Record<string, unknown> | null; }
 
-function isComposioConfigured(env: Env): boolean {
-  return Boolean(env.COMPOSIO_API_KEY?.trim());
+async function isComposioConfigured(env: Env): Promise<boolean> {
+  return Boolean(await resolveSecret(env.COMPOSIO_API_KEY));
 }
 
 function composioUserId(env: Env): string {
@@ -90,7 +114,7 @@ function composioUserId(env: Env): string {
 }
 
 async function composioRequest(env: Env, path: string, init: RequestInit = {}): Promise<unknown> {
-  const apiKey = env.COMPOSIO_API_KEY?.trim();
+  const apiKey = await resolveSecret(env.COMPOSIO_API_KEY);
   if (!apiKey) throw new Error("COMPOSIO_API_KEY is not configured");
   const response = await fetch(`${COMPOSIO_BASE_URL}${path}`, {
     ...init,
@@ -303,8 +327,9 @@ function extractCanvaArtifact(payload: unknown, title: string) {
 app.get("/api/production/diagnostics", async (c) => {
   const env = c.env;
   try {
-    if (!isComposioConfigured(env)) {
-      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, mistral: { status: (env.AI_API_KEY || env.MISTRAL_API_KEY) ? "executable" : "unavailable" } });
+    const mistralConfigured = Boolean(await mistralApiKey(env));
+    if (!(await isComposioConfigured(env))) {
+      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, mistral: { status: mistralConfigured ? "executable" : "unavailable" } });
     }
     const accounts = await listComposioConnectedAccounts(env);
     const canva = accountFor(accounts, "canva");
@@ -315,7 +340,7 @@ app.get("/api/production/diagnostics", async (c) => {
       composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
       canva: { status: canvaCreationTools.length ? "executable" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", discoveredToolCount: canvaTools.length },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
-      mistral: { status: (env.AI_API_KEY || env.MISTRAL_API_KEY) ? "executable" : "unavailable" },
+      mistral: { status: mistralConfigured ? "executable" : "unavailable" },
     });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
@@ -355,7 +380,7 @@ app.post("/api/production/execute", async (c) => {
     }
 
     if (["canva", "visual", "social-visual"].includes(capability) || tool === "canva") {
-      if (!isComposioConfigured(c.env)) return c.json({ status: "waiting-authorization", code: "COMPOSIO_NOT_CONFIGURED", error: "Composio n'est pas configuré dans Publisher." }, 409);
+      if (!(await isComposioConfigured(c.env))) return c.json({ status: "waiting-authorization", code: "COMPOSIO_NOT_CONFIGURED", error: "Composio n'est pas configuré dans Publisher." }, 409);
       const accounts = await listComposioConnectedAccounts(c.env);
       const account = accountFor(accounts, "canva");
       if (!account) return c.json({ status: "waiting-authorization", code: "CANVA_NOT_CONNECTED", error: "Canva nécessite une connexion ou une autorisation." }, 409);

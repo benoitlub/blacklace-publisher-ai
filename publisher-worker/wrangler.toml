@@ -1,3 +1,12 @@
 name = "blacklace-publisher-worker"
 main = "src/worker.ts"
 compatibility_date = "2024-11-01"
+
+# Bound from the account-wide Cloudflare Secrets Store (not the classic
+# per-Worker "Variables and Secrets" tab). worker.ts resolves this via
+# resolveSecret(), which also supports a plain string in case this ever
+# gets configured the classic way instead.
+[[secrets_store_secrets]]
+binding = "MISTRAL_API_KEY"
+store_id = "6cd697779c5d45a0ab6b8833a434adc6"
+secret_name = "MISTRAL_API_KEY"
