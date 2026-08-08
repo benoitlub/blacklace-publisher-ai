@@ -229,9 +229,11 @@ async function listComposioTools(env: Env, toolkitSlug: string): Promise<Composi
 }
 
 async function executeComposioTool(env: Env, input: { toolSlug: string; connectedAccountId: string; arguments: Record<string, unknown> }): Promise<unknown> {
+  // Composio 400s ("ActionExecute_ConnectedAccountEntityIdRequired") without
+  // entity_id alongside connected_account_id — confirmed live.
   return composioRequest(env, `/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
     method: "POST",
-    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId }),
+    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId, entity_id: composioUserId(env) }),
   });
 }
 
