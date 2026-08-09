@@ -174,6 +174,7 @@ export async function recordIteration(sql: NeonQueryFunction<false, false>, inpu
   if (input.toolCombination) toolsTried.add(input.toolCombination);
   await sql`
     UPDATE tentacles SET
+      mode = ${input.mode},
       iteration_count = ${nextIteration},
       last_run_at = now(),
       cooldown_until = ${nextCooldown},
