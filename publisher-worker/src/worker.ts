@@ -331,14 +331,26 @@ function extractCanvaArtifact(payload: unknown, title: string) {
 // Shared by the on-demand /api/production/execute route AND the Neon-backed
 // tentacle cycle (runImproveCycle/runPlayCycle) — one execution path for
 // Canva, whether triggered by a browser tab or by the Cron schedule.
-async function executeCanvaDesign(env: Env, title: string, preferredToolSlug?: string | null): Promise<{ toolSlug: string; artifact: NonNullable<ReturnType<typeof extractCanvaArtifact>> } | null> {
+//
+// Cloudflare caps subrequests per Worker invocation, and Composio reports
+// 32 discovered Canva tools — trying every scored candidate on failure (or,
+// worse, running a whole second discovery pass just to pick an "untried"
+// slug, as an earlier version of this function's caller did) can blow that
+// cap on its own. `excludeSlugs`/`requireNovel` let "play" mode ask for an
+// untried tool from the SAME single discovery call instead of a separate
+// one, and the attempt loop is capped regardless of mode.
+const CANVA_MAX_ATTEMPTS = 4;
+
+async function executeCanvaDesign(env: Env, title: string, options: { excludeSlugs?: string[]; requireNovel?: boolean } = {}): Promise<{ toolSlug: string; artifact: NonNullable<ReturnType<typeof extractCanvaArtifact>> } | null> {
   if (!(await isComposioConfigured(env))) return null;
   const accounts = await listComposioConnectedAccounts(env);
   const account = accountFor(accounts, "canva");
   if (!account) return null;
-  const candidates = selectCanvaCreateTools(await listComposioTools(env, "canva"));
-  const ordered = preferredToolSlug ? [...candidates.filter((c) => c.slug === preferredToolSlug), ...candidates.filter((c) => c.slug !== preferredToolSlug)] : candidates;
-  for (const candidate of ordered) {
+  const scored = selectCanvaCreateTools(await listComposioTools(env, "canva"));
+  const excluded = new Set(options.excludeSlugs || []);
+  const pool = options.requireNovel ? scored.filter((candidate) => !excluded.has(candidate.slug)) : scored;
+  if (options.requireNovel && !pool.length) return null;
+  for (const candidate of pool.slice(0, CANVA_MAX_ATTEMPTS)) {
     const args = canvaArguments(candidate, title);
     try {
       const result = await executeComposioTool(env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
@@ -347,19 +359,6 @@ async function executeCanvaDesign(env: Env, title: string, preferredToolSlug?: s
     } catch (_) { /* try the next candidate */ }
   }
   return null;
-}
-
-// For "play" mode: a Canva creation-tool slug this tentacle hasn't tried
-// yet, so its tentacle actually associates a *new* tool rather than
-// repeating the same one every time.
-async function pickUntriedCanvaToolSlug(env: Env, toolsTried: string[]): Promise<string | null> {
-  if (!(await isComposioConfigured(env))) return null;
-  const accounts = await listComposioConnectedAccounts(env);
-  if (!accountFor(accounts, "canva")) return null;
-  const candidates = selectCanvaCreateTools(await listComposioTools(env, "canva"));
-  const tried = new Set(toolsTried.map((entry) => entry.replace(/^canva:/, "")));
-  const untried = candidates.find((candidate) => !tried.has(candidate.slug));
-  return untried?.slug ?? null;
 }
 
 app.get("/api/production/diagnostics", async (c) => {
@@ -627,13 +626,11 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
 
 async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
   const previous = await latestIteration(sql, tentacle.seed_id);
-  const untriedSlug = await pickUntriedCanvaToolSlug(env, tentacle.tools_tried || []).catch(() => null);
+  const triedCanvaSlugs = (tentacle.tools_tried || []).filter((entry) => entry.startsWith("canva:")).map((entry) => entry.slice("canva:".length));
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
-  if (untriedSlug) {
-    const canva = await executeCanvaDesign(env, `${tentacle.title} · expérimentation`, untriedSlug).catch(() => null);
-    if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
-  }
+  const canva = await executeCanvaDesign(env, `${tentacle.title} · expérimentation`, { excludeSlugs: triedCanvaSlugs, requireNovel: true }).catch(() => null);
+  if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
 
   let content: string | null = null;
   try {
@@ -653,11 +650,17 @@ function decideMode(): TentacleMode {
   return Math.random() < 0.25 ? "play" : "improve";
 }
 
+// One tentacle per invocation by default — Cloudflare caps subrequests per
+// invocation, and a single "improve" pass (Mistral + Canva discovery/
+// execute + several Neon queries) already uses a meaningful slice of that
+// budget; a full sweep across tentacles happens over successive Cron ticks
+// (every 15min) instead of all at once, and each tentacle's own cooldown
+// (20min-6h) means most ticks only have one or two candidates due anyway.
 async function runTentacleCycle(env: Env, options: { limit?: number } = {}): Promise<{ processed: number; results: Array<{ seedId: string; mode: TentacleMode; status: string }> }> {
   if (!(await isDatabaseConfigured(env))) return { processed: 0, results: [] };
   const sql = await getSql(env);
   await ensureSchema(sql);
-  const due = await listDueTentacles(sql, options.limit ?? 3);
+  const due = await listDueTentacles(sql, options.limit ?? 1);
   const results: Array<{ seedId: string; mode: TentacleMode; status: string }> = [];
   for (const tentacle of due) {
     try {
@@ -712,7 +715,8 @@ app.get("/api/tentacles/state", async (c) => {
 // can be verified on demand instead of waiting for the schedule to fire.
 app.post("/api/tentacles/run-cycle", async (c) => {
   try {
-    const result = await runTentacleCycle(c.env, { limit: 3 });
+    const requestedLimit = Number(c.req.query("limit"));
+    const result = await runTentacleCycle(c.env, { limit: Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 3) : 1 });
     return c.json({ status: "ok", ...result });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
@@ -722,6 +726,6 @@ app.post("/api/tentacles/run-cycle", async (c) => {
 export default {
   fetch: app.fetch,
   async scheduled(_event: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }) {
-    ctx.waitUntil(runTentacleCycle(env, { limit: 3 }).catch(() => {}));
+    ctx.waitUntil(runTentacleCycle(env, { limit: 1 }).catch(() => {}));
   },
 };
