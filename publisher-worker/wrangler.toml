@@ -15,3 +15,16 @@ secret_name = "MISTRAL_API_KEY"
 binding = "COMPOSIO_API_KEY"
 store_id = "6cd697779c5d45a0ab6b8833a434adc6"
 secret_name = "COMPOSIO_API_KEY"
+
+# Neon Postgres connection string (postgresql://...). Neon's HTTP driver is
+# what makes this reachable at all from a Worker — no raw TCP sockets here.
+[[secrets_store_secrets]]
+binding = "DATABASE_URL"
+store_id = "6cd697779c5d45a0ab6b8833a434adc6"
+secret_name = "DATABASE_URL"
+
+# Gérard's relentless tentacle loop (runTentacleCycle in worker.ts). Fires
+# every 15 minutes; each tentacle's own cooldown (20min-6h, doubling per
+# iteration) governs actual pacing, so most ticks find nothing due.
+[triggers]
+crons = ["*/15 * * * *"]

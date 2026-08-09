@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { ensureSchema, getSql, isDatabaseConfigured, latestIteration, listDueTentacles, recordIteration, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
 
 // Cloudflare has two different ways to give a Worker a secret value:
 // - classic per-Worker "Variables and Secrets" -> env.KEY is a plain string.
@@ -7,13 +8,14 @@ import { cors } from "hono/cors";
 //   in wrangler.toml -> env.KEY is a binding object exposing an async
 //   `.get()` that resolves to the string. Support both so this doesn't break
 //   again depending on which one a secret was configured through.
-type SecretsStoreSecret = { get(): Promise<string> };
+export type SecretsStoreSecret = { get(): Promise<string> };
 type Env = {
   MISTRAL_API_KEY?: string | SecretsStoreSecret;
   AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
   COMPOSIO_USER_ID?: string;
+  DATABASE_URL?: string | SecretsStoreSecret;
 };
 
 async function resolveSecret(value: string | SecretsStoreSecret | undefined): Promise<string> {
@@ -326,6 +328,40 @@ function extractCanvaArtifact(payload: unknown, title: string) {
   return { id: id ?? `canva_${Date.now()}`, type: "social-visual", kind: "social-visual", title: `Visuel principal · ${title}`, url, downloadUrl: rankedUrls.find((item) => /download|export|\.png(?:\?|$)|\.jpg(?:\?|$)/i.test(item)) ?? null, mimeType: "image/png", rawReference: { designId: id } };
 }
 
+// Shared by the on-demand /api/production/execute route AND the Neon-backed
+// tentacle cycle (runImproveCycle/runPlayCycle) — one execution path for
+// Canva, whether triggered by a browser tab or by the Cron schedule.
+async function executeCanvaDesign(env: Env, title: string, preferredToolSlug?: string | null): Promise<{ toolSlug: string; artifact: NonNullable<ReturnType<typeof extractCanvaArtifact>> } | null> {
+  if (!(await isComposioConfigured(env))) return null;
+  const accounts = await listComposioConnectedAccounts(env);
+  const account = accountFor(accounts, "canva");
+  if (!account) return null;
+  const candidates = selectCanvaCreateTools(await listComposioTools(env, "canva"));
+  const ordered = preferredToolSlug ? [...candidates.filter((c) => c.slug === preferredToolSlug), ...candidates.filter((c) => c.slug !== preferredToolSlug)] : candidates;
+  for (const candidate of ordered) {
+    const args = canvaArguments(candidate, title);
+    try {
+      const result = await executeComposioTool(env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
+      const artifact = extractCanvaArtifact(result, title);
+      if (artifact?.url) return { toolSlug: candidate.slug, artifact };
+    } catch (_) { /* try the next candidate */ }
+  }
+  return null;
+}
+
+// For "play" mode: a Canva creation-tool slug this tentacle hasn't tried
+// yet, so its tentacle actually associates a *new* tool rather than
+// repeating the same one every time.
+async function pickUntriedCanvaToolSlug(env: Env, toolsTried: string[]): Promise<string | null> {
+  if (!(await isComposioConfigured(env))) return null;
+  const accounts = await listComposioConnectedAccounts(env);
+  if (!accountFor(accounts, "canva")) return null;
+  const candidates = selectCanvaCreateTools(await listComposioTools(env, "canva"));
+  const tried = new Set(toolsTried.map((entry) => entry.replace(/^canva:/, "")));
+  const untried = candidates.find((candidate) => !tried.has(candidate.slug));
+  return untried?.slug ?? null;
+}
+
 app.get("/api/production/diagnostics", async (c) => {
   const env = c.env;
   try {
@@ -384,21 +420,11 @@ app.post("/api/production/execute", async (c) => {
     if (["canva", "visual", "social-visual"].includes(capability) || tool === "canva") {
       if (!(await isComposioConfigured(c.env))) return c.json({ status: "waiting-authorization", code: "COMPOSIO_NOT_CONFIGURED", error: "Composio n'est pas configuré dans Publisher." }, 409);
       const accounts = await listComposioConnectedAccounts(c.env);
-      const account = accountFor(accounts, "canva");
-      if (!account) return c.json({ status: "waiting-authorization", code: "CANVA_NOT_CONNECTED", error: "Canva nécessite une connexion ou une autorisation." }, 409);
-      const candidates = selectCanvaCreateTools(await listComposioTools(c.env, "canva"));
+      if (!accountFor(accounts, "canva")) return c.json({ status: "waiting-authorization", code: "CANVA_NOT_CONNECTED", error: "Canva nécessite une connexion ou une autorisation." }, 409);
       const title = (body.input?.title as string) || (body.title as string) || "Production Publisher";
-      const attempts: Array<{ slug: string; error: string }> = [];
-      for (const candidate of candidates) {
-        const args = canvaArguments(candidate, title);
-        try {
-          const result = await executeComposioTool(c.env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
-          const artifact = extractCanvaArtifact(result, title);
-          if (artifact?.url) return c.json({ status: "completed", provider: "composio", tool: "canva", action: candidate.slug, artifact });
-          attempts.push({ slug: candidate.slug, error: "Aucun lien exploitable retourné." });
-        } catch (error) { attempts.push({ slug: candidate.slug, error: error instanceof Error ? error.message : String(error) }); }
-      }
-      return c.json({ status: "failed", code: "CANVA_EXECUTION_FAILED", error: "Aucune action Canva n'a produit de visuel exploitable.", attempts }, 502);
+      const result = await executeCanvaDesign(c.env, title);
+      if (!result) return c.json({ status: "failed", code: "CANVA_EXECUTION_FAILED", error: "Aucune action Canva n'a produit de visuel exploitable." }, 502);
+      return c.json({ status: "completed", provider: "composio", tool: "canva", action: result.toolSlug, artifact: result.artifact });
     }
 
     return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
@@ -544,4 +570,158 @@ function generateLandingPage(request: { title?: string; input?: Record<string, u
   };
 }
 
-export default app;
+// ============================================================================
+// Neon-backed tentacles — Gérard working "sans relâche" on his harvests,
+// server-side, without needing a browser tab open. One Neon Postgres table
+// per tentacle (mirrors a Seed), fed by the client via /api/tentacles/sync,
+// worked on by either a Cron Trigger (scheduled()) or a manual nudge
+// (/api/tentacles/run-cycle) — same runOneTentacle() either way, so there is
+// exactly one place this logic lives, whether it fires on a timer or on
+// request. This is internal work (draft text + private Canva designs in the
+// user's own account) — never publishing or contacting anyone — so it stays
+// autonomous under the authorization policy restored in poulpe-fiction.
+// ============================================================================
+
+function buildImprovePrompt(tentacle: TentacleRow, previous: { content: string | null } | null): string {
+  const parts = [
+    `Graine : ${tentacle.title}`,
+    `Objectif : ${tentacle.objective || "non précisé"}`,
+    `Première récolte visée : ${tentacle.first_harvest || "non précisée"}`,
+    previous?.content ? `Récolte précédente (à dépasser sans la répéter) :\n${previous.content.slice(0, 900)}` : "Aucune récolte précédente — c'est le premier passage.",
+    "Produis un livrable court, concret et directement exploitable pour cette étape (angle, accroche ou premier élément de contenu).",
+    "N'invente aucun fait vérifiable : pas de chiffre, pas de témoignage, pas de preuve sociale, pas de nom de personne réelle.",
+    previous?.content ? "Va réellement plus loin que la récolte précédente : ajoute un élément nouveau, plus abouti ou plus concret plutôt que de reformuler." : "",
+  ];
+  return parts.filter(Boolean).join("\n\n");
+}
+
+function buildPlayPrompt(tentacle: TentacleRow, previous: { content: string | null } | null, triedNewTool: boolean): string {
+  const parts = [
+    `Graine : ${tentacle.title}`,
+    `Objectif habituel : ${tentacle.objective || "non précisé"}`,
+    previous?.content ? `Ce qui existe déjà (pour ne pas répéter, mais librement s'en écarter) :\n${previous.content.slice(0, 600)}` : "",
+    triedNewTool
+      ? "Gérard vient d'essayer une nouvelle association d'outils sur cette graine (un nouvel outil Canva jamais utilisé ici) — imagine en une phrase ou deux ce que ça pourrait donner de surprenant, sans certitude, comme une hypothèse ludique."
+      : "Gérard prend une pause exploratoire sur cette graine : propose un angle inattendu, un peu décalé, qu'il n'oserait pas proposer en mode sérieux.",
+    "Reste honnête : n'invente aucun fait vérifiable, aucun chiffre, aucun témoignage. C'est un brouillon d'exploration, pas une récolte finale.",
+  ];
+  return parts.filter(Boolean).join("\n\n");
+}
+
+async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
+  const previous = await latestIteration(sql, tentacle.seed_id);
+  let content: string | null = null;
+  try {
+    const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous) });
+    content = artifact.content;
+  } catch (_) { /* Mistral unavailable this cycle — a visual alone can still land */ }
+
+  let visualUrl: string | null = null;
+  let toolCombination: string | null = null;
+  const canva = await executeCanvaDesign(env, tentacle.title).catch(() => null);
+  if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
+
+  await recordIteration(sql, { seedId: tentacle.seed_id, mode: "improve", content, visualUrl, toolCombination });
+  return { seedId: tentacle.seed_id, mode: "improve", status: content || visualUrl ? "completed" : "skipped-no-provider" };
+}
+
+async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
+  const previous = await latestIteration(sql, tentacle.seed_id);
+  const untriedSlug = await pickUntriedCanvaToolSlug(env, tentacle.tools_tried || []).catch(() => null);
+  let visualUrl: string | null = null;
+  let toolCombination: string | null = null;
+  if (untriedSlug) {
+    const canva = await executeCanvaDesign(env, `${tentacle.title} · expérimentation`, untriedSlug).catch(() => null);
+    if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
+  }
+
+  let content: string | null = null;
+  try {
+    const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, Boolean(toolCombination)), temperature: 0.9 });
+    content = artifact.content;
+  } catch (_) { /* fine — this cycle just yields whatever it managed */ }
+  if (!toolCombination) toolCombination = "mistral:playful-riff";
+
+  await recordIteration(sql, { seedId: tentacle.seed_id, mode: "play", content, visualUrl, toolCombination });
+  return { seedId: tentacle.seed_id, mode: "play", status: content || visualUrl ? "completed" : "skipped-no-provider" };
+}
+
+// Roughly one cycle in four is play/dream/experiment rather than a serious
+// improvement pass — Gérard stays "rêveur, joueur et inventif" instead of
+// only ever grinding on the same objective.
+function decideMode(): TentacleMode {
+  return Math.random() < 0.25 ? "play" : "improve";
+}
+
+async function runTentacleCycle(env: Env, options: { limit?: number } = {}): Promise<{ processed: number; results: Array<{ seedId: string; mode: TentacleMode; status: string }> }> {
+  if (!(await isDatabaseConfigured(env))) return { processed: 0, results: [] };
+  const sql = await getSql(env);
+  await ensureSchema(sql);
+  const due = await listDueTentacles(sql, options.limit ?? 3);
+  const results: Array<{ seedId: string; mode: TentacleMode; status: string }> = [];
+  for (const tentacle of due) {
+    try {
+      const mode = decideMode();
+      const result = mode === "play" ? await runPlayCycle(env, sql, tentacle) : await runImproveCycle(env, sql, tentacle);
+      results.push(result);
+    } catch (error) {
+      results.push({ seedId: tentacle.seed_id, mode: "improve", status: `error: ${error instanceof Error ? error.message : String(error)}` });
+    }
+  }
+  return { processed: results.length, results };
+}
+
+app.post("/api/tentacles/sync", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ status: "waiting-authorization", code: "DATABASE_NOT_CONFIGURED", error: "DATABASE_URL n'est pas configuré dans Publisher." }, 409);
+  const body = (await c.req.json().catch(() => ({}))) as { seeds?: unknown };
+  const seeds = Array.isArray(body.seeds) ? body.seeds : [];
+  const inputs: TentacleSeedInput[] = seeds.map((raw) => {
+    const item = (raw ?? {}) as Record<string, unknown>;
+    return {
+      seedId: String(item.seedId ?? item.id ?? ""),
+      parcelId: String(item.parcelId ?? ""),
+      title: String(item.title ?? ""),
+      objective: item.objective ? String(item.objective) : undefined,
+      firstHarvest: item.firstHarvest ? String(item.firstHarvest) : undefined,
+      knowledgeSlug: item.knowledgeSlug ? String(item.knowledgeSlug) : undefined,
+    };
+  });
+  try {
+    const sql = await getSql(c.env);
+    await ensureSchema(sql);
+    const count = await upsertTentacles(sql, inputs);
+    return c.json({ status: "ok", synced: count });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+app.get("/api/tentacles/state", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, tentacles: [] });
+  try {
+    const sql = await getSql(c.env);
+    await ensureSchema(sql);
+    const rows = await sql`SELECT seed_id, parcel_id, title, mode, iteration_count, last_run_at, cooldown_until, tools_tried FROM tentacles ORDER BY updated_at DESC LIMIT 100`;
+    return c.json({ configured: true, tentacles: rows });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+// Manual nudge — runs the exact same cycle the Cron Trigger runs, so this
+// can be verified on demand instead of waiting for the schedule to fire.
+app.post("/api/tentacles/run-cycle", async (c) => {
+  try {
+    const result = await runTentacleCycle(c.env, { limit: 3 });
+    return c.json({ status: "ok", ...result });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+export default {
+  fetch: app.fetch,
+  async scheduled(_event: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }) {
+    ctx.waitUntil(runTentacleCycle(env, { limit: 3 }).catch(() => {}));
+  },
+};
