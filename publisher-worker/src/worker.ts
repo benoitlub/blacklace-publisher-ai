@@ -361,6 +361,92 @@ async function executeCanvaDesign(env: Env, title: string, options: { excludeSlu
   return null;
 }
 
+// ============================================================================
+// Octopus health — artifacts/blacklace-publisher's octopus-witness.tsx polls
+// GET /api/octopus-adapter/health, expecting a persistent Octopus service
+// to ping. There isn't one: octopus-engine's only real mechanism is
+// poulpe-runtime.yml, a GitHub Actions workflow triggered per-Issue, not a
+// server that answers a health check. Rather than fake a permanent
+// "connected" state, this reports the *truth* about that ephemeral
+// mechanism: the most recent real run's outcome, straight from GitHub's
+// public API. "Octopus connecté" now means "the last run actually
+// succeeded", not "a socket is open".
+// ============================================================================
+
+const OCTOPUS_REPO = "benoitlub/octopus-engine";
+const OCTOPUS_WORKFLOW = "poulpe-runtime.yml";
+// GitHub's unauthenticated REST API allows 60 req/hour/IP, and this widget
+// polls every 15s (240/hour) — cache the lookup so repeated polls within
+// this window reuse one real GitHub call instead of exhausting that budget.
+const OCTOPUS_HEALTH_CACHE_MS = 120_000;
+let octopusHealthCache: { body: Record<string, unknown>; fetchedAt: number } | null = null;
+
+async function githubJson(path: string): Promise<any> {
+  const response = await fetch(`https://api.github.com${path}`, {
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "blacklace-publisher-worker" },
+  });
+  if (!response.ok) throw new Error(`GitHub ${response.status}`);
+  return response.json();
+}
+
+function mapOctopusRunStatus(run: Record<string, any>): "received" | "running" | "ready" | "failed" | "idle" {
+  if (run.status === "completed") return run.conclusion === "success" ? "ready" : "failed";
+  if (run.status === "in_progress") return "running";
+  if (run.status === "queued" || run.status === "waiting" || run.status === "requested" || run.status === "pending") return "received";
+  return "idle";
+}
+
+async function buildOctopusHealth(): Promise<Record<string, unknown>> {
+  const startedAt = Date.now();
+  try {
+    const payload = await githubJson(`/repos/${OCTOPUS_REPO}/actions/workflows/${OCTOPUS_WORKFLOW}/runs?per_page=1`);
+    const run = Array.isArray(payload?.workflow_runs) ? payload.workflow_runs[0] : null;
+    const latencyMs = Date.now() - startedAt;
+    if (!run) return { status: "ok", engine: { connected: false, latencyMs }, trace: null };
+
+    const status = mapOctopusRunStatus(run);
+    let artifactCount = 0;
+    if (run.status === "completed") {
+      try {
+        const artifacts = await githubJson(`/repos/${OCTOPUS_REPO}/actions/runs/${run.id}/artifacts`);
+        artifactCount = Array.isArray(artifacts?.artifacts) ? artifacts.artifacts.length : 0;
+      } catch (_) { /* not critical to the health signal */ }
+    }
+    const receivedAt: string | null = run.created_at || null;
+    const completedAt: string | null = run.status === "completed" ? (run.updated_at || null) : null;
+    const runLatencyMs = receivedAt && completedAt ? Math.max(0, Date.parse(completedAt) - Date.parse(receivedAt)) : null;
+
+    return {
+      status: "ok",
+      engine: { connected: status === "ready", latencyMs },
+      trace: {
+        missionId: String(run.id),
+        operationId: String(run.run_number ?? run.id),
+        capability: run.event || "workflow_dispatch",
+        contextId: run.head_branch || null,
+        status,
+        producer: "octopus-engine",
+        artifactCount,
+        receivedAt,
+        completedAt,
+        latencyMs: runLatencyMs,
+        error: status === "failed" ? "Le dernier passage a échoué — voir les logs GitHub Actions du run." : null,
+      },
+    };
+  } catch (error) {
+    return { status: "ok", engine: { connected: false, latencyMs: Date.now() - startedAt }, trace: null };
+  }
+}
+
+app.get("/api/octopus-adapter/health", async (c) => {
+  if (octopusHealthCache && Date.now() - octopusHealthCache.fetchedAt < OCTOPUS_HEALTH_CACHE_MS) {
+    return c.json(octopusHealthCache.body);
+  }
+  const body = await buildOctopusHealth();
+  octopusHealthCache = { body, fetchedAt: Date.now() };
+  return c.json(body);
+});
+
 app.get("/api/production/diagnostics", async (c) => {
   const env = c.env;
   try {
