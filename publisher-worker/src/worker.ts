@@ -809,6 +809,30 @@ app.get("/api/tentacles/state", async (c) => {
   }
 });
 
+// Full iteration content (text + visual URL), not just tentacle summaries —
+// this is what poulpe-fiction's client reads to actually mirror the Neon
+// loop's output into the Garden (see neon-harvest-sync.js). Without this,
+// runTentacleCycle() keeps producing real work server-side that no one
+// ever sees, which is exactly what it was doing until this route existed.
+app.get("/api/tentacles/iterations", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, iterations: [] });
+  try {
+    const sql = await getSql(c.env);
+    await ensureSchema(sql);
+    const limit = Math.min(Number(c.req.query("limit")) || 200, 500);
+    const rows = await sql`
+      SELECT i.id, i.seed_id, t.parcel_id, t.title, i.iteration_number, i.mode, i.content, i.visual_url, i.tool_combination, i.created_at
+      FROM tentacle_iterations i
+      JOIN tentacles t ON t.seed_id = i.seed_id
+      ORDER BY i.created_at DESC
+      LIMIT ${limit}
+    `;
+    return c.json({ configured: true, iterations: rows });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 // Manual nudge — runs the exact same cycle the Cron Trigger runs, so this
 // can be verified on demand instead of waiting for the schedule to fire.
 app.post("/api/tentacles/run-cycle", async (c) => {
