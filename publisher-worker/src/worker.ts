@@ -16,6 +16,7 @@ type Env = {
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
   COMPOSIO_USER_ID?: string;
   DATABASE_URL?: string | SecretsStoreSecret;
+  GITHUB_TOKEN?: string | SecretsStoreSecret;
 };
 
 async function resolveSecret(value: string | SecretsStoreSecret | undefined): Promise<string> {
@@ -381,10 +382,18 @@ const OCTOPUS_WORKFLOW = "poulpe-runtime.yml";
 const OCTOPUS_HEALTH_CACHE_MS = 120_000;
 let octopusHealthCache: { body: Record<string, unknown>; fetchedAt: number } | null = null;
 
-async function githubJson(path: string): Promise<any> {
-  const response = await fetch(`https://api.github.com${path}`, {
-    headers: { Accept: "application/vnd.github+json", "User-Agent": "blacklace-publisher-worker" },
-  });
+async function githubJson(env: Env, path: string): Promise<any> {
+  // Unauthenticated GitHub REST calls are capped at 60/hour *per source IP*
+  // — and Cloudflare Workers egress from a shared pool of IPs used by many
+  // customers at once, so that budget is gone almost immediately in
+  // practice (confirmed live: GitHub 403 on the very first real check). A
+  // token raises this to 5000/hour, scoped to the token itself rather than
+  // whichever IP happened to serve the request. No scopes are needed for
+  // read-only access to a public repo's Actions data.
+  const token = await resolveSecret(env.GITHUB_TOKEN);
+  const headers: Record<string, string> = { Accept: "application/vnd.github+json", "User-Agent": "blacklace-publisher-worker" };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch(`https://api.github.com${path}`, { headers });
   if (!response.ok) throw new Error(`GitHub ${response.status}`);
   return response.json();
 }
@@ -396,10 +405,10 @@ function mapOctopusRunStatus(run: Record<string, any>): "received" | "running" |
   return "idle";
 }
 
-async function buildOctopusHealth(): Promise<Record<string, unknown>> {
+async function buildOctopusHealth(env: Env): Promise<Record<string, unknown>> {
   const startedAt = Date.now();
   try {
-    const payload = await githubJson(`/repos/${OCTOPUS_REPO}/actions/workflows/${OCTOPUS_WORKFLOW}/runs?per_page=1`);
+    const payload = await githubJson(env, `/repos/${OCTOPUS_REPO}/actions/workflows/${OCTOPUS_WORKFLOW}/runs?per_page=1`);
     const run = Array.isArray(payload?.workflow_runs) ? payload.workflow_runs[0] : null;
     const latencyMs = Date.now() - startedAt;
     if (!run) return { status: "ok", engine: { connected: false, latencyMs }, trace: null };
@@ -408,7 +417,7 @@ async function buildOctopusHealth(): Promise<Record<string, unknown>> {
     let artifactCount = 0;
     if (run.status === "completed") {
       try {
-        const artifacts = await githubJson(`/repos/${OCTOPUS_REPO}/actions/runs/${run.id}/artifacts`);
+        const artifacts = await githubJson(env, `/repos/${OCTOPUS_REPO}/actions/runs/${run.id}/artifacts`);
         artifactCount = Array.isArray(artifacts?.artifacts) ? artifacts.artifacts.length : 0;
       } catch (_) { /* not critical to the health signal */ }
     }
@@ -442,7 +451,7 @@ app.get("/api/octopus-adapter/health", async (c) => {
   if (octopusHealthCache && Date.now() - octopusHealthCache.fetchedAt < OCTOPUS_HEALTH_CACHE_MS) {
     return c.json(octopusHealthCache.body);
   }
-  const body = await buildOctopusHealth();
+  const body = await buildOctopusHealth(c.env);
   octopusHealthCache = { body, fetchedAt: Date.now() };
   return c.json(body);
 });

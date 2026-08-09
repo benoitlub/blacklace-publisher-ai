@@ -23,6 +23,15 @@ binding = "DATABASE_URL"
 store_id = "6cd697779c5d45a0ab6b8833a434adc6"
 secret_name = "DATABASE_URL"
 
+# Fine-grained PAT, read-only, "Public Repositories" access is enough —
+# only used to read Actions run history on public repos (octopus-engine),
+# raising GitHub's rate limit from 60/hour/IP (shared across all of
+# Cloudflare's egress pool, confirmed 403 in practice) to 5000/hour/token.
+[[secrets_store_secrets]]
+binding = "GITHUB_TOKEN"
+store_id = "6cd697779c5d45a0ab6b8833a434adc6"
+secret_name = "GITHUB_TOKEN"
+
 # Gérard's relentless tentacle loop (runTentacleCycle in worker.ts). Fires
 # every 15 minutes; each tentacle's own cooldown (20min-6h, doubling per
 # iteration) governs actual pacing, so most ticks find nothing due.
