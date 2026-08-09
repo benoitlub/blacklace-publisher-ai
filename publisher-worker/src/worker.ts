@@ -434,7 +434,7 @@ async function buildOctopusHealth(): Promise<Record<string, unknown>> {
       },
     };
   } catch (error) {
-    return { status: "ok", engine: { connected: false, latencyMs: Date.now() - startedAt }, trace: null };
+    return { status: "ok", engine: { connected: false, latencyMs: Date.now() - startedAt }, trace: null, debugNote: error instanceof Error ? error.message : String(error) };
   }
 }
 
