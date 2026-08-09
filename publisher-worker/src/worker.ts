@@ -366,7 +366,7 @@ app.get("/api/production/diagnostics", async (c) => {
   try {
     const mistralConfigured = Boolean(await mistralApiKey(env));
     if (!(await isComposioConfigured(env))) {
-      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, mistral: { status: mistralConfigured ? "executable" : "unavailable" } });
+      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, mistral: { status: mistralConfigured ? "executable" : "unavailable", configured: mistralConfigured, available: mistralConfigured } });
     }
     const accounts = await listComposioConnectedAccounts(env);
     const canva = accountFor(accounts, "canva");
@@ -377,7 +377,10 @@ app.get("/api/production/diagnostics", async (c) => {
       composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
       canva: { status: canvaCreationTools.length ? "executable" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", discoveredToolCount: canvaTools.length },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
-      mistral: { status: mistralConfigured ? "executable" : "unavailable" },
+      // configured/available are aliases of the same boolean, for the
+      // artifacts/blacklace-publisher dashboard (local-technique.tsx),
+      // which reads those field names instead of `status`.
+      mistral: { status: mistralConfigured ? "executable" : "unavailable", configured: mistralConfigured, available: mistralConfigured },
     });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);

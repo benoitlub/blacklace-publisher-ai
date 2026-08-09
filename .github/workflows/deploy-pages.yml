@@ -47,6 +47,14 @@ jobs:
         env:
           PORT: 5173
           BASE_PATH: /blacklace-publisher-ai/
+          # The page's own hardcoded default (blacklace-publisher-api.onrender.com)
+          # is dead — nothing serves that Render app anymore. The live backend
+          # is the Cloudflare Worker built up this session (Mistral/Canva/Neon).
+          # Not everything this dashboard expects exists there yet: the OAuth
+          # connector flow (/connectors/composio/*) has no equivalent, so
+          # "Connexions autorisables" still won't work — only the diagnostics
+          # cards and the Octopus radar do.
+          VITE_API_BASE_URL: https://blacklace-publisher-worker.benoitlubert.workers.dev
         run: pnpm --filter @workspace/blacklace-publisher build
 
       - name: Prepare Pages artifact
