@@ -48,12 +48,16 @@ jobs:
           PORT: 5173
           BASE_PATH: /blacklace-publisher-ai/
           # The page's own hardcoded default (blacklace-publisher-api.onrender.com)
-          # is dead — nothing serves that Render app anymore. Confirmed by the
-          # user: the permanent relay below is the intended backend for this
-          # dashboard, not blacklace-publisher-worker (the one built up over
-          # this session's Mistral/Canva/Neon work). Not everything this
-          # dashboard expects may exist on the relay — verify after deploy.
-          VITE_API_BASE_URL: https://dry-dew-8fb3blacklace-publisher-relay.benoitlubert.workers.dev
+          # is dead. dry-dew-8fb3blacklace-publisher-relay was tried and
+          # verified live to be write-only (POST-only mission intake,
+          # rejects GET on every path) — it can't serve this page's
+          # read-only status/catalog questions. blacklace-publisher-worker
+          # is the one that actually implements those as GET endpoints.
+          # Not everything this dashboard expects exists there yet: the
+          # OAuth connector flow (/connectors/composio/*) has no
+          # equivalent, so "Connexions autorisables" still won't work —
+          # only the diagnostics cards and the Octopus radar do.
+          VITE_API_BASE_URL: https://blacklace-publisher-worker.benoitlubert.workers.dev
         run: pnpm --filter @workspace/blacklace-publisher build
 
       - name: Prepare Pages artifact

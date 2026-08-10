@@ -26,7 +26,10 @@ const CONNECTOR_FAMILIES = [
   { id: "other", label: "Autres liaisons", description: "Connecteurs disponibles sans famille specifique.", keywords: [] },
 ] as const;
 
-const OFFICIAL_API_BASE_URL = "https://dry-dew-8fb3blacklace-publisher-relay.benoitlubert.workers.dev";
+// dry-dew-8fb3blacklace-publisher-relay is write-only (mission intake,
+// rejects GET everywhere) — can't serve this page's read-only catalog
+// either. See local-technique.tsx for the same fix + reasoning.
+const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev";
 
 function configuredApiBase(): string {
   return String(import.meta.env.VITE_API_BASE_URL || OFFICIAL_API_BASE_URL).trim().replace(/\/$/, "");

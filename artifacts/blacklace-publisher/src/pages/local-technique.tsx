@@ -5,7 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, KeyRound, LockKeyhole, RefreshCw, Server, ShieldCheck } from "lucide-react";
 
-const OFFICIAL_API_BASE_URL = "https://dry-dew-8fb3blacklace-publisher-relay.benoitlubert.workers.dev";
+// dry-dew-8fb3blacklace-publisher-relay is a write-only mission-intake
+// endpoint (POST {parcelId, objective} -> "Mission transmise") — verified
+// live it rejects GET on every path, so it can never answer the read-only
+// status questions this page asks. blacklace-publisher-worker is the one
+// that actually implements /api/production/diagnostics as a GET.
+const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev";
 
 function apiBase() {
   return String(import.meta.env.VITE_API_BASE_URL || OFFICIAL_API_BASE_URL).trim().replace(/\/$/, "");
