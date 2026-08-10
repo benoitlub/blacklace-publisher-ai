@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { ensureSchema, getSql, isDatabaseConfigured, latestIteration, listDueTentacles, recordIteration, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
+import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 
 // Cloudflare has two different ways to give a Worker a secret value:
 // - classic per-Worker "Variables and Secrets" -> env.KEY is a plain string.
@@ -17,6 +18,9 @@ type Env = {
   COMPOSIO_USER_ID?: string;
   DATABASE_URL?: string | SecretsStoreSecret;
   GITHUB_TOKEN?: string | SecretsStoreSecret;
+  NOTION_API_KEY?: string | SecretsStoreSecret;
+  NOTION_DATABASE_ID?: string;
+  NOTION_PAGE_ID?: string;
 };
 
 async function resolveSecret(value: string | SecretsStoreSecret | undefined): Promise<string> {
@@ -498,14 +502,33 @@ app.post("/api/production/execute", async (c) => {
       const title = (input.title ?? body.title ?? "Livrable textuel Publisher") as string;
       const prompt = (input.prompt ?? body.prompt ?? input.objective ?? body.objective ?? "") as string;
       if (!prompt.trim()) return c.json({ status: "failed", code: "PROMPT_REQUIRED", error: "Un prompt est requis pour copy.generate." }, 400);
+
+      const slugCandidates = [
+        body.context?.parcelId, body.context?.seedId, body.parcelId, body.universe, input.universe,
+      ].filter(Boolean);
+      const notionApiKey = await resolveSecret(c.env.NOTION_API_KEY);
+      const knowledge = await resolveKnowledgePackage(
+        { NOTION_API_KEY: notionApiKey, NOTION_DATABASE_ID: c.env.NOTION_DATABASE_ID, NOTION_PAGE_ID: c.env.NOTION_PAGE_ID },
+        slugCandidates,
+      );
+
+      if (!knowledge.verified) {
+        return c.json({
+          status: "failed",
+          code: "KNOWLEDGE_PACKAGE_NOT_VERIFIED",
+          error: `Publisher ne trouve pas de Knowledge Package vérifié pour « ${knowledge.slug} ». Aucune rédaction n'est lancée.`,
+          diagnostics: knowledge.diagnostics,
+        }, 422);
+      }
+
       const artifact = await executeMistralText(c.env, {
         title,
         prompt,
-        systemPrompt: input.systemPrompt ?? body.systemPrompt,
+        systemPrompt: [knowledge.prompt, input.systemPrompt ?? body.systemPrompt].filter(Boolean).join("\n\n"),
         maxTokens: Number(input.maxTokens ?? body.maxTokens ?? 5000),
         temperature: Number(input.temperature ?? body.temperature ?? 0.25),
       });
-      return c.json({ status: "completed", provider: "mistral", tool: "mistral", action: "copy.generate", artifact });
+      return c.json({ status: "completed", provider: "mistral", tool: "mistral", action: "copy.generate", artifact, knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: knowledge.verified } });
     }
 
     const capability = String(body.capability ?? body.type ?? tool).toLowerCase();
@@ -679,39 +702,55 @@ function generateLandingPage(request: { title?: string; input?: Record<string, u
 // autonomous under the authorization policy restored in poulpe-fiction.
 // ============================================================================
 
-function buildImprovePrompt(tentacle: TentacleRow, previous: { content: string | null } | null): string {
+function buildImprovePrompt(tentacle: TentacleRow, previous: { content: string | null } | null, groundingText: string): string {
   const parts = [
     `Graine : ${tentacle.title}`,
     `Objectif : ${tentacle.objective || "non précisé"}`,
     `Première récolte visée : ${tentacle.first_harvest || "non précisée"}`,
-    previous?.content ? `Récolte précédente (à dépasser sans la répéter) :\n${previous.content.slice(0, 900)}` : "Aucune récolte précédente — c'est le premier passage.",
+    `Faits vérifiés disponibles :\n${groundingText}`,
+    previous?.content ? `Récolte précédente (à approfondir sans la répéter) :\n${previous.content.slice(0, 900)}` : "Aucune récolte précédente — c'est le premier passage.",
     "Produis un livrable court, concret et directement exploitable pour cette étape (angle, accroche ou premier élément de contenu).",
     "N'invente aucun fait vérifiable : pas de chiffre, pas de témoignage, pas de preuve sociale, pas de nom de personne réelle.",
-    previous?.content ? "Va réellement plus loin que la récolte précédente : ajoute un élément nouveau, plus abouti ou plus concret plutôt que de reformuler." : "",
+    "N'invente aucun concept, protocole, méthodologie, univers narratif ou cadre fictif qui ne figure pas explicitement dans les faits vérifiés ci-dessus. Toute idée créative doit rester une reformulation ou un prolongement direct de ce qui est déjà écrit dans les faits vérifiés — jamais une nouvelle construction qui s'en éloigne.",
+    previous?.content ? "\"Aller plus loin\" signifie : creuser un angle déjà présent dans les faits vérifiés avec plus de détail ou de concret — jamais ajouter un thème, un objet ou une mécanique qui n'y figure pas." : "",
   ];
   return parts.filter(Boolean).join("\n\n");
 }
 
-function buildPlayPrompt(tentacle: TentacleRow, previous: { content: string | null } | null, triedNewTool: boolean): string {
+function buildPlayPrompt(tentacle: TentacleRow, previous: { content: string | null } | null, triedNewTool: boolean, groundingText: string): string {
   const parts = [
     `Graine : ${tentacle.title}`,
     `Objectif habituel : ${tentacle.objective || "non précisé"}`,
+    `Faits vérifiés sur ce sujet (le jeu reste permis, mais toujours à propos de ce sujet-là, jamais d'un autre) :\n${groundingText}`,
     previous?.content ? `Ce qui existe déjà (pour ne pas répéter, mais librement s'en écarter) :\n${previous.content.slice(0, 600)}` : "",
     triedNewTool
       ? "Gérard vient d'essayer une nouvelle association d'outils sur cette graine (un nouvel outil Canva jamais utilisé ici) — imagine en une phrase ou deux ce que ça pourrait donner de surprenant, sans certitude, comme une hypothèse ludique."
       : "Gérard prend une pause exploratoire sur cette graine : propose un angle inattendu, un peu décalé, qu'il n'oserait pas proposer en mode sérieux.",
     "Reste honnête : n'invente aucun fait vérifiable, aucun chiffre, aucun témoignage. C'est un brouillon d'exploration, pas une récolte finale.",
+    "Le jeu créatif porte sur le ton, l'angle ou la mise en scène — jamais sur la nature du produit ou du public visé : n'invente pas un autre objet, un autre public ou un autre problème que ceux des faits vérifiés ci-dessus.",
   ];
   return parts.filter(Boolean).join("\n\n");
 }
 
 async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
   const previous = await latestIteration(sql, tentacle.seed_id);
+  const notionApiKey = await resolveSecret(env.NOTION_API_KEY);
+  const knowledge = await resolveKnowledgePackage(
+    { NOTION_API_KEY: notionApiKey, NOTION_DATABASE_ID: env.NOTION_DATABASE_ID, NOTION_PAGE_ID: env.NOTION_PAGE_ID },
+    [tentacle.knowledge_slug, tentacle.parcel_id, tentacle.seed_id],
+  );
   let content: string | null = null;
-  try {
-    const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous) });
-    content = artifact.content;
-  } catch (_) { /* Mistral unavailable this cycle — a visual alone can still land */ }
+  // Comme pour /api/production/execute : sans Knowledge Package vérifié,
+  // pas d'appel Mistral. C'est ce cycle-ci, tournant seul toutes les 15
+  // minutes sans supervision, qui a produit la majorité des inventions
+  // complètes (concepts, publics cibles fictifs) sur des Seeds sans source
+  // Notion fiable — corrigé ici à la racine plutôt que côté client seul.
+  if (knowledge.verified) {
+    try {
+      const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous, knowledge.prompt) });
+      content = artifact.content;
+    } catch (_) { /* Mistral unavailable this cycle — a visual alone can still land */ }
+  }
 
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
@@ -724,6 +763,11 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
 
 async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
   const previous = await latestIteration(sql, tentacle.seed_id);
+  const notionApiKey = await resolveSecret(env.NOTION_API_KEY);
+  const knowledge = await resolveKnowledgePackage(
+    { NOTION_API_KEY: notionApiKey, NOTION_DATABASE_ID: env.NOTION_DATABASE_ID, NOTION_PAGE_ID: env.NOTION_PAGE_ID },
+    [tentacle.knowledge_slug, tentacle.parcel_id, tentacle.seed_id],
+  );
   const triedCanvaSlugs = (tentacle.tools_tried || []).filter((entry) => entry.startsWith("canva:")).map((entry) => entry.slice("canva:".length));
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
@@ -731,10 +775,12 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
   if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
 
   let content: string | null = null;
-  try {
-    const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, Boolean(toolCombination)), temperature: 0.9 });
-    content = artifact.content;
-  } catch (_) { /* fine — this cycle just yields whatever it managed */ }
+  if (knowledge.verified) {
+    try {
+      const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, Boolean(toolCombination), knowledge.prompt), temperature: 0.9 });
+      content = artifact.content;
+    } catch (_) { /* fine — this cycle just yields whatever it managed */ }
+  }
   if (!toolCombination) toolCombination = "mistral:playful-riff";
 
   await recordIteration(sql, { seedId: tentacle.seed_id, mode: "play", content, visualUrl, toolCombination });
