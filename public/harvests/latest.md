@@ -1,110 +1,67 @@
-# 420-dice
+# test-diagnostic
 
-### **Récolte éditoriale pour TERRA – Fable cosmique**
-**Parcelle : 420-dice (420-dice)**
-**Objectif : Post LinkedIn**
-
----
-
-## **📌 Résultat**
-Une campagne LinkedIn **concrète, vérifiable et exploitable** pour promouvoir *TERRA* (fable cosmique) sans exagération. Le contenu est :
-✅ **Honnête** : Pas de faux avis, chiffres ou récompenses inventés.
-✅ **Orienté vente** : Mise en avant des atouts du livre (univers, style, accessibilité).
-✅ **Révisable** : Texte modifiable pour adaptation (ex. : ajouter un visuel, un extrait).
-✅ **Immédiatement exploitable** : Prêt à publier avec A/B testing possible (angles variés).
+### **Résultat**
+**Objectif atteint** : Une récolte éditoriale **concrète, révisable et exploitable immédiatement** pour *TERRA* (fable cosmique en français et espagnol), centrée sur un **ping de diagnostic** (pas d’action réelle attendue). Le contenu est **honnête**, orienté vente, sans invention d’avis, chiffres ou récompenses.
 
 ---
 
-## **📝 Texte prêt à publier**
+### **Texte prêt à publier**
+*(Format adaptable : post LinkedIn, tweet, newsletter, etc.)*
 
-### **Option 1 – Angle "Fable cosmique accessible"**
-**🚀 TERRA : Une fable cosmique qui parle à l’humain en nous**
+**🌍 TERRA : Une fable cosmique pour interroger notre place dans l’univers**
+Et si la Terre n’était qu’un laboratoire géant ? *TERRA*, fable philosophique et poétique, explore notre rapport au cosmos avec une plume à la fois accessible et profonde.
 
-Et si la clé pour comprendre l’univers était… une histoire ? *TERRA* (disponible en français et espagnol) est une **fable philosophique et poétique**, où des personnages ordinaires croisent des énigmes cosmiques. Pas de jargon, pas de longueurs : juste une **aventure mentale** pour réfléchir en s’émerveillant.
+📖 **Disponible en français et en espagnol** – Une lecture qui fait réfléchir, rêver et questionner.
+🔗 [Lien vers la page Amazon – À compléter]
 
-🔹 **Pour qui ?**
-→ Les lecteurs qui aiment *Le Petit Prince* revisité, *Dune* en version intimiste, ou *La Horde du Contrevent* pour son côté épique.
-→ Ceux qui cherchent une **pause poétique** dans un monde bruyant.
+#ScienceFiction #Philosophie #Lecture #Cosmos #Fable
 
-🔹 **Pourquoi ce livre ?**
-→ **Univers riche** : Planètes, civilisations, et une question centrale : *"Et si la Terre était une expérience ?"*
-→ **Style fluide** : Pas de chapitres interminables, des dialogues percutants.
-→ **Thèmes universels** : Écologie, destin, libre arbitre… le tout enrobé de mystère.
-
-📖 **Disponible sur [Amazon FR](lien) | [Amazon ES](lien)**
-💡 **Un extrait ?** DM ou commentaire "EXTRAIT" pour recevoir un passage clé.
-
-#Lecture #ScienceFiction #Philosophie #FableCosmique #LivreIndépendant
+---
+**Variantes possibles** :
+- **Pour les réseaux sociaux** : Ajouter un visuel (couverture du livre ou illustration cosmique) + hashtags ciblés (#LivreSF, #LecturePhilosophique).
+- **Pour une newsletter** : Ajouter un extrait court (1-2 phrases percutantes) + CTA clair ("Découvrez-le sur Amazon").
 
 ---
 
-### **Option 2 – Angle "Découverte littéraire"**
-**🌌 TERRA : Une pépite méconnue à découvrir**
+### **Plan d’action (7 jours)**
+**Objectif** : Maximiser la visibilité du ping de diagnostic avec un effort minimal mais stratégique.
 
-Entre *science-fiction philosophique* et *conte métaphysique*, *TERRA* est ce livre qui **dérange et fascine**. L’auteur y explore des thèmes comme :
-✔ **L’humanité comme variable cosmique** (et non comme centre de l’univers).
-✔ **La beauté des questions sans réponses**.
-✔ **Un style qui alterne entre lyrisme et précision**.
-
-📌 **Ce qui m’a marqué ?**
-→ **L’originalité** : Pas de héros classique, mais des archétypes qui questionnent notre place dans l’univers.
-→ **La brièveté** : Un roman court (200 pages), idéal pour une lecture en une soirée.
-→ **La traduction** : Fluide en espagnol comme en français.
-
-👉 **Un livre à offrir ? À s’offrir ?** [Amazon FR](lien) | [Amazon ES](lien)
-
-#LivreÀLire #NouvelleFiction #Cosmos #Philosophie #IndieBook
+| **Jour** | **Action**                                                                 | **Outils/Canaux**               | **Durée** |
+|----------|----------------------------------------------------------------------------|----------------------------------|-----------|
+| **1**    | Finaliser le texte (validation par Blacklace Publisher).                   | Google Docs / Notion            | 30 min    |
+| **2**    | Publier sur **LinkedIn** (post personnel + partage par des comptes influents du secteur). | LinkedIn                        | 20 min    |
+| **3**    | Publier sur **Twitter/X** (thread ou post simple) + interaction avec des comptes SF/philosophie. | Twitter/X                       | 15 min    |
+| **4**    | Envoyer à la **newsletter interne** (si existante) ou via un outil comme Mailchimp (segment "lecteurs SF"). | Mailchimp / Substack            | 30 min    |
+| **5**    | Partager sur **Facebook** (groupes dédiés à la SF ou à la philosophie).    | Groupes Facebook                | 20 min    |
+| **6**    | Publier sur **Reddit** (communautés r/books, r/sciencefiction, r/philosophy). | Reddit                          | 25 min    |
+| **7**    | **Relance légère** : Partager le post LinkedIn/Twitter sur les stories Instagram (si compte dédié) ou via un message privé à des contacts ciblés. | Instagram / Messages privés     | 10 min    |
 
 ---
-### **Option 3 – Angle "Questionnement"**
-**🤔 Et si la Terre n’était qu’un décor ?**
-
-*TERRA* part d’une hypothèse folle : **et si notre planète était une scène de théâtre cosmique ?** Les personnages de ce roman en sont les acteurs malgré eux, confrontés à des choix qui dépassent leur entendement.
-
-📖 **Pourquoi ce livre résonne ?**
-→ Parce qu’il **parle de nous sans nous nommer** : écologie, technologie, et cette peur de ne pas être "maîtres de notre destin".
-→ Parce qu’il **mêle rigueur scientifique et onirisme**, comme un *2001 : L'Odyssée de l'espace* version conte.
-
-💬 **Votre avis ?** Avez-vous déjà lu une fable qui vous a fait voir le monde différemment ? Partagez en commentaire !
-
-📥 **Lien vers le livre** : [Amazon FR](lien) | [Amazon ES](lien)
-
-#ScienceFiction #Réflexion #LittératureEngagée #NouveauLivre
+**Notes** :
+- **Pas de suivi** : Le ping est un test, donc pas de monitoring des clics ou interactions.
+- **Flexibilité** : Adapter les canaux en fonction des retours (ex : si Twitter performe mieux, y concentrer les efforts).
 
 ---
 
-## **📅 Plan d’action (7 jours)**
+### **Éléments à vérifier**
+1. **Lien Amazon** :
+   - Vérifier que le lien est **correct** (pas de redirection, pas de lien d’affiliation non autorisé).
+   - Tester sur mobile et desktop.
 
-| **Jour** | **Action**                                                                 | **Détails**                                                                 |
-|----------|----------------------------------------------------------------------------|-----------------------------------------------------------------------------|
-| **J1**   | **Finaliser le texte**                                                     | Choisir un angle (Option 1, 2 ou 3) et adapter le lien Amazon.            |
-| **J2**   | **Créer un visuel simple** (optionnel)                                    | Canva : fond noir + titre "TERRA" en typographie futuriste ou manuscrite.   |
-| **J3**   | **Programmer le post**                                                     | Heure optimale : 8h-10h ou 18h-20h (LinkedIn). Utiliser LinkedIn Scheduler.|
-| **J4**   | **Relancer en commentaires**                                               | Répondre aux premiers commentaires (ex. : "EXTRAIT" pour envoi de texte).  |
-| **J5**   | **Partager en stories (si compte pro)**                                   | Version courte du post + lien cliquable.                                   |
-| **J6**   | **Relancer via message LinkedIn** (si réseau pertinent)                   | Envoyer à 5-10 contacts ciblés (ex. : auteurs SF, libraires, philosophes).  |
-| **J7**   | **Analyser les stats**                                                    | Noter les likes, partages, clics. Préparer une version alternative si besoin.|
+2. **Traduction** :
+   - Si le texte est traduit en espagnol, s’assurer que la version est **naturelle** (éviter les calques de français).
 
----
-## **✅ Éléments à vérifier**
-Avant publication, s’assurer que :
-1. **Liens Amazon** :
-   - [FR](https://www.amazon.fr/TERRA/dp/[ID]) et [ES](https://www.amazon.es/TERRA/dp/[ID]) fonctionnent.
-   - Vérifier que le livre est bien en **eBook** (priorité) et/ou **broché**.
-2. **Visuel** (si utilisé) :
-   - Pas de copyright (images libres de droits ou créées maison).
-   - Format : 1200x627 pixels (LinkedIn).
-3. **Hashtags** :
-   - Mix de niche (#FableCosmique) et général (#Lecture).
-   - Éviter les hashtags trop saturés (#Livre).
-4. **Ton** :
-   - Pas de superlatifs ("meilleur livre", "culte").
-   - Mise en avant des **faits** (dispo en FR/ES, style, thèmes).
-5. **Appel à l’action (CTA)** :
-   - "DM pour extrait" ou "Lien en bio" sont concrets.
-   - Éviter "Achetez maintenant" (trop direct sur LinkedIn).
+3. **Visuels** (si utilisés) :
+   - Droits d’usage clairs (couverture officielle ou image libre de droits).
+   - Format adapté à chaque plateforme (ex : 1200x628 pour LinkedIn, 1080x1080 pour Instagram).
+
+4. **Hashtags** :
+   - Éviter le spam (#SF #Livre #Cosmos #TERRA #Philosophie #Fable #Lecture #AmazonFR #AmazonES).
+   - Privilégier 3-5 hashtags pertinents par plateforme.
+
+5. **Ton** :
+   - Rester **neutre et descriptif** (pas de superlatifs comme "chef-d’œuvre" ou "incontournable").
+   - Mettre en avant **l’essence du livre** (fable cosmique, réflexion philosophique) sans spoiler.
 
 ---
-**🔄 Adaptable** :
-- Pour un **réseau plus technique** (ex. : ingénieurs), insister sur la rigueur scientifique du livre.
-- Pour un **public littéraire**, ajouter une comparaison avec des auteurs reconnus (ex. : "Dans la lignée de Borges et Asimov").
+**Prochaine étape** : Une fois le texte validé, le plan d’action est **prêt à l’emploi**. Besoin d’ajustements ? Dites-le-moi !
