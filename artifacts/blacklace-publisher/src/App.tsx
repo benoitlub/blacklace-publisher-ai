@@ -22,8 +22,9 @@ import Connectors from "@/pages/connectors";
 import LocalTechnique from "@/pages/local-technique";
 import Settings from "@/pages/settings";
 
-const apiBaseUrl = import.meta.env.VITE_API_BASE_URL as string | undefined;
-setBaseUrl(apiBaseUrl?.trim() ? apiBaseUrl : null);
+const OFFICIAL_API_BASE_URL = "https://dry-dew-8fb3blacklace-publisher-relay.benoitlubert.workers.dev";
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) || OFFICIAL_API_BASE_URL;
+setBaseUrl(apiBaseUrl.trim() ? apiBaseUrl : null);
 const buildSha = String(import.meta.env.VITE_BUILD_SHA || "local").slice(0, 7);
 
 const queryClient = new QueryClient();

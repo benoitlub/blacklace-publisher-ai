@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { ExternalLink, KeyRound, LockKeyhole, RefreshCw, Server, ShieldCheck } from "lucide-react";
 
-const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-api.onrender.com";
+const OFFICIAL_API_BASE_URL = "https://dry-dew-8fb3blacklace-publisher-relay.benoitlubert.workers.dev";
 
 function apiBase() {
   return String(import.meta.env.VITE_API_BASE_URL || OFFICIAL_API_BASE_URL).trim().replace(/\/$/, "");
