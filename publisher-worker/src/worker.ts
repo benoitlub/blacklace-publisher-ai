@@ -571,23 +571,6 @@ app.post("/api/production/execute", async (c) => {
       return c.json({ status: "completed", provider: "composio", tool: "canva", action: result.toolSlug, artifact: result.artifact });
     }
 
-    // TEMPORARY — checking whether Composio's Canva toolkit exposes any
-    // way to actually START an asset upload (only
-    // CANVA_FETCH_ASSET_UPLOAD_JOB_STATUS is visible in the 32-tool list,
-    // which checks an existing job, not create one). If there is truly no
-    // creation tool, asset_id is a dead end via Composio, not just a
-    // missing argument. Removed once confirmed either way.
-    if (tool === "canva-verify-upload-path") {
-      if (!(await isComposioConfigured(c.env))) return c.json({ error: "composio not configured" }, 409);
-      const allTools = await listComposioTools(c.env, "canva");
-      const uploadRelated = allTools.filter((t) => /upload|asset/i.test(t.slug));
-      const statusToolSchema = await composioRequest(c.env, `/tools?tool_slugs=CANVA_FETCH_ASSET_UPLOAD_JOB_STATUS`).catch((e) => ({ error: String(e) }));
-      return c.json({
-        uploadOrAssetRelatedSlugs: uploadRelated.map((t) => ({ slug: t.slug, description: t.description })),
-        statusToolSchema,
-      });
-    }
-
     return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
   } catch (error) {
     return c.json({ status: "failed", code: "PRODUCTION_PROVIDER_ERROR", error: error instanceof Error ? error.message : String(error) }, 502);
