@@ -571,27 +571,6 @@ app.post("/api/production/execute", async (c) => {
       return c.json({ status: "completed", provider: "composio", tool: "canva", action: result.toolSlug, artifact: result.artifact });
     }
 
-    // TEMPORARY — re-verifying a specific claim (CANVA_POST_DESIGNS
-    // supposedly replacing CANVA_CREATE_CANVA_DESIGN_WITH_OPTIONAL_ASSET)
-    // against the live Composio catalog before touching any code. Removed
-    // once confirmed either way.
-    if (tool === "canva-verify-claim") {
-      if (!(await isComposioConfigured(c.env))) return c.json({ error: "composio not configured" }, 409);
-      const allTools = await listComposioTools(c.env, "canva");
-      const postDesigns = allTools.find((t) => t.slug === "CANVA_POST_DESIGNS");
-      const optionalAsset = allTools.find((t) => t.slug === "CANVA_CREATE_CANVA_DESIGN_WITH_OPTIONAL_ASSET");
-      const postDesignsSchema = postDesigns
-        ? await composioRequest(c.env, `/tools?tool_slugs=CANVA_POST_DESIGNS`).catch((e) => ({ error: String(e) }))
-        : null;
-      return c.json({
-        allSlugs: allTools.map((t) => t.slug),
-        canvaPostDesignsExists: Boolean(postDesigns),
-        createWithOptionalAssetExists: Boolean(optionalAsset),
-        optionalAssetDeprecated: optionalAsset ? ((optionalAsset as unknown as Record<string, unknown>).is_deprecated ?? "field not present on listComposioTools' mapped shape") : null,
-        postDesignsSchema,
-      });
-    }
-
     return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
   } catch (error) {
     return c.json({ status: "failed", code: "PRODUCTION_PROVIDER_ERROR", error: error instanceof Error ? error.message : String(error) }, 502);
