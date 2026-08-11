@@ -225,7 +225,12 @@ async function listComposioTools(env: Env, toolkitSlug: string): Promise<Composi
         if (!slug) continue;
         const toolkit = normalize(toolkitFrom(record) || normalizedToolkit);
         if (toolkit && toolkit !== normalizedToolkit) continue;
-        const schema = asRecord(record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
+        // input_parameters is the real field name (confirmed live via
+        // /tools?tool_slugs=...) — input_schema/inputSchema/parameters/schema
+        // never matched anything, so inputSchema was always null here,
+        // silently forcing canvaArguments() onto its hardcoded fallback
+        // instead of the tool's actual declared properties.
+        const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
         found.set(slug, { slug, name: stringValue(record.name ?? record.display_name) || slug, description: stringValue(record.description) || "", toolkitSlug: toolkit || normalizedToolkit, inputSchema: Object.keys(schema).length ? schema : null });
       }
       if (found.size > 0) break;
@@ -564,33 +569,6 @@ app.post("/api/production/execute", async (c) => {
       const result = await executeCanvaDesign(c.env, title);
       if (!result) return c.json({ status: "failed", code: "CANVA_EXECUTION_FAILED", error: "Aucune action Canva n'a produit de visuel exploitable." }, 502);
       return c.json({ status: "completed", provider: "composio", tool: "canva", action: result.toolSlug, artifact: result.artifact });
-    }
-
-    // TEMPORARY diagnostic branch — user reported live that Canva links
-    // 400 on canva.com (found live: the extracted "id" turned out to be
-    // "log_..." — looks like Composio's own execution-log id, not the
-    // real design id/url — extractCanvaArtifact()'s key-matching regex is
-    // too permissive). Dumps the raw Composio response so the real field
-    // name can be found, then this branch and its route get removed.
-    if (tool === "canva-debug-raw") {
-      if (!(await isComposioConfigured(c.env))) return c.json({ error: "composio not configured" }, 409);
-      const accounts = await listComposioConnectedAccounts(c.env);
-      const account = accountFor(accounts, "canva");
-      if (!account) return c.json({ error: "canva not connected" }, 409);
-      const allTools = await listComposioTools(c.env, "canva");
-      const candidates = selectCanvaCreateTools(allTools);
-      if (c.req.query("list") === "1") {
-        return c.json({
-          allSlugs: allTools.map((t) => t.slug),
-          scoredCandidates: candidates.map((t) => t.slug),
-        });
-      }
-      const candidate = candidates[0];
-      if (!candidate) return c.json({ error: "no canva create tool discovered" }, 502);
-      const args = canvaArguments(candidate, "Diagnostic brut Composio");
-      const directSchema = await composioRequest(c.env, `/tools?tool_slugs=${encodeURIComponent(candidate.slug)}`).catch((e) => ({ error: String(e) }));
-      const raw = await executeComposioTool(c.env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
-      return c.json({ toolSlug: candidate.slug, args, schema: candidate.inputSchema, directSchema, raw });
     }
 
     return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
