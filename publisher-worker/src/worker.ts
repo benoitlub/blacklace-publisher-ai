@@ -305,7 +305,12 @@ function canvaArguments(tool: ComposioTool, title: string): Record<string, unkno
     const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
     if (required.has(key) || /title|name|label|width|height|design.?type|format|preset|category|description|prompt|content|text/.test(normalized)) args[key] = schemaValue(key, definition, title);
   }
-  return Object.keys(args).length ? args : { title: `Visuel principal ${title}`, design_type: "instagram_post" };
+  // Fallback for when Composio doesn't expose an inputSchema for this tool
+  // (confirmed live: null for CANVA_CREATE_CANVA_DESIGN_WITH_OPTIONAL_ASSET) —
+  // Canva's own REST API rejected a bare string here ("One of 'design_type'
+  // or 'asset_id' must be defined", confirmed live via the raw response),
+  // because design_type is an object ({type, name}), not a string.
+  return Object.keys(args).length ? args : { title: `Visuel principal ${title}`, design_type: { type: "preset", name: "instagram_post" } };
 }
 
 function walkPayload(value: unknown, visit: (key: string, item: unknown) => void, depth = 0): void {
@@ -319,12 +324,26 @@ function walkPayload(value: unknown, visit: (key: string, item: unknown) => void
 }
 
 function extractCanvaArtifact(payload: unknown, title: string) {
+  // Composio wraps every tool call the same way regardless of the tool's
+  // own outcome: { data, successful, error, log_id }. successful:false
+  // still carries a log_id (its own execution-trace id, unrelated to
+  // Canva) — confirmed live: a failed call ("One of 'design_type' or
+  // 'asset_id' must be defined") was previously mistaken for success
+  // because nothing checked this flag, and its log_id got turned into a
+  // fake link like canva.com/design/log_XXXX/edit that 400s on Canva's
+  // side. Bail out before even looking for a url/id.
+  const envelope = asRecord(payload);
+  if (envelope.successful === false) return null;
+
   const urls: string[] = [];
   const ids: string[] = [];
   walkPayload(payload, (key, item) => {
     if (typeof item !== "string" || !item.trim()) return;
     if (/url|link|href|thumbnail|download/i.test(key) && /^https?:\/\//i.test(item)) urls.push(item.trim());
-    if (/(^|_)(design_?)?id$|designid/i.test(key) && !/^https?:\/\//i.test(item)) ids.push(item.trim());
+    // Requires "design" in the key (not optional) — a bare "..._id" (like
+    // Composio's own "log_id") used to match here too, confirmed live to
+    // be the exact cause of broken Canva links.
+    if (/(^|_)design_?id$|designid/i.test(key) && !/^https?:\/\//i.test(item)) ids.push(item.trim());
   });
   const id = ids.find(Boolean) ?? null;
   const rankedUrls = [...new Set(urls)].sort((a, b) => ((/canva\.com\/design/i.test(b) ? 100 : 0) - (/canva\.com\/design/i.test(a) ? 100 : 0)));
