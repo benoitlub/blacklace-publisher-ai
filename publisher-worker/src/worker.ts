@@ -581,8 +581,9 @@ app.post("/api/production/execute", async (c) => {
       const candidate = candidates[0];
       if (!candidate) return c.json({ error: "no canva create tool discovered" }, 502);
       const args = canvaArguments(candidate, "Diagnostic brut Composio");
+      const directSchema = await composioRequest(c.env, `/tools?tool_slugs=${encodeURIComponent(candidate.slug)}`).catch((e) => ({ error: String(e) }));
       const raw = await executeComposioTool(c.env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
-      return c.json({ toolSlug: candidate.slug, args, schema: candidate.inputSchema, raw });
+      return c.json({ toolSlug: candidate.slug, args, schema: candidate.inputSchema, directSchema, raw });
     }
 
     return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
