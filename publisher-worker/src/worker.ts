@@ -577,7 +577,14 @@ app.post("/api/production/execute", async (c) => {
       const accounts = await listComposioConnectedAccounts(c.env);
       const account = accountFor(accounts, "canva");
       if (!account) return c.json({ error: "canva not connected" }, 409);
-      const candidates = selectCanvaCreateTools(await listComposioTools(c.env, "canva"));
+      const allTools = await listComposioTools(c.env, "canva");
+      const candidates = selectCanvaCreateTools(allTools);
+      if (c.req.query("list") === "1") {
+        return c.json({
+          allSlugs: allTools.map((t) => t.slug),
+          scoredCandidates: candidates.map((t) => t.slug),
+        });
+      }
       const candidate = candidates[0];
       if (!candidate) return c.json({ error: "no canva create tool discovered" }, 502);
       const args = canvaArguments(candidate, "Diagnostic brut Composio");
