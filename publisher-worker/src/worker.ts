@@ -328,7 +328,7 @@ function walkPayload(value: unknown, visit: (key: string, item: unknown) => void
   }
 }
 
-function extractCanvaArtifact(payload: unknown, title: string) {
+export function extractCanvaArtifact(payload: unknown, title: string) {
   // Composio wraps every tool call the same way regardless of the tool's
   // own outcome: { data, successful, error, log_id }. successful:false
   // still carries a log_id (its own execution-trace id, unrelated to
