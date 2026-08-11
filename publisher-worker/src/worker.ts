@@ -547,6 +547,25 @@ app.post("/api/production/execute", async (c) => {
       return c.json({ status: "completed", provider: "composio", tool: "canva", action: result.toolSlug, artifact: result.artifact });
     }
 
+    // TEMPORARY diagnostic branch — user reported live that Canva links
+    // 400 on canva.com (found live: the extracted "id" turned out to be
+    // "log_..." — looks like Composio's own execution-log id, not the
+    // real design id/url — extractCanvaArtifact()'s key-matching regex is
+    // too permissive). Dumps the raw Composio response so the real field
+    // name can be found, then this branch and its route get removed.
+    if (tool === "canva-debug-raw") {
+      if (!(await isComposioConfigured(c.env))) return c.json({ error: "composio not configured" }, 409);
+      const accounts = await listComposioConnectedAccounts(c.env);
+      const account = accountFor(accounts, "canva");
+      if (!account) return c.json({ error: "canva not connected" }, 409);
+      const candidates = selectCanvaCreateTools(await listComposioTools(c.env, "canva"));
+      const candidate = candidates[0];
+      if (!candidate) return c.json({ error: "no canva create tool discovered" }, 502);
+      const args = canvaArguments(candidate, "Diagnostic brut Composio");
+      const raw = await executeComposioTool(c.env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
+      return c.json({ toolSlug: candidate.slug, args, raw });
+    }
+
     return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
   } catch (error) {
     return c.json({ status: "failed", code: "PRODUCTION_PROVIDER_ERROR", error: error instanceof Error ? error.message : String(error) }, 502);
