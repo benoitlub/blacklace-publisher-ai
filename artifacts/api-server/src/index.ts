@@ -1,3 +1,5 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import app from "./app";
 import { logger } from "./lib/logger";
 import { startPoulpeLife } from "./poulpe-life/runtime";
@@ -25,5 +27,36 @@ app.listen(port, (err) => {
 
   startPoulpeLife();
   schedulePublisherRegistration();
+  
+  // ========== MODE AUTONOME PUBLISHER ==========
+  startAutonomousPublisher();
+  // ========== FIN MODE AUTONOME ==========
+  
   logger.info({ port }, "Server listening");
 });
+
+// Mode autonome : Publisher scan Notion toutes les 30 minutes
+function startAutonomousPublisher() {
+  logger.info("🐙 Publisher en mode autonome");
+  
+  // Sync immédiate 10 secondes après le boot
+  setTimeout(() => {
+    syncNotionNow().catch((e) => logger.error({ err: e }, "Sync initiale échouée"));
+  }, 10000);
+  
+  // Puis toutes les 30 minutes
+  setInterval(() => {
+    syncNotionNow().catch((e) => logger.error({ err: e }, "Sync planifiée échouée"));
+  }, 1000 * 60 * 30);
+}
+
+async function syncNotionNow() {
+  logger.info("🔍 [Autonome] Scan Notion...");
+  try {
+    const { syncNotionToKnowledgePacks } = await import("./publisher/octopus-observation");
+    await syncNotionToKnowledgePacks();
+    logger.info("✅ [Autonome] Sync Notion terminée");
+  } catch (e) {
+    logger.error({ err: e }, "❌ [Autonome] Erreur sync Notion");
+  }
+}
