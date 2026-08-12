@@ -43,6 +43,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      # Gate: never publish from a tree that does not typecheck. This workflow
+      # used to build and deploy on every push to main regardless of CI, so a
+      # red Validate never stopped a release.
+      #
+      # Deliberately narrower than the CI workflow: `typecheck` only, not the
+      # test suite, which currently has pre-existing failures unrelated to
+      # publication. Tighten this once those tests are green.
+      - name: Typecheck
+        run: pnpm run typecheck
+
       - name: Build Publisher
         env:
           PORT: 5173

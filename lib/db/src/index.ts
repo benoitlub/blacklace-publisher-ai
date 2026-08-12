@@ -29,4 +29,12 @@ const databasePool = pool ?? createMissingDatabaseProxy();
 
 export const db = drizzle(databasePool, { schema });
 
+/**
+ * Re-exported so consumers can type a checked-out client without depending on
+ * `pg` directly. Deriving it from `typeof pool` does not work: `Pool.connect`
+ * is overloaded, and `ReturnType` resolves to the last overload — the
+ * callback-style one, which returns `void`.
+ */
+export type { PoolClient } from "pg";
+
 export * from "./schema";
