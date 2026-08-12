@@ -1,4 +1,4 @@
-import { pool } from "@workspace/db";
+import { pool, type PoolClient } from "@workspace/db";
 import { logger } from "../lib/logger";
 import { BLACKLACE_PARCEL, BLACKLACE_SEEDS } from "./blacklace-bootstrap";
 
@@ -80,7 +80,7 @@ export async function tickPoulpeLife() {
   const databasePool = pool;
   if (!databasePool || ticking) return;
   ticking = true;
-  let client: Awaited<ReturnType<NonNullable<typeof pool>["connect"]>> | null = null;
+  let client: PoolClient | null = null;
   try {
     await ensureBlacklaceBootstrap();
     client = await databasePool.connect();

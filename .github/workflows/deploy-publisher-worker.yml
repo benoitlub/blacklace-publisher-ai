@@ -8,7 +8,28 @@ on:
   workflow_dispatch: {}
 
 jobs:
+  # Gate: never release from a tree that does not typecheck. Until now the
+  # deploy workflows were entirely independent from CI, so a red Validate never
+  # stopped a release.
+  #
+  # Deliberately narrower than the CI workflow: it runs `typecheck` only, not
+  # the test suite. The suite currently has pre-existing failures unrelated to
+  # deployment, and gating on it would freeze every release at once. Tighten
+  # this to the full CI pipeline once those tests are green.
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run typecheck
+
   deploy:
+    needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
