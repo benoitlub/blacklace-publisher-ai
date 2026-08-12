@@ -2,6 +2,12 @@ name = "blacklace-publisher-worker"
 main = "src/worker.ts"
 compatibility_date = "2024-11-01"
 
+# Non-secret. Announced to Octopus as this adapter's base URL, so the
+# engine can call back into /api/octopus-adapter/execute.
+[vars]
+PUBLISHER_PUBLIC_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev"
+OCTOPUS_ENGINE_URL = "https://octopus-engine-app.benoitlubert.workers.dev"
+
 # Bound from the account-wide Cloudflare Secrets Store (not the classic
 # per-Worker "Variables and Secrets" tab). worker.ts resolves this via
 # resolveSecret(), which also supports a plain string in case this ever
