@@ -39,7 +39,13 @@ describe("CuratorSourceInbox", () => {
     inbox.ingest(signal("two", "Second source", "manual"), "2026-07-14T11:00:00.000Z");
     inbox.ingest(signal("three", "Third source", "manual"), "2026-07-14T12:00:00.000Z");
 
-    expect(inbox.list()).toHaveLength(2);
-    expect(inbox.list().map((item) => item.signal.id)).not.toContain("one");
+    // Reference date fixed inside the TTL window. Reading with the wall clock
+    // made this test expire on its own: records captured on 2026-07-14 with a
+    // 14-day TTL are pruned from 2026-07-28 onwards, so `list()` returned
+    // nothing and the assertion stopped exercising the size bound at all.
+    const withinTtl = new Date("2026-07-14T13:00:00.000Z");
+
+    expect(inbox.list(withinTtl)).toHaveLength(2);
+    expect(inbox.list(withinTtl).map((item) => item.signal.id)).not.toContain("one");
   });
 });

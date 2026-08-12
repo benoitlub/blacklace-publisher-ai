@@ -1,10 +1,39 @@
 import express from "express";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+interface MockComposioTool {
+  slug: string;
+  name: string;
+  description: string;
+  toolkitSlug: string;
+  inputSchema: Record<string, unknown> | null;
+  raw: unknown;
+}
+
+/**
+ * Mirrors what the live toolkit discovery returns for Canva. The route no
+ * longer hard-codes action slugs: it discovers tools and scores them, so the
+ * mock has to supply one for the Canva path to be executable at all.
+ */
+const CANVA_TOOLS: MockComposioTool[] = [
+  {
+    slug: "CANVA_POST_DESIGNS",
+    name: "Create design",
+    description: "Create a new Canva design",
+    toolkitSlug: "canva",
+    inputSchema: {
+      properties: { design_type: { type: "string" } },
+      required: ["design_type"],
+    },
+    raw: {},
+  },
+];
+
 const composio = vi.hoisted(() => ({
   configured: true,
   accounts: [] as Array<{ id: string; toolkitSlug: string; status: string; raw: unknown }>,
   executeResult: {} as unknown,
+  tools: {} as Record<string, unknown[]>,
 }));
 
 vi.mock("../../services/composio", () => ({
@@ -12,6 +41,10 @@ vi.mock("../../services/composio", () => ({
   isActiveComposioStatus: (status: string) => status === "ACTIVE",
   listComposioConnectedAccounts: async () => composio.accounts,
   executeComposioTool: async () => composio.executeResult,
+  // Added by "fix(composio): discover live toolkit actions instead of
+  // hard-coded slugs". Without it the mock is incomplete, the route throws on
+  // the missing export and every diagnostics call answers 502.
+  listComposioTools: async (toolkitSlug: string) => composio.tools[toolkitSlug] ?? [],
 }));
 
 async function makeApp() {
@@ -30,6 +63,7 @@ describe("production route", () => {
     composio.configured = true;
     composio.accounts = [];
     composio.executeResult = {};
+    composio.tools = {};
     vi.resetModules();
     delete process.env.MISTRAL_API_KEY;
     delete process.env.AI_API_KEY;
@@ -38,6 +72,7 @@ describe("production route", () => {
   it("returns diagnostics without exposing secrets", async () => {
     process.env.MISTRAL_API_KEY = "secret-key";
     composio.accounts = [{ id: "canva-1", toolkitSlug: "canva", status: "ACTIVE", raw: {} }];
+    composio.tools = { canva: CANVA_TOOLS };
     const { server, baseUrl } = await makeApp();
     try {
       const response = await fetch(`${baseUrl}/production/diagnostics`);
@@ -46,12 +81,10 @@ describe("production route", () => {
           configured: boolean;
           canvaConnected: boolean;
           elevenLabsConnected: boolean;
-          connectedAccount: string | null;
           connectedAccounts: Array<{ id: string; toolkitSlug: string; status: string }>;
-          availableActions: Array<{ slug: string; requiredFields: string[] }>;
         };
-        canva: { status: string; connected: boolean; connectedAccount: string | null };
-        elevenLabs: { status: string; connected: boolean; connectedAccount: string | null };
+        canva: { status: string; connected: boolean; discoveredToolCount: number };
+        elevenLabs: { status: string; connected: boolean; discoveredToolCount: number };
         mistral: { configured: boolean; available: boolean };
       };
       expect(response.ok).toBe(true);
@@ -60,14 +93,12 @@ describe("production route", () => {
           configured: true,
           canvaConnected: true,
           elevenLabsConnected: false,
-          connectedAccount: "canva-1",
           connectedAccounts: [{ id: "canva-1", toolkitSlug: "canva", status: "ACTIVE" }],
-          availableActions: expect.arrayContaining([
-            expect.objectContaining({ slug: "CANVA_POST_DESIGNS", requiredFields: ["design_type"] }),
-          ]),
         },
-        canva: { status: "connected", connected: true, connectedAccount: "canva-1" },
-        elevenLabs: { status: "not-connected", connected: false, connectedAccount: null },
+        // Canva is reported executable rather than merely connected: a usable
+        // creation tool was discovered on the toolkit.
+        canva: { status: "executable", connected: true, discoveredToolCount: 1 },
+        elevenLabs: { status: "not-connected", connected: false, discoveredToolCount: 0 },
         mistral: { configured: true, available: true },
       });
       expect(JSON.stringify(body)).not.toContain("secret-key");
@@ -85,15 +116,15 @@ describe("production route", () => {
     try {
       const response = await fetch(`${baseUrl}/production/diagnostics`);
       const body = await response.json() as {
-        composio: { elevenLabsConnected: boolean };
-        elevenLabs: { status: string; connected: boolean; connectedAccount: string | null };
+        composio: { elevenLabsConnected: boolean; connectedAccounts: Array<{ id: string }> };
+        elevenLabs: { status: string; connected: boolean };
       };
       expect(response.ok).toBe(true);
       expect(body.composio.elevenLabsConnected).toBe(true);
+      expect(body.composio.connectedAccounts.map((account) => account.id)).toContain("eleven-1");
       expect(body.elevenLabs).toMatchObject({
         status: "connected",
         connected: true,
-        connectedAccount: "eleven-1",
       });
     } finally {
       server.close();
@@ -157,6 +188,7 @@ describe("production route", () => {
 
   it("returns a Canva artifact only when Composio provides a real URL", async () => {
     composio.accounts = [{ id: "canva-1", toolkitSlug: "canva", status: "ACTIVE", raw: {} }];
+    composio.tools = { canva: CANVA_TOOLS };
     composio.executeResult = { data: { design: { id: "design-1", urls: { view_url: "https://canva.example/design-1" } } } };
     const { server, baseUrl } = await makeApp();
     try {
@@ -175,7 +207,9 @@ describe("production route", () => {
       expect(body.action).toBe("CANVA_POST_DESIGNS");
       expect(body.artifact).toMatchObject({
         id: "design-1",
-        kind: "instagram-visual",
+        // Renamed from "instagram-visual": the production engine declares the
+        // capability as "social-visual", beyond a single network.
+        kind: "social-visual",
         url: "https://canva.example/design-1",
         downloadUrl: null,
         rawReference: { designId: "design-1" },

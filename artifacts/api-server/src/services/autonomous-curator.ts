@@ -212,7 +212,15 @@ export class AutonomousCurator {
       };
     }
 
-    if (score.duplicationPenalty > 0.5 && score.total < this.#policy.promotionThreshold + 0.1) {
+    // Duplication is decisive, not advisory: if the signal describes a
+    // capability that is already known, the outcome is to enrich the existing
+    // knowledge, however strong the rest of the score is. The previous form
+    // also required `score.total < promotionThreshold + 0.1`, which let a
+    // well-evidenced duplicate escape and be promoted as a new tool — exactly
+    // what this branch exists to prevent. A mission-linked signal with three
+    // evidence refs scores 0.7889 against a 0.78 ceiling, so it slipped through
+    // by 0.0089. Raising that ceiling would only move the same hole.
+    if (score.duplicationPenalty > 0.5) {
       return {
         signalId: signal.id,
         decision: "knowledge-updated",
