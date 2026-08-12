@@ -2,6 +2,15 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { ensureSchema, getSql, isDatabaseConfigured, latestIteration, listDueTentacles, recordIteration, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
+import {
+  ADAPTER_EXECUTION_CONTRACT,
+  DEFAULT_OCTOPUS_URL,
+  PUBLISHER_ADAPTER_CAPABILITIES,
+  PUBLISHER_ADAPTER_ID,
+  executeAdapterMission,
+  registerWithOctopus,
+  type OctopusAdapterEnvelope,
+} from "./octopus-adapter";
 
 // Cloudflare has two different ways to give a Worker a secret value:
 // - classic per-Worker "Variables and Secrets" -> env.KEY is a plain string.
@@ -21,6 +30,9 @@ type Env = {
   NOTION_API_KEY?: string | SecretsStoreSecret;
   NOTION_DATABASE_ID?: string;
   NOTION_PAGE_ID?: string;
+  /** Public origin of this Worker, announced to Octopus as the adapter base. */
+  PUBLISHER_PUBLIC_URL?: string;
+  OCTOPUS_ENGINE_URL?: string;
 };
 
 async function resolveSecret(value: string | SecretsStoreSecret | undefined): Promise<string> {
@@ -915,9 +927,79 @@ app.post("/api/tentacles/run-cycle", async (c) => {
   }
 });
 
+// ============================================================================
+// Octopus adapter surface
+//
+// Octopus executes only its seven intrinsic capabilities itself; everything
+// else needs a registered external adapter. Publisher used to provide that from
+// the Render api-server, whose host is dead — so the deployed Octopus has had
+// no live executor at all. These routes move that surface here, where the
+// Worker is already deployed and already has a Cron Trigger.
+// ============================================================================
+
+function publisherPublicUrl(env: Env): string {
+  return (env.PUBLISHER_PUBLIC_URL || "https://blacklace-publisher-worker.benoitlubert.workers.dev").trim();
+}
+
+function octopusEngineUrl(env: Env): string {
+  return (env.OCTOPUS_ENGINE_URL || DEFAULT_OCTOPUS_URL).trim();
+}
+
+async function knowledgeEnvFor(env: Env) {
+  return {
+    NOTION_API_KEY: await resolveSecret(env.NOTION_API_KEY),
+    NOTION_DATABASE_ID: env.NOTION_DATABASE_ID,
+    NOTION_PAGE_ID: env.NOTION_PAGE_ID,
+  };
+}
+
+/** Health of *this adapter* — distinct from the octopus-witness view above. */
+app.get("/api/adapter/health", async (c) => {
+  const textProducerConfigured = Boolean(await mistralApiKey(c.env));
+  return c.json({
+    status: "ok",
+    adapterId: PUBLISHER_ADAPTER_ID,
+    contract: ADAPTER_EXECUTION_CONTRACT,
+    runtime: "cloudflare-worker",
+    capabilities: [...PUBLISHER_ADAPTER_CAPABILITIES],
+    executeUrl: `${publisherPublicUrl(c.env)}/api/octopus-adapter/execute`,
+    textProducerConfigured,
+  });
+});
+
+app.post("/api/octopus-adapter/execute", async (c) => {
+  const envelope = await c.req.json<OctopusAdapterEnvelope>().catch(() => ({}) as OctopusAdapterEnvelope);
+  const result = await executeAdapterMission(envelope, {
+    generateText: (request) => executeMistralText(c.env, request),
+    knowledgeEnv: await knowledgeEnvFor(c.env),
+  });
+  // Always 200: the outcome travels in `status`, which is what Octopus reads.
+  // A non-2xx would be recorded as an adapter transport failure and lose the
+  // readable summary.
+  return c.json(result);
+});
+
+/** Manual registration, for when waiting for the next cron tick is too slow. */
+app.post("/api/adapter/register", async (c) => {
+  const outcome = await registerWithOctopus({
+    octopusUrl: octopusEngineUrl(c.env),
+    publicBaseUrl: publisherPublicUrl(c.env),
+  });
+  return c.json(outcome, outcome.registered ? 200 : 502);
+});
+
 export default {
   fetch: app.fetch,
   async scheduled(_event: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }) {
     ctx.waitUntil(runTentacleCycle(env, { limit: 1 }).catch(() => {}));
+    // Octopus keeps adapters in an in-memory Map that does not survive isolate
+    // recycling, so the registration has to be renewed. Every cron tick is the
+    // cheapest place to do it.
+    ctx.waitUntil(
+      registerWithOctopus({
+        octopusUrl: octopusEngineUrl(env),
+        publicBaseUrl: publisherPublicUrl(env),
+      }).catch(() => {}),
+    );
   },
 };
