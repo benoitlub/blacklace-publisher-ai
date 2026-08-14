@@ -854,6 +854,28 @@ async function runTentacleCycle(env: Env, options: { limit?: number } = {}): Pro
   return { processed: results.length, results };
 }
 
+// One-time cleanup: null out the visual_url on every stored iteration that
+// still carries a pre-fix fake Canva link (canva.com/design/log_.../edit —
+// Composio's own execution-trace id, not a real design, see 859d2ac2). Only
+// touches visual_url; the generated text content is untouched. Safe to
+// call more than once (matches nothing the second time).
+app.post("/api/tentacles/purge-broken-visuals", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, purged: 0 });
+  try {
+    const sql = await getSql(c.env);
+    await ensureSchema(sql);
+    const rows = await sql`
+      UPDATE tentacle_iterations
+      SET visual_url = NULL
+      WHERE visual_url LIKE '%/design/log\_%' ESCAPE '\'
+      RETURNING id
+    `;
+    return c.json({ configured: true, purged: rows.length });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.post("/api/tentacles/sync", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ status: "waiting-authorization", code: "DATABASE_NOT_CONFIGURED", error: "DATABASE_URL n'est pas configuré dans Publisher." }, 409);
   const body = (await c.req.json().catch(() => ({}))) as { seeds?: unknown };
