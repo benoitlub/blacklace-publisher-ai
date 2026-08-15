@@ -132,9 +132,18 @@ export async function upsertTentacles(sql: NeonQueryFunction<false, false>, seed
 
 export async function listDueTentacles(sql: NeonQueryFunction<false, false>, limit = 5): Promise<TentacleRow[]> {
   const rows = await sql`
-    SELECT * FROM tentacles
-    WHERE cooldown_until IS NULL OR cooldown_until <= now()
-    ORDER BY last_run_at ASC NULLS FIRST
+    SELECT t.*
+    FROM tentacles t
+    LEFT JOIN LATERAL (
+      SELECT i.content, i.visual_url
+      FROM tentacle_iterations i
+      WHERE i.seed_id = t.seed_id
+      ORDER BY i.created_at DESC
+      LIMIT 1
+    ) latest ON true
+    WHERE (t.cooldown_until IS NULL OR t.cooldown_until <= now())
+       OR (latest.content IS NULL AND latest.visual_url IS NULL)
+    ORDER BY t.last_run_at ASC NULLS FIRST
     LIMIT ${limit}
   `;
   return rows as unknown as TentacleRow[];
