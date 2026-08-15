@@ -146,6 +146,48 @@ function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[]): string {
   ].filter(Boolean).join("\n\n");
 }
 
+interface CommittedKnowledgePackSource {
+  id: string;
+  title: string;
+  content: string;
+  url?: string | null;
+}
+
+interface CommittedKnowledgePack {
+  slug: string;
+  status: string;
+  source: string;
+  sources: CommittedKnowledgePackSource[];
+  sourceCount: number;
+}
+
+/**
+ * The autonomous observatory commits verified Notion snapshots to the repository.
+ * The deployed Worker must consume those snapshots too; otherwise a healthy
+ * GitHub harvest can be invisible to the runtime and the resolver falls back to
+ * the mock provider. The repository is public, so no secret is needed here.
+ */
+async function fetchCommittedKnowledgePack(slug: string): Promise<BlacklaceKnowledgeItem[]> {
+  const url = `https://raw.githubusercontent.com/benoitlubert/blacklace-publisher-ai/main/public/knowledge-packs/${encodeURIComponent(slug)}.json`;
+  const response = await fetch(url, { headers: { Accept: "application/json" } });
+  if (!response.ok) return [];
+
+  const pack = await response.json() as Partial<CommittedKnowledgePack>;
+  if (pack.slug !== slug || pack.status !== "verified" || !Array.isArray(pack.sources)) return [];
+
+  return pack.sources
+    .filter((source): source is CommittedKnowledgePackSource => Boolean(source?.id && source?.title && source?.content?.trim()))
+    .map((source) => ({
+      id: `knowledge-pack:${source.id}`,
+      title: source.title,
+      content: source.content.trim(),
+      universe: slug,
+      tags: [slug, "knowledge-pack", "notion"],
+      isMock: false,
+      source: source.url || "notion-autonomous-observatory",
+    } as BlacklaceKnowledgeItem));
+}
+
 /**
  * Contrairement au vrai Publisher (artifacts/api-server), cette version portée pour
  * Cloudflare Workers n'écrit rien dans une base de données persistante (pas de Postgres
@@ -158,6 +200,30 @@ export async function resolveKnowledgePackage(
 ): Promise<ResolvedKnowledgePackage> {
   const slug = canonicalSlug(candidates);
   const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics(env);
+
+  // First consume the verified snapshot produced by the autonomous observatory.
+  // This is the critical bridge between the GitHub harvest and the deployed Worker.
+  const committedItems = await fetchCommittedKnowledgePack(slug).catch(() => []);
+  if (committedItems.length > 0) {
+    const items = rankItems(committedItems, slug);
+    if (items.length > 0) {
+      return {
+        slug,
+        verified: true,
+        source: "notion",
+        items,
+        prompt: buildPrompt(slug, items),
+        diagnostics: {
+          connected: true,
+          error: null,
+          totalItems: committedItems.length,
+          matchedItems: items.length,
+          discoveredItems: committedItems.length,
+        },
+      };
+    }
+  }
+
   let pool = diagnostics.items.filter((item) => !item.isMock);
   let items = rankItems(pool, slug);
   const discovered = new Map<string, BlacklaceKnowledgeItem>();
