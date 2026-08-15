@@ -1,0 +1,21 @@
+name: Publisher provider diagnostics
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - scripts/check-publisher-providers.mjs
+      - .github/workflows/publisher-provider-diagnostics.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Publisher providers
+        run: node scripts/check-publisher-providers.mjs
