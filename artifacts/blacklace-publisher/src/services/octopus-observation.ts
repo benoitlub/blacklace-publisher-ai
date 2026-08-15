@@ -1,6 +1,6 @@
 import { attachOctopusToLatestObservation } from "@/memory/observation-memory";
 
-const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-api.onrender.com";
+const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev";
 
 function apiUrl(path: string) {
   const base = String(import.meta.env.VITE_API_BASE_URL || OFFICIAL_API_BASE_URL).trim().replace(/\/$/, "");
