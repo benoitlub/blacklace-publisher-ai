@@ -173,7 +173,7 @@ interface CommittedKnowledgePack {
 async function fetchCommittedKnowledgePack(
   slug: string,
 ): Promise<{ items: BlacklaceKnowledgeItem[]; diagnostics: NonNullable<ResolvedKnowledgePackage["diagnostics"]["committedPack"]> }> {
-  const url = `https://raw.githubusercontent.com/benoitlubert/blacklace-publisher-ai/main/public/knowledge-packs/${encodeURIComponent(slug)}.json`;
+  const url = `https://raw.githubusercontent.com/benoitlub/blacklace-publisher-ai/main/public/knowledge-packs/${encodeURIComponent(slug)}.json`;
   const base = { attempted: true, url, httpStatus: null as number | null, error: null as string | null, status: null as string | null, slug: null as string | null, sourceCount: 0 };
   try {
     const response = await fetch(url, { headers: { Accept: "application/json" } });
