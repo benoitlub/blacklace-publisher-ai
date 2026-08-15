@@ -13,6 +13,15 @@ export interface ResolvedKnowledgePackage {
     totalItems: number;
     matchedItems: number;
     discoveredItems: number;
+    committedPack?: {
+      attempted: boolean;
+      url: string;
+      httpStatus: number | null;
+      error: string | null;
+      status?: string | null;
+      slug?: string | null;
+      sourceCount?: number;
+    };
   };
 }
 
@@ -161,49 +170,54 @@ interface CommittedKnowledgePack {
   sourceCount: number;
 }
 
-/**
- * The autonomous observatory commits verified Notion snapshots to the repository.
- * The deployed Worker must consume those snapshots too; otherwise a healthy
- * GitHub harvest can be invisible to the runtime and the resolver falls back to
- * the mock provider. The repository is public, so no secret is needed here.
- */
-async function fetchCommittedKnowledgePack(slug: string): Promise<BlacklaceKnowledgeItem[]> {
+async function fetchCommittedKnowledgePack(
+  slug: string,
+): Promise<{ items: BlacklaceKnowledgeItem[]; diagnostics: NonNullable<ResolvedKnowledgePackage["diagnostics"]["committedPack"]> }> {
   const url = `https://raw.githubusercontent.com/benoitlubert/blacklace-publisher-ai/main/public/knowledge-packs/${encodeURIComponent(slug)}.json`;
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!response.ok) return [];
-
-  const pack = await response.json() as Partial<CommittedKnowledgePack>;
-  if (pack.slug !== slug || pack.status !== "verified" || !Array.isArray(pack.sources)) return [];
-
-  return pack.sources
-    .filter((source): source is CommittedKnowledgePackSource => Boolean(source?.id && source?.title && source?.content?.trim()))
-    .map((source) => ({
-      id: `knowledge-pack:${source.id}`,
-      title: source.title,
-      content: source.content.trim(),
-      universe: slug,
-      tags: [slug, "knowledge-pack", "notion"],
-      isMock: false,
-      source: source.url || "notion-autonomous-observatory",
-    } as BlacklaceKnowledgeItem));
+  const base = { attempted: true, url, httpStatus: null as number | null, error: null as string | null, status: null as string | null, slug: null as string | null, sourceCount: 0 };
+  try {
+    const response = await fetch(url, { headers: { Accept: "application/json" } });
+    base.httpStatus = response.status;
+    if (!response.ok) {
+      base.error = `Knowledge pack fetch failed: HTTP ${response.status}`;
+      return { items: [], diagnostics: base };
+    }
+    const pack = await response.json() as Partial<CommittedKnowledgePack>;
+    base.status = typeof pack.status === "string" ? pack.status : null;
+    base.slug = typeof pack.slug === "string" ? pack.slug : null;
+    base.sourceCount = typeof pack.sourceCount === "number" ? pack.sourceCount : Array.isArray(pack.sources) ? pack.sources.length : 0;
+    if (pack.slug !== slug || pack.status !== "verified" || !Array.isArray(pack.sources)) {
+      base.error = `Invalid knowledge pack: slug=${String(pack.slug)} status=${String(pack.status)} sources=${Array.isArray(pack.sources)}`;
+      return { items: [], diagnostics: base };
+    }
+    return {
+      diagnostics: base,
+      items: pack.sources
+        .filter((source): source is CommittedKnowledgePackSource => Boolean(source?.id && source?.title && source?.content?.trim()))
+        .map((source) => ({
+          id: `knowledge-pack:${source.id}`,
+          title: source.title,
+          content: source.content.trim(),
+          universe: slug,
+          tags: [slug, "knowledge-pack", "notion"],
+          isMock: false,
+          source: source.url || "notion-autonomous-observatory",
+        } as BlacklaceKnowledgeItem)),
+    };
+  } catch (error) {
+    base.error = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    return { items: [], diagnostics: base };
+  }
 }
 
-/**
- * Contrairement au vrai Publisher (artifacts/api-server), cette version portée pour
- * Cloudflare Workers n'écrit rien dans une base de données persistante (pas de Postgres
- * disponible ici). L'apprentissage durable (digestion des sources Notion) reste exclusif
- * au cycle GitHub Actions. Cette version fait uniquement la lecture + génération en temps réel.
- */
 export async function resolveKnowledgePackage(
   env: KnowledgeEnv,
   candidates: unknown[],
 ): Promise<ResolvedKnowledgePackage> {
   const slug = canonicalSlug(candidates);
   const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics(env);
-
-  // First consume the verified snapshot produced by the autonomous observatory.
-  // This is the critical bridge between the GitHub harvest and the deployed Worker.
-  const committedItems = await fetchCommittedKnowledgePack(slug).catch(() => []);
+  const committed = await fetchCommittedKnowledgePack(slug);
+  const committedItems = committed.items;
   if (committedItems.length > 0) {
     const items = rankItems(committedItems, slug);
     if (items.length > 0) {
@@ -213,13 +227,7 @@ export async function resolveKnowledgePackage(
         source: "notion",
         items,
         prompt: buildPrompt(slug, items),
-        diagnostics: {
-          connected: true,
-          error: null,
-          totalItems: committedItems.length,
-          matchedItems: items.length,
-          discoveredItems: committedItems.length,
-        },
+        diagnostics: { connected: true, error: null, totalItems: committedItems.length, matchedItems: items.length, discoveredItems: committedItems.length, committedPack: committed.diagnostics },
       };
     }
   }
@@ -231,7 +239,6 @@ export async function resolveKnowledgePackage(
 
   if (items.length < 2) {
     const targetedQueries = [...new Set([slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])])];
-
     for (const query of targetedQueries) {
       const results = await searchNotionWorkspaceKnowledge(apiKey, query, slug);
       for (const item of results) discovered.set(item.id, item);
@@ -241,7 +248,6 @@ export async function resolveKnowledgePackage(
       items = rankItems(pool, slug);
       if (items.length > 0) break;
     }
-
     if (items.length === 0) {
       const results = await searchNotionWorkspaceKnowledge(apiKey, "", slug);
       for (const item of results) discovered.set(item.id, item);
@@ -255,7 +261,7 @@ export async function resolveKnowledgePackage(
   const verified = items.length > 0 && items.every(isUsableKnowledgeItem);
   const source: "notion" | "mock" = verified ? "notion" : diagnostics.source;
   const connected = diagnostics.connected || discovered.size > 0;
-  const error = verified ? null : diagnostics.error;
+  const error = verified ? null : diagnostics.error || committed.diagnostics.error;
 
   return {
     slug,
@@ -263,12 +269,6 @@ export async function resolveKnowledgePackage(
     source,
     items,
     prompt: verified ? buildPrompt(slug, items) : "",
-    diagnostics: {
-      connected,
-      error,
-      totalItems: pool.length,
-      matchedItems: items.length,
-      discoveredItems: discovered.size,
-    },
+    diagnostics: { connected, error, totalItems: pool.length, matchedItems: items.length, discoveredItems: discovered.size, committedPack: committed.diagnostics },
   };
 }
