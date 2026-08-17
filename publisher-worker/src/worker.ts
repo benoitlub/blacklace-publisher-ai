@@ -11,6 +11,7 @@ import {
   registerWithOctopus,
   type OctopusAdapterEnvelope,
 } from "./octopus-adapter";
+import { observeWithOctopus, type PublisherObservationInput } from "./octopus-observation";
 
 // Cloudflare has two different ways to give a Worker a secret value:
 // - classic per-Worker "Variables and Secrets" -> env.KEY is a plain string.
@@ -1008,6 +1009,25 @@ app.post("/api/adapter/register", async (c) => {
     publicBaseUrl: publisherPublicUrl(c.env),
   });
   return c.json(outcome, outcome.registered ? 200 : 502);
+});
+
+// Sends a neutral observation (no business meaning) into Octopus's
+// observation.receive capability, and returns the universal knowledge it
+// already holds about related observations, translated into a
+// Publisher-specific signal. Ported from the dead Render api-server (see
+// octopus-observation.ts's header comment) — this is what
+// artifacts/blacklace-publisher's Radar/Observatoire calls.
+app.post("/api/octopus-adapter/observe", async (c) => {
+  const input = await c.req.json<PublisherObservationInput>().catch(() => null);
+  if (!input || !input.kind || !input.title) {
+    return c.json({ status: "rejected", code: "INVALID_OBSERVATION", summary: "Publisher requires a neutral observation with kind and title." }, 400);
+  }
+  try {
+    const result = await observeWithOctopus(octopusEngineUrl(c.env), input);
+    return c.json(result);
+  } catch (error) {
+    return c.json({ status: "failed", code: "OCTOPUS_UNAVAILABLE", summary: error instanceof Error ? error.message : "Octopus could not process the observation." }, 502);
+  }
 });
 
 export default {
