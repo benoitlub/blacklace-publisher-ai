@@ -13,8 +13,71 @@ const CAPTURE_TYPES = new Set<string>(["radar-launched", "candidate-detected", "
 const PREPARED_TYPES = new Set<string>(["knowledge-pack-created", "harvest-draft-created", "publication-draft-generated", "publication-draft-updated"]);
 const TRANSMITTED_TYPES = new Set<string>(["mission-sent", "provider-call-started", "recommendation-applied", "test-in-progress", "fallback-used", "blockage-detected"]);
 
-const GITHUB_FEED_URL = "https://raw.githubusercontent.com/benoitlub/octopus-engine/main/garden-feed/latest.json";
-const GITHUB_ACTIONS_URL = "https://github.com/benoitlub/octopus-engine/actions/workflows/gerard-autonomous.yml";
+// Le tableau de bord lisait octopus-engine/garden-feed/latest.json : un stub
+// figé à {"harvests":[]}, que le workflow censé le remplir
+// (octopus-engine/.github/workflows/gerard-autonomous.yml) n'a jamais rempli
+// puisqu'il n'existe pas — 404. D'où des zéros partout alors que Gérard tourne.
+//
+// Le Gérard qui s'exécute réellement vit dans poulpe-fiction : son workflow
+// gerard-runtime.yml committe garden/gerard-state.json toutes les trois heures.
+const GITHUB_FEED_URL = "https://raw.githubusercontent.com/benoitlub/poulpe-fiction/main/garden/gerard-state.json";
+const GITHUB_ACTIONS_URL = "https://github.com/benoitlub/poulpe-fiction/actions/workflows/gerard-runtime.yml";
+
+const MODE_LABELS: Record<string, string> = {
+  dream: "Gérard rêve",
+  cultivate: "Gérard récolte une parcelle",
+  play: "Gérard joue",
+  rest: "Gérard se repose",
+};
+
+/** Statuts du cycle -> statuts du tableau de bord, sans les embellir. */
+function harvestStatus(result: unknown): string {
+  switch (String(result)) {
+    case "ok":
+      return "completed";
+    case "error":
+    case "failed":
+      return "failed";
+    // "empty" (cycle exécuté, rien produit) et "skipped" (mode repos) ne sont
+    // ni des réussites ni des échecs : ils restent tels quels pour ne pas
+    // gonfler le compteur de récoltes.
+    default:
+      return String(result || "unknown");
+  }
+}
+
+/**
+ * Accepte les deux formes : le flux garden-feed d'origine s'il finit par être
+ * alimenté, et l'état réel de Gérard tel que le cycle l'écrit aujourd'hui.
+ */
+function toGardenFeed(payload: unknown): GardenFeed {
+  const record = (payload ?? {}) as Record<string, unknown>;
+  if (Array.isArray(record.harvests)) return record as GardenFeed;
+
+  const history = Array.isArray(record.history) ? record.history : [];
+  const harvests: Harvest[] = history
+    .map((raw) => {
+      const entry = (raw ?? {}) as Record<string, unknown>;
+      const mode = String(entry.mode ?? "");
+      return {
+        operationId: entry.operationId ? String(entry.operationId) : undefined,
+        parcelId: "poulpe-fiction",
+        title: MODE_LABELS[mode] ?? `Gérard · ${mode || "cycle"}`,
+        status: harvestStatus(entry.result),
+        completedAt: entry.at ? String(entry.at) : null,
+        source: "poulpe-fiction/gerard-runtime",
+      };
+    })
+    // L'historique est écrit du plus ancien au plus récent ; l'affichage
+    // attend l'inverse (`harvests[0]` est présenté comme la dernière récolte).
+    .reverse();
+
+  return {
+    generatedAt: record.lastRunAt ? String(record.lastRunAt) : undefined,
+    runUrl: GITHUB_ACTIONS_URL,
+    harvests,
+  };
+}
 
 type Harvest = {
   operationId?: string;
@@ -70,8 +133,7 @@ function GerardGardenTile() {
     try {
       const response = await fetch(`${GITHUB_FEED_URL}?t=${Date.now()}`, { cache: "no-store" });
       if (!response.ok) throw new Error(`GitHub feed ${response.status}`);
-      const payload = await response.json() as GardenFeed;
-      setFeed(payload);
+      setFeed(toGardenFeed(await response.json()));
       setError(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Flux GitHub indisponible");
