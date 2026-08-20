@@ -56,6 +56,10 @@ function toGardenFeed(payload: unknown): GardenFeed {
 
   const history = Array.isArray(record.history) ? record.history : [];
   const harvests: Harvest[] = history
+    // Seul `cultivate` récolte. `dream`, `play` et `rest` sont des cycles
+    // d'exploration ou de repos : les compter gonflait la liste avec le journal
+    // d'exécution au lieu des livrables.
+    .filter((raw) => String(((raw ?? {}) as Record<string, unknown>).mode ?? "") === "cultivate")
     .map((raw) => {
       const entry = (raw ?? {}) as Record<string, unknown>;
       const mode = String(entry.mode ?? "");
@@ -96,6 +100,143 @@ type GardenFeed = {
   runUrl?: string;
   harvests?: Harvest[];
 };
+
+const WORKER_BASE_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev";
+
+function workerBase(): string {
+  return String(import.meta.env.VITE_API_BASE_URL || WORKER_BASE_URL).trim().replace(/\/$/, "");
+}
+
+type Iteration = {
+  id?: string;
+  seed_id?: string;
+  title?: string;
+  iteration_number?: number;
+  mode?: string;
+  content?: string | null;
+  visual_url?: string | null;
+  created_at?: string;
+};
+
+/**
+ * Une parcelle et son état courant.
+ *
+ * Le moteur enregistre une ligne par passage : après 45 itérations, une même
+ * parcelle occupe 45 lignes. Affiché tel quel, on voit le journal d'exécution
+ * au lieu du livrable. On ne garde donc que la dernière version de chacune.
+ */
+type Parcel = {
+  seedId: string;
+  title: string;
+  version: number;
+  visualUrl: string | null;
+  excerpt: string;
+  updatedAt: string | null;
+};
+
+function toParcels(iterations: readonly Iteration[]): Parcel[] {
+  const bySeed = new Map<string, Parcel>();
+
+  for (const row of iterations) {
+    const seedId = String(row.seed_id ?? "");
+    if (!seedId) continue;
+
+    const version = Number(row.iteration_number ?? 0);
+    const current = bySeed.get(seedId);
+    if (current && current.version >= version) continue;
+
+    const content = typeof row.content === "string" ? row.content.trim() : "";
+    bySeed.set(seedId, {
+      seedId,
+      title: String(row.title ?? seedId),
+      version,
+      visualUrl: typeof row.visual_url === "string" && row.visual_url.trim() ? row.visual_url.trim() : null,
+      excerpt: content ? content.slice(0, 220) : "",
+      updatedAt: row.created_at ? String(row.created_at) : null,
+    });
+  }
+
+  return [...bySeed.values()].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+}
+
+function ParcelsTile() {
+  const [parcels, setParcels] = useState<Parcel[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${workerBase()}/api/tentacles/iterations?limit=200`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Worker ${response.status}`);
+      const payload = await response.json() as { iterations?: Iteration[] };
+      setParcels(toParcels(payload.iterations ?? []));
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Worker indisponible");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void refresh(); }, []);
+
+  const withVisual = parcels?.filter((parcel) => parcel.visualUrl).length ?? 0;
+
+  return (
+    <Card className="border-border bg-card shadow-sm">
+      <CardHeader className="gap-3 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <CardTitle className="flex items-center gap-2 font-serif text-xl">
+            <Sprout className="h-5 w-5 text-primary" />
+            Parcelles en cours
+          </CardTitle>
+          <p className="mt-1 text-sm text-muted-foreground">
+            La dernière version de chaque parcelle, pas l’historique des passages.
+            {parcels ? ` ${parcels.length} parcelles · ${withVisual} avec visuel.` : ""}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => void refresh()} disabled={loading}>
+          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+          Actualiser
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-5">
+        {error ? (
+          <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm text-destructive">
+            Le Worker ne répond pas : {error}
+          </div>
+        ) : null}
+
+        {!error && parcels && parcels.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Aucune itération enregistrée pour le moment.</p>
+        ) : null}
+
+        {parcels?.map((parcel) => (
+          <div key={parcel.seedId} className="rounded-lg border border-border p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-medium text-foreground">{parcel.title}</p>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="font-mono text-[10px]">v{parcel.version}</Badge>
+                {parcel.visualUrl ? (
+                  <a href={parcel.visualUrl} target="_blank" rel="noreferrer">
+                    <Badge className="gap-1 text-[10px]"><ExternalLink className="h-3 w-3" />Visuel</Badge>
+                  </a>
+                ) : (
+                  <Badge variant="outline" className="text-[10px] text-muted-foreground">Texte seul</Badge>
+                )}
+              </div>
+            </div>
+            {parcel.excerpt ? <p className="mt-2 text-sm text-muted-foreground">{parcel.excerpt}…</p> : null}
+            {parcel.updatedAt ? (
+              <p className="mt-2 text-xs text-muted-foreground">{new Date(parcel.updatedAt).toLocaleString("fr-FR")}</p>
+            ) : null}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
 
 function latestOf(entries: readonly ActivityEntry[], accepted: ReadonlySet<string>): ActivityEntry | undefined {
   return entries.find((entry) => accepted.has(String(entry.type)));
@@ -264,6 +405,8 @@ export default function Dashboard() {
       </section>
 
       <GerardGardenTile />
+
+      <ParcelsTile />
 
       <section className="space-y-3">
         <div className="flex items-end justify-between gap-3 border-b border-border pb-2">
