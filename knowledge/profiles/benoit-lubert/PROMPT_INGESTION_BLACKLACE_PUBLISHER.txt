@@ -1,0 +1,26 @@
+INGESTION BLACKLACE PUBLISHER — PROFIL PROFESSIONNEL DE BENOÎT LUBERT
+
+Lis les fichiers `benoit_lubert_professional_knowledge.json` et `README_KNOWLEDGE_PACKAGE.md`.
+
+Objectif :
+Créer ou mettre à jour un knowledge package canonique nommé `benoit-lubert-professional-profile`, utilisable par Blacklace Publisher pour préparer des récoltes, campagnes, offres, bios, dossiers et pages de vente.
+
+Contraintes :
+- Conserver la provenance de chaque information.
+- Marquer comme `linkedin_confirmed` uniquement l'existence et l'URL du profil.
+- Marquer comme `user_confirmed` les informations professionnelles et projets fournis directement par Benoît.
+- Ne jamais inventer d'employeur, de date, de diplôme, de certification, de recommandation, de métrique ou de client.
+- Préserver les accents et les noms exacts des œuvres.
+- Ne pas réduire Benoît à un « créateur de contenu IA ».
+- Mettre en avant son profil transversal : formation, création, narration, technique et expérimentation IA.
+- Respecter le ton éditorial indiqué dans le paquet.
+- Rendre les informations interrogeables par catégories : identité, expériences, compétences, œuvres, projets, offres, univers, ton, contraintes et provenance.
+
+Livrables attendus dans le dépôt :
+1. un fichier canonique de données ;
+2. un schéma ou type validant ces données ;
+3. une fonction de chargement ;
+4. une vue de contrôle lisible dans Publisher ;
+5. un test garantissant qu'aucune donnée non sourcée n'est présentée comme un fait LinkedIn.
+
+Ne modifie pas Octopus Engine. Ce paquet appartient à la connaissance éditoriale de Blacklace Publisher.
