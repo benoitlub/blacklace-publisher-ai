@@ -919,6 +919,54 @@ app.get("/api/tentacles/state", async (c) => {
 // loop's output into the Garden (see neon-harvest-sync.js). Without this,
 // runTentacleCycle() keeps producing real work server-side that no one
 // ever sees, which is exactly what it was doing until this route existed.
+/**
+ * Sonde Canva, en lecture seule.
+ *
+ * Le cycle appelle executeCanvaDesign derrière un `.catch(() => null)` : depuis
+ * des dizaines d'itérations, Canva échoue et l'erreur est jetée, si bien que
+ * visual_url reste null sans que personne sache pourquoi. Cette route refait
+ * exactement la même tentative et **renvoie l'erreur telle quelle**.
+ *
+ * Volontairement en GET, et sans écriture : aucune itération n'est enregistrée,
+ * aucun cooldown touché. Elle doit être ouvrable depuis un simple navigateur —
+ * y compris un téléphone, où lancer un POST n'est pas praticable.
+ */
+app.get("/api/tentacles/diagnose-canva", async (c) => {
+  const title = c.req.query("title") || "Diagnostic Canva";
+
+  if (!(await isComposioConfigured(c.env))) {
+    return c.json({ configured: false, canvaError: "COMPOSIO_API_KEY n'est pas configuré." });
+  }
+
+  const accounts = await listComposioConnectedAccounts(c.env).catch(() => []);
+  const account = accountFor(accounts, "canva");
+  const tools = await listComposioTools(c.env, "canva").catch(() => []);
+  const candidates = selectCanvaCreateTools(tools);
+
+  const base = {
+    configured: true,
+    composioUserId: composioUserId(c.env),
+    canvaAccount: account ? { id: account.id, status: account.status } : null,
+    discoveredToolCount: tools.length,
+    // L'ordre compte : c'est celui dans lequel le cycle les essaie.
+    creationCandidates: candidates.slice(0, 5).map((tool) => tool.slug),
+  };
+
+  if (!account) {
+    return c.json({ ...base, canvaStatus: "no-account", canvaError: "Aucun compte Canva actif pour cet identifiant utilisateur." });
+  }
+
+  try {
+    const result = await executeCanvaDesign(c.env, title);
+    return result
+      ? c.json({ ...base, canvaStatus: "success", toolSlug: result.toolSlug, artifactUrl: result.artifact.url })
+      : c.json({ ...base, canvaStatus: "no-candidate", canvaError: "Aucun outil de création exploitable parmi les outils découverts." });
+  } catch (error) {
+    // Le message brut de Composio : précisément ce que le cycle avalait.
+    return c.json({ ...base, canvaStatus: "error", canvaError: error instanceof Error ? error.message : String(error) });
+  }
+});
+
 app.get("/api/tentacles/iterations", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, iterations: [] });
   try {
