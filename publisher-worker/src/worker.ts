@@ -133,6 +133,27 @@ function composioUserId(env: Env): string {
   return env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
 }
 
+/**
+ * Une erreur HTTP de Composio, avec son statut conservé.
+ *
+ * Le message seul ne suffisait pas : les appelants ne pouvaient pas distinguer
+ * « ce chemin n'est pas la bonne forme d'API » de « tu appelles trop vite ».
+ */
+export class ComposioHttpError extends Error {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
+    super(message);
+    this.name = "ComposioHttpError";
+    this.status = status;
+  }
+}
+
+/** Composio demande de ralentir — l'indisponibilité est temporaire. */
+export function isComposioRateLimit(error: unknown): boolean {
+  return error instanceof ComposioHttpError && error.status === 429;
+}
+
 async function composioRequest(env: Env, path: string, init: RequestInit = {}): Promise<unknown> {
   const apiKey = await resolveSecret(env.COMPOSIO_API_KEY);
   if (!apiKey) throw new Error("COMPOSIO_API_KEY is not configured");
@@ -145,8 +166,15 @@ async function composioRequest(env: Env, path: string, init: RequestInit = {}): 
   try { payload = text ? JSON.parse(text) : null; } catch (_) { payload = { message: text }; }
   if (!response.ok) {
     const record = asRecord(payload);
-    const message = typeof record.message === "string" ? record.message : text || `Composio ${response.status}`;
-    throw new Error(`Composio ${response.status}: ${message}`);
+    // Composio v3 imbrique parfois le détail sous `error` — c'est la forme du
+    // 429 observé le 20/08, dont le message se perdait sinon.
+    const nested = asRecord(record.error);
+    const message = typeof record.message === "string"
+      ? record.message
+      : typeof nested.message === "string"
+        ? nested.message
+        : text || `Composio ${response.status}`;
+    throw new ComposioHttpError(response.status, `Composio ${response.status}: ${message}`);
   }
   return payload;
 }
@@ -207,7 +235,15 @@ async function listComposioConnectedAccounts(env: Env): Promise<ComposioConnecte
         if (id && toolkitSlug) found.set(id, { id, toolkitSlug: normalize(toolkitSlug), status: String(record.status ?? record.state ?? "UNKNOWN") });
       }
       if (found.size > 0) break;
-    } catch (error) { lastError = error; }
+    } catch (error) {
+      lastError = error;
+      // Ces trois chemins sont des variantes de forme d'API : les essayer l'un
+      // après l'autre n'a de sens que si l'erreur dit « mauvaise forme ». Un 429
+      // est une indisponibilité temporaire — il se reproduira à l'identique sur
+      // la variante suivante, et chaque essai supplémentaire ne fait qu'ajouter
+      // un appel à celui de trop.
+      if (isComposioRateLimit(error)) break;
+    }
   }
   if (found.size === 0 && lastError) throw lastError;
   return [...found.values()];
