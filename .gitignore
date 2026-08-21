@@ -1,0 +1,28 @@
+# Ce dépôt n'avait aucun .gitignore. Rien de sensible n'y était suivi — par
+# chance, pas par construction : un `git add -A` suffisait à y verser
+# node_modules, et un `.dev.vars` oublié y aurait versé des clés d'API.
+# Ajouté au moment d'introduire les secrets OAuth de Canva.
+
+# Dépendances
+node_modules/
+.pnpm-store/
+
+# Sorties de build
+dist/
+build/
+.wrangler/
+*.tsbuildinfo
+.tsbuildinfo
+
+# Secrets et configuration locale
+# .dev.vars est le fichier de secrets locaux de wrangler : il porte en clair
+# ce que le Secrets Store porte en production.
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+
+# Divers
+.DS_Store
+*.log

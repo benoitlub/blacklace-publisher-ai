@@ -167,13 +167,21 @@ export function cooldownMs(iterationCount: number): number {
   return Math.min(BASE_COOLDOWN_MS * Math.pow(2, doublings), MAX_COOLDOWN_MS);
 }
 
+/**
+ * `id` est accepté en entrée — et non plus seulement fabriqué ici — parce que
+ * l'URL du visuel contient cet identifiant. L'appelant doit donc le connaître
+ * *avant* l'insertion, sinon il faudrait réécrire la ligne juste après l'avoir
+ * créée. Omis, le schéma d'origine s'applique.
+ *
+ * Le numéro d'itération et l'id sont rendus : le visuel les affiche.
+ */
 export async function recordIteration(sql: NeonQueryFunction<false, false>, input: {
-  seedId: string; mode: TentacleMode; content: string | null; visualUrl: string | null; toolCombination: string | null;
-}): Promise<void> {
+  seedId: string; mode: TentacleMode; content: string | null; visualUrl: string | null; toolCombination: string | null; id?: string;
+}): Promise<{ id: string; iterationNumber: number }> {
   const [current] = await sql`SELECT iteration_count, tools_tried FROM tentacles WHERE seed_id = ${input.seedId}`;
   const row = current as unknown as { iteration_count: number; tools_tried: string[] } | undefined;
   const nextIteration = (row?.iteration_count ?? 0) + 1;
-  const id = `iter_${input.seedId}_${Date.now()}`;
+  const id = input.id ?? `iter_${input.seedId}_${Date.now()}`;
   await sql`
     INSERT INTO tentacle_iterations (id, seed_id, iteration_number, mode, content, visual_url, tool_combination)
     VALUES (${id}, ${input.seedId}, ${nextIteration}, ${input.mode}, ${input.content}, ${input.visualUrl}, ${input.toolCombination})
@@ -191,6 +199,22 @@ export async function recordIteration(sql: NeonQueryFunction<false, false>, inpu
       updated_at = now()
     WHERE seed_id = ${input.seedId}
   `;
+  return { id, iterationNumber: nextIteration };
+}
+
+/** Une itération par son id — ce que la route de visuel lit pour la dessiner. */
+export async function iterationById(
+  sql: NeonQueryFunction<false, false>,
+  id: string,
+): Promise<(IterationRow & { title: string | null; parcel_id: string | null }) | null> {
+  const rows = (await sql`
+    SELECT i.id, i.seed_id, i.iteration_number, i.mode, i.content, i.visual_url, i.tool_combination, i.created_at,
+           t.title, t.parcel_id
+    FROM tentacle_iterations i
+    LEFT JOIN tentacles t ON t.seed_id = i.seed_id
+    WHERE i.id = ${id}
+  `) as unknown as Array<IterationRow & { title: string | null; parcel_id: string | null }>;
+  return rows[0] ?? null;
 }
 
 export async function setTentacleMode(sql: NeonQueryFunction<false, false>, seedId: string, mode: TentacleMode): Promise<void> {
