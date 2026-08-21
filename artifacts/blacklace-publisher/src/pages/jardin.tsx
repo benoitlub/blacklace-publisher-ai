@@ -130,11 +130,9 @@ interface UsageResponse {
   byParcel?: Array<UsageTotals & { parcelId: string; title: string }>;
   firstMeasuredAt?: string | null;
   pricing?: {
-    configured: boolean;
+    source: string;
     currency: string;
-    inputPerMTok: number | null;
-    outputPerMTok: number | null;
-    perImage: number | null;
+    imagePriced: boolean;
     note: string;
   };
   cost?: { text: number; images: number; total: number } | null;
@@ -337,13 +335,10 @@ function UsageSection() {
               </div>
             </div>
 
-            {data.pricing && !data.pricing.configured && (
-              <p className="text-sm leading-relaxed text-muted-foreground">{data.pricing.note}</p>
-            )}
-            {data.pricing?.configured && (
+            {data.pricing && (
               <p className="text-sm leading-relaxed text-muted-foreground">
+                {data.cost ? `Texte ${formatEuro(data.cost.text)}, images ${formatEuro(data.cost.images)}. ` : ""}
                 {data.pricing.note}
-                {data.cost ? ` Texte ${formatEuro(data.cost.text)}, images ${formatEuro(data.cost.images)}.` : ""}
               </p>
             )}
 

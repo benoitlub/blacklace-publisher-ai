@@ -1088,47 +1088,84 @@ app.get("/api/knowledge", async (c) => {
  * place de ce relevé n'ont aucun chiffre, et prendre ce trou pour de la
  * sobriété donnerait une facture faussement rassurante.
  */
+/**
+ * Grille tarifaire Mistral, en euros par million de tokens.
+ *
+ * Reprise telle quelle de `estimateCostEur` dans octopus-engine-app
+ * (src/resources/mistral-resource.ts) : c'est déjà la convention du système,
+ * et deux services qui chiffrent différemment le même appel donneraient deux
+ * factures incompatibles.
+ *
+ * Codée ici, elle reste une estimation : les grilles changent. Les variables
+ * PRICE_* du Worker la remplacent quand elles sont renseignées, et la réponse
+ * dit laquelle des deux a servi.
+ */
+function mistralPricePerMTok(model: string): { input: number; output: number } {
+  const large = model.toLowerCase().includes("large");
+  return large ? { input: 1.8, output: 5.4 } : { input: 0.4, output: 1.2 };
+}
+
+/**
+ * Consommation réelle et coût estimé.
+ *
+ * Les tokens sont **mesurés**, pas déduits : ils viennent du relevé que Mistral
+ * joint à chaque réponse. Le coût est un calcul local, fait modèle par modèle —
+ * un `large` coûte plus de quatre fois un `small`, donc un tarif moyen unique
+ * fausserait le total dès que les deux se côtoient.
+ *
+ * `measured` est distingué de `iterations` : les cycles antérieurs à la mise en
+ * place de ce relevé n'ont aucun chiffre, et prendre ce trou pour de la
+ * sobriété donnerait une facture faussement rassurante.
+ */
 app.get("/api/usage", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, error: "DATABASE_URL n'est pas configuré." });
 
   const days = Math.min(Math.max(Number(c.req.query("days")) || 30, 1), 365);
-  const price = (value: string | undefined): number | null => {
+  const override = (value: string | undefined): number | null => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   };
-  const inputPrice = price(c.env.PRICE_INPUT_PER_MTOK);
-  const outputPrice = price(c.env.PRICE_OUTPUT_PER_MTOK);
-  const imagePrice = price(c.env.PRICE_PER_IMAGE);
-  const pricingConfigured = inputPrice !== null || outputPrice !== null || imagePrice !== null;
+  const inputOverride = override(c.env.PRICE_INPUT_PER_MTOK);
+  const outputOverride = override(c.env.PRICE_OUTPUT_PER_MTOK);
+  const imagePrice = override(c.env.PRICE_PER_IMAGE);
+  const overridden = inputOverride !== null || outputOverride !== null;
 
   try {
     const sql = await getSql(c.env);
     await ensureSchema(sql);
     const summary = await usageSummary(sql, days);
 
-    const cost = pricingConfigured
-      ? {
-          text: ((summary.totals.promptTokens / 1_000_000) * (inputPrice ?? 0))
-              + ((summary.totals.completionTokens / 1_000_000) * (outputPrice ?? 0)),
-          images: summary.totals.images * (imagePrice ?? 0),
-        }
-      : null;
+    // Chaque modèle est chiffré à son propre tarif, puis additionné.
+    let textCost = 0;
+    for (const row of summary.byModel) {
+      const table = mistralPricePerMTok(row.model);
+      const input = inputOverride ?? table.input;
+      const output = outputOverride ?? table.output;
+      textCost += (row.promptTokens / 1_000_000) * input + (row.completionTokens / 1_000_000) * output;
+    }
+    // Le coût d'une image n'est pas repris d'Octopus : il n'y en génère pas.
+    // Sans tarif renseigné, il vaut zéro et la réponse le signale plutôt que
+    // de le noyer dans le total.
+    const imagesCost = imagePrice !== null ? summary.totals.images * imagePrice : 0;
 
     return c.json({
       configured: true,
       days,
       ...summary,
       pricing: {
-        configured: pricingConfigured,
+        source: overridden ? "variables du Worker" : "octopus-engine-app",
         currency: "EUR",
-        inputPerMTok: inputPrice,
-        outputPerMTok: outputPrice,
-        perImage: imagePrice,
-        note: pricingConfigured
-          ? "Coût calculé localement à partir des tarifs configurés — à recouper avec la facture."
-          : "Renseigne PRICE_INPUT_PER_MTOK, PRICE_OUTPUT_PER_MTOK et PRICE_PER_IMAGE dans les variables du Worker pour voir un coût.",
+        imagePriced: imagePrice !== null,
+        note: [
+          overridden
+            ? "Tarifs texte repris des variables PRICE_* du Worker."
+            : "Tarifs texte repris d'octopus-engine-app (1,80/5,40 € par million pour un modèle large, 0,40/1,20 sinon) — à recouper avec la facture.",
+          imagePrice === null && summary.totals.images > 0
+            ? `${summary.totals.images} images ne sont pas chiffrées : renseigne PRICE_PER_IMAGE.`
+            : null,
+        ].filter(Boolean).join(" "),
       },
-      cost: cost ? { ...cost, total: cost.text + cost.images } : null,
+      cost: { text: textCost, images: imagesCost, total: textCost + imagesCost },
     });
   } catch (error) {
     return c.json({ configured: true, error: error instanceof Error ? error.message : String(error) }, 502);
