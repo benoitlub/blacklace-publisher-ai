@@ -39,6 +39,15 @@ export interface VisualInput {
   body?: string | null;
   parcelId?: string | null;
   iterationNumber?: number | null;
+  /**
+   * Fond d'ambiance, en `data:` URI. Obligatoirement embarqué : un SVG affiché
+   * dans une balise `<img>` ne charge aucune ressource externe, donc une URL
+   * donnerait une carte au fond vide.
+   *
+   * Absent, la carte reste la version typographique — elle ne dépend pas de la
+   * réussite de la génération d'image.
+   */
+  backgroundDataUri?: string | null;
 }
 
 /**
@@ -176,11 +185,25 @@ export function renderVisualSvg(input: VisualInput): string {
   // aucune police distante, donc on ne compte que sur des familles génériques.
   const fontStack = "ui-sans-serif, system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
+  // Le voile n'est pas décoratif : sans lui, un fond clair rendrait le texte
+  // illisible, et on ne contrôle pas ce que le générateur produira. Il est
+  // dense en bas, où le texte s'accumule, et plus léger en haut pour laisser
+  // respirer l'image.
+  const background = input.backgroundDataUri
+    ? `  <image href="${escapeXml(input.backgroundDataUri)}" x="0" y="0" width="${VISUAL_WIDTH}" height="${VISUAL_HEIGHT}" preserveAspectRatio="xMidYMid slice"/>
+  <rect width="${VISUAL_WIDTH}" height="${VISUAL_HEIGHT}" fill="url(#scrim)"/>`
+    : "";
+
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${VISUAL_WIDTH}" height="${VISUAL_HEIGHT}" viewBox="0 0 ${VISUAL_WIDTH} ${VISUAL_HEIGHT}" role="img" aria-label="${escapeXml(title)}">
   <defs>
     <linearGradient id="ground" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#0d1b2a"/>
       <stop offset="100%" stop-color="#061019"/>
+    </linearGradient>
+    <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#06101a" stop-opacity="0.55"/>
+      <stop offset="45%" stop-color="#06101a" stop-opacity="0.82"/>
+      <stop offset="100%" stop-color="#06101a" stop-opacity="0.94"/>
     </linearGradient>
     <style>
       .title { font-family: ${fontStack}; font-size: ${titleSize}px; font-weight: 700; fill: #f4ecd8; letter-spacing: -0.5px; }
@@ -191,6 +214,7 @@ export function renderVisualSvg(input: VisualInput): string {
   </defs>
 
   <rect width="${VISUAL_WIDTH}" height="${VISUAL_HEIGHT}" fill="url(#ground)"/>
+${background}
   <rect x="${MARGIN}" y="176" width="128" height="5" fill="#d9a441"/>
   <text class="eyebrow" x="${MARGIN}" y="148">BLACKLACE ISLAND</text>
 

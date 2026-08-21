@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { ensureSchema, getSql, isDatabaseConfigured, iterationById, latestIteration, listDueTentacles, recordIteration, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
+import { ensureSchema, getSql, isDatabaseConfigured, iterationById, latestIteration, listDueTentacles, recordIteration, setTentacleImage, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
+import { buildImagePrompt, generateImage, imageDataUri } from "./mistral-image";
 import { renderVisualSvg } from "./visual";
 import {
   ADAPTER_EXECUTION_CONTRACT,
@@ -314,6 +315,53 @@ function toolText(tool: ComposioTool): string {
  * calculé qu'au moment où quelqu'un le regarde. Un visuel ne peut donc plus
  * « échouer » — c'est le texte, et lui seul, qui peut manquer.
  */
+/**
+ * Nombre d'itérations entre deux fonds d'ambiance.
+ *
+ * Chaque image est facturée : la régénérer à chaque version coûterait des
+ * dizaines d'images par jour pour un gain à peu près nul — une parcelle gagne à
+ * garder son atmosphère d'une version à l'autre. Elle est donc refaite aux
+ * jalons seulement, plus une fois lors d'un cycle « play », où l'écart est
+ * justement l'intérêt.
+ */
+const IMAGE_REFRESH_EVERY = 10;
+
+function needsNewImage(tentacle: TentacleRow, nextIteration: number, mode: TentacleMode): boolean {
+  if (!tentacle.image_file_id) return true;
+  if (mode === "play") return true;
+  const since = nextIteration - (tentacle.image_iteration ?? 0);
+  return since >= IMAGE_REFRESH_EVERY;
+}
+
+/**
+ * Produit, si le jalon est atteint, un nouveau fond pour la parcelle.
+ *
+ * N'interrompt jamais le cycle : une image manquante donne une carte
+ * typographique, qui reste un livrable. L'échec est journalisé plutôt
+ * qu'avalé — c'est le silence, pas l'échec, qui nous a coûté 45 itérations.
+ */
+async function refreshTentacleImage(
+  env: Env,
+  sql: Awaited<ReturnType<typeof getSql>>,
+  tentacle: TentacleRow,
+  nextIteration: number,
+  mode: TentacleMode,
+): Promise<void> {
+  if (!needsNewImage(tentacle, nextIteration, mode)) return;
+
+  try {
+    const fileId = await generateImage(env, buildImagePrompt({ title: tentacle.title, objective: tentacle.objective }));
+    await setTentacleImage(sql, tentacle.seed_id, fileId, nextIteration);
+    console.log(JSON.stringify({ event: "visual.image.generated", seedId: tentacle.seed_id, iteration: nextIteration, fileId }));
+  } catch (error) {
+    console.log(JSON.stringify({
+      event: "visual.image.failed",
+      seedId: tentacle.seed_id,
+      reason: error instanceof Error ? error.message : String(error),
+    }));
+  }
+}
+
 function visualFor(env: Env, iterationId: string, content: string | null): { url: string | null; toolCombination: string | null } {
   // Pas de texte, pas de visuel : une carte ne portant qu'un titre répété
   // serait un habillage vide, exactement le faux succès qu'on démonte partout
@@ -747,6 +795,7 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
   // connaître avant l'insertion, pas après.
   const iterationId = `iter_${tentacle.seed_id}_${Date.now()}`;
   const visual = visualFor(env, iterationId, content);
+  if (visual.url) await refreshTentacleImage(env, sql, tentacle, tentacle.iteration_count + 1, "improve");
 
   await recordIteration(sql, {
     id: iterationId,
@@ -778,6 +827,7 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
 
   const iterationId = `iter_${tentacle.seed_id}_${Date.now()}`;
   const visual = visualFor(env, iterationId, content);
+  if (visual.url) await refreshTentacleImage(env, sql, tentacle, tentacle.iteration_count + 1, "play");
 
   await recordIteration(sql, {
     id: iterationId,
@@ -922,19 +972,36 @@ app.get("/api/visuals/:id{.+\\.svg}", async (c) => {
     const row = await iterationById(sql, id);
     if (!row) return c.text("Itération introuvable.", 404);
 
+    // Le fond est rechargé à chaque rendu plutôt que stocké en base : garder
+    // des méga-octets d'image par itération coûterait bien plus cher que de
+    // les redemander, et l'en-tête de cache ci-dessous fait le reste.
+    let backgroundDataUri: string | null = null;
+    if (row.image_file_id) {
+      try {
+        backgroundDataUri = await imageDataUri(c.env, row.image_file_id);
+      } catch (error) {
+        // Une carte typographique reste un livrable : on ne rend pas une
+        // erreur là où une image manque.
+        console.log(JSON.stringify({ event: "visual.background.failed", id, reason: error instanceof Error ? error.message : String(error) }));
+      }
+    }
+
     const svg = renderVisualSvg({
       title: row.title || row.seed_id,
       body: row.content,
       parcelId: row.parcel_id,
       iterationNumber: row.iteration_number,
+      backgroundDataUri,
     });
 
     return new Response(svg, {
       headers: {
         "content-type": "image/svg+xml; charset=utf-8",
         // Une itération est immuable une fois écrite : son visuel peut être
-        // mis en cache longuement sans risque de montrer un état périmé.
-        "cache-control": "public, max-age=3600",
+        // mis en cache longuement sans risque de montrer un état périmé. Le
+        // cache porte ici : sans lui, chaque affichage rechargerait l'image de
+        // fond auprès de Mistral.
+        "cache-control": "public, max-age=86400, immutable",
       },
     });
   } catch (error) {

@@ -20,6 +20,8 @@ export interface TentacleRow {
   cooldown_until: string | null;
   tools_tried: string[];
   updated_at: string;
+  image_file_id: string | null;
+  image_iteration: number | null;
 }
 
 export interface IterationRow {
@@ -95,6 +97,13 @@ export async function ensureSchema(sql: NeonQueryFunction<false, false>): Promis
     )
   `;
   await sql`CREATE INDEX IF NOT EXISTS tentacle_iterations_seed_id_idx ON tentacle_iterations (seed_id, created_at DESC)`;
+
+  // Le fond d'ambiance appartient à la parcelle, pas à l'itération : il est
+  // réutilisé d'une version à l'autre et n'est refait qu'aux jalons. Garder
+  // l'identifiant Mistral plutôt que l'image évite de stocker des méga-octets
+  // en base — le fichier est rechargé au rendu, puis mis en cache par l'edge.
+  await sql`ALTER TABLE tentacles ADD COLUMN IF NOT EXISTS image_file_id TEXT`;
+  await sql`ALTER TABLE tentacles ADD COLUMN IF NOT EXISTS image_iteration INTEGER`;
   schemaEnsured = true;
 }
 
@@ -202,18 +211,28 @@ export async function recordIteration(sql: NeonQueryFunction<false, false>, inpu
   return { id, iterationNumber: nextIteration };
 }
 
+/** Retient le fond produit pour une parcelle, et à quelle version il l'a été. */
+export async function setTentacleImage(
+  sql: NeonQueryFunction<false, false>,
+  seedId: string,
+  fileId: string,
+  iteration: number,
+): Promise<void> {
+  await sql`UPDATE tentacles SET image_file_id = ${fileId}, image_iteration = ${iteration}, updated_at = now() WHERE seed_id = ${seedId}`;
+}
+
 /** Une itération par son id — ce que la route de visuel lit pour la dessiner. */
 export async function iterationById(
   sql: NeonQueryFunction<false, false>,
   id: string,
-): Promise<(IterationRow & { title: string | null; parcel_id: string | null }) | null> {
+): Promise<(IterationRow & { title: string | null; parcel_id: string | null; image_file_id: string | null }) | null> {
   const rows = (await sql`
     SELECT i.id, i.seed_id, i.iteration_number, i.mode, i.content, i.visual_url, i.tool_combination, i.created_at,
-           t.title, t.parcel_id
+           t.title, t.parcel_id, t.image_file_id
     FROM tentacle_iterations i
     LEFT JOIN tentacles t ON t.seed_id = i.seed_id
     WHERE i.id = ${id}
-  `) as unknown as Array<IterationRow & { title: string | null; parcel_id: string | null }>;
+  `) as unknown as Array<IterationRow & { title: string | null; parcel_id: string | null; image_file_id: string | null }>;
   return rows[0] ?? null;
 }
 
