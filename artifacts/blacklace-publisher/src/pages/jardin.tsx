@@ -130,9 +130,8 @@ interface UsageResponse {
   byParcel?: Array<UsageTotals & { parcelId: string; title: string }>;
   firstMeasuredAt?: string | null;
   pricing?: {
-    source: string;
+    priced: boolean;
     currency: string;
-    imagePriced: boolean;
     note: string;
   };
   cost?: { text: number; images: number; total: number } | null;
@@ -302,7 +301,7 @@ function UsageSection() {
           Consommation — 30 derniers jours
         </CardTitle>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          Tokens mesurés sur les relevés de Mistral. Le coût est calculé à partir des tarifs configurés.
+          Tokens mesurés sur les relevés de Mistral — la seule mesure ferme, et la seule qui compte sur une clé gratuite.
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -328,9 +327,11 @@ function UsageSection() {
                 <p className="mt-1 text-xl font-medium text-foreground">{formatNumber(totals.images)}</p>
               </div>
               <div className="rounded-md border border-border p-3">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Coût estimé</p>
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Coût</p>
+                {/* Sur une clé gratuite il n'y a pas de montant à afficher, et
+                    en inventer un serait pire que ce tiret. */}
                 <p className="mt-1 text-xl font-medium text-foreground">
-                  {data.cost ? formatEuro(data.cost.total) : "—"}
+                  {data.cost ? formatEuro(data.cost.total) : "Non facturé"}
                 </p>
               </div>
             </div>
@@ -341,6 +342,8 @@ function UsageSection() {
                 {data.pricing.note}
               </p>
             )}
+            {/* Le vrai risque sur le palier gratuit n'est pas le montant, c'est
+                le quota de débit : ce sont les volumes qu'il faut regarder. */}
 
             {unmeasured > 0 && (
               <Failure message={`${formatNumber(unmeasured)} itérations sur ${formatNumber(totals.iterations)} n'ont aucun relevé : elles sont antérieures à la mise en place de la mesure. Leur coût réel n'est pas nul, il est inconnu.`} />

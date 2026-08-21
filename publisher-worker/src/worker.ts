@@ -1089,83 +1089,65 @@ app.get("/api/knowledge", async (c) => {
  * sobriété donnerait une facture faussement rassurante.
  */
 /**
- * Grille tarifaire Mistral, en euros par million de tokens.
+ * Consommation réelle.
  *
- * Reprise telle quelle de `estimateCostEur` dans octopus-engine-app
- * (src/resources/mistral-resource.ts) : c'est déjà la convention du système,
- * et deux services qui chiffrent différemment le même appel donneraient deux
- * factures incompatibles.
+ * Les tokens sont **mesurés** : ils viennent du relevé que Mistral joint à
+ * chaque réponse. C'est le seul chiffre ferme de cette route, et sur une clé
+ * gratuite c'est aussi le seul qui compte — le palier « Experiment » de La
+ * Plateforme donne accès aux modèles à 0 €, borné par des quotas de débit et
+ * non par une facture. Les volumes servent donc à surveiller ces quotas.
  *
- * Codée ici, elle reste une estimation : les grilles changent. Les variables
- * PRICE_* du Worker la remplacent quand elles sont renseignées, et la réponse
- * dit laquelle des deux a servi.
- */
-function mistralPricePerMTok(model: string): { input: number; output: number } {
-  const large = model.toLowerCase().includes("large");
-  return large ? { input: 1.8, output: 5.4 } : { input: 0.4, output: 1.2 };
-}
-
-/**
- * Consommation réelle et coût estimé.
+ * Aucun tarif n'est codé en dur ici. Une version précédente reprenait la grille
+ * d'octopus-engine-app (1,80/5,40 € par million) : elle y est écrite en dur,
+ * sans source, et je n'ai pas pu la recouper — la documentation tarifaire de
+ * Mistral est inaccessible depuis cet environnement. Afficher un montant faux
+ * avec l'autorité d'une mesure serait pire que n'en afficher aucun.
  *
- * Les tokens sont **mesurés**, pas déduits : ils viennent du relevé que Mistral
- * joint à chaque réponse. Le coût est un calcul local, fait modèle par modèle —
- * un `large` coûte plus de quatre fois un `small`, donc un tarif moyen unique
- * fausserait le total dès que les deux se côtoient.
+ * Le coût n'apparaît donc que si les tarifs sont explicitement renseignés dans
+ * les variables du Worker, par quelqu'un qui les a lus sur sa facture.
  *
- * `measured` est distingué de `iterations` : les cycles antérieurs à la mise en
- * place de ce relevé n'ont aucun chiffre, et prendre ce trou pour de la
- * sobriété donnerait une facture faussement rassurante.
+ * `measured` est distingué de `iterations` : les cycles antérieurs à ce relevé
+ * n'ont aucun chiffre, et prendre ce trou pour de la sobriété donnerait une
+ * consommation faussement rassurante.
  */
 app.get("/api/usage", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, error: "DATABASE_URL n'est pas configuré." });
 
   const days = Math.min(Math.max(Number(c.req.query("days")) || 30, 1), 365);
-  const override = (value: string | undefined): number | null => {
+  const price = (value: string | undefined): number | null => {
     const parsed = Number(value);
     return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   };
-  const inputOverride = override(c.env.PRICE_INPUT_PER_MTOK);
-  const outputOverride = override(c.env.PRICE_OUTPUT_PER_MTOK);
-  const imagePrice = override(c.env.PRICE_PER_IMAGE);
-  const overridden = inputOverride !== null || outputOverride !== null;
+  const inputPrice = price(c.env.PRICE_INPUT_PER_MTOK);
+  const outputPrice = price(c.env.PRICE_OUTPUT_PER_MTOK);
+  const imagePrice = price(c.env.PRICE_PER_IMAGE);
+  const priced = inputPrice !== null || outputPrice !== null || imagePrice !== null;
 
   try {
     const sql = await getSql(c.env);
     await ensureSchema(sql);
     const summary = await usageSummary(sql, days);
 
-    // Chaque modèle est chiffré à son propre tarif, puis additionné.
-    let textCost = 0;
-    for (const row of summary.byModel) {
-      const table = mistralPricePerMTok(row.model);
-      const input = inputOverride ?? table.input;
-      const output = outputOverride ?? table.output;
-      textCost += (row.promptTokens / 1_000_000) * input + (row.completionTokens / 1_000_000) * output;
-    }
-    // Le coût d'une image n'est pas repris d'Octopus : il n'y en génère pas.
-    // Sans tarif renseigné, il vaut zéro et la réponse le signale plutôt que
-    // de le noyer dans le total.
-    const imagesCost = imagePrice !== null ? summary.totals.images * imagePrice : 0;
+    const cost = priced
+      ? {
+          text: (summary.totals.promptTokens / 1_000_000) * (inputPrice ?? 0)
+              + (summary.totals.completionTokens / 1_000_000) * (outputPrice ?? 0),
+          images: summary.totals.images * (imagePrice ?? 0),
+        }
+      : null;
 
     return c.json({
       configured: true,
       days,
       ...summary,
       pricing: {
-        source: overridden ? "variables du Worker" : "octopus-engine-app",
+        priced,
         currency: "EUR",
-        imagePriced: imagePrice !== null,
-        note: [
-          overridden
-            ? "Tarifs texte repris des variables PRICE_* du Worker."
-            : "Tarifs texte repris d'octopus-engine-app (1,80/5,40 € par million pour un modèle large, 0,40/1,20 sinon) — à recouper avec la facture.",
-          imagePrice === null && summary.totals.images > 0
-            ? `${summary.totals.images} images ne sont pas chiffrées : renseigne PRICE_PER_IMAGE.`
-            : null,
-        ].filter(Boolean).join(" "),
+        note: priced
+          ? "Coût calculé à partir des tarifs renseignés dans les variables du Worker."
+          : "Aucun tarif renseigné — et sur une clé Mistral gratuite il n'y en a pas à renseigner : le palier Experiment ne facture pas, il limite le débit. Les volumes ci-dessus restent la mesure utile.",
       },
-      cost: { text: textCost, images: imagesCost, total: textCost + imagesCost },
+      cost: cost ? { ...cost, total: cost.text + cost.images } : null,
     });
   } catch (error) {
     return c.json({ configured: true, error: error instanceof Error ? error.message : String(error) }, 502);
