@@ -38,6 +38,36 @@ binding = "GITHUB_TOKEN"
 store_id = "6cd697779c5d45a0ab6b8833a434adc6"
 secret_name = "GITHUB_TOKEN"
 
+# ---------------------------------------------------------------------------
+# Canva Connect — à décommenter UNE FOIS les secrets créés dans le Store.
+#
+# Volontairement commenté : `wrangler deploy` répond 400 si un binding désigne
+# un secret qui n'existe pas encore. Les décommenter avant de les créer casse
+# le déploiement du Worker entier, y compris les parties qui marchent.
+#
+# Ordre à suivre :
+#   1. Créer une intégration sur canva.dev (client id + secret), scopes
+#      `design:content:write` et `brandtemplate:meta:read`.
+#   2. Faire une fois le flux d'autorisation à la main pour obtenir un
+#      refresh token (CANVA_REFRESH_TOKEN). Le Worker le fait ensuite tourner
+#      tout seul et persiste la version courante en base (table canva_oauth) —
+#      Canva invalide l'ancien à chaque échange.
+#   3. Créer les trois secrets dans le Secrets Store, puis décommenter.
+#
+# CANVA_CLIENT_ID et CANVA_BRAND_TEMPLATE_ID ne sont pas des secrets : ils vont
+# dans [vars] ci-dessus.
+#
+# [[secrets_store_secrets]]
+# binding = "CANVA_CLIENT_SECRET"
+# store_id = "6cd697779c5d45a0ab6b8833a434adc6"
+# secret_name = "CANVA_CLIENT_SECRET"
+#
+# [[secrets_store_secrets]]
+# binding = "CANVA_REFRESH_TOKEN"
+# store_id = "6cd697779c5d45a0ab6b8833a434adc6"
+# secret_name = "CANVA_REFRESH_TOKEN"
+# ---------------------------------------------------------------------------
+
 # Gérard's relentless tentacle loop (runTentacleCycle in worker.ts). Fires
 # every 15 minutes; each tentacle's own cooldown (20min-6h, doubling per
 # iteration) governs actual pacing, so most ticks find nothing due.

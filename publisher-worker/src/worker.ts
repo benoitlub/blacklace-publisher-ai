@@ -1,6 +1,13 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { ensureSchema, getSql, isDatabaseConfigured, latestIteration, listDueTentacles, recordIteration, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
+import {
+  CanvaHttpError,
+  createCanvaVisual,
+  getBrandTemplateFields,
+  isCanvaConfigured,
+  type CanvaVisualResult,
+} from "./canva";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 import {
   ADAPTER_EXECUTION_CONTRACT,
@@ -24,8 +31,14 @@ type Env = {
   MISTRAL_API_KEY?: string | SecretsStoreSecret;
   AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
+  /** Composio ne sert plus qu'à ElevenLabs : Canva passe en direct. */
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
   COMPOSIO_USER_ID?: string;
+  /** Intégration Canva Connect — voir `canva.ts` pour le flux OAuth. */
+  CANVA_CLIENT_ID?: string;
+  CANVA_CLIENT_SECRET?: string | SecretsStoreSecret;
+  CANVA_REFRESH_TOKEN?: string | SecretsStoreSecret;
+  CANVA_BRAND_TEMPLATE_ID?: string;
   DATABASE_URL?: string | SecretsStoreSecret;
   GITHUB_TOKEN?: string | SecretsStoreSecret;
   NOTION_API_KEY?: string | SecretsStoreSecret;
@@ -276,9 +289,7 @@ async function listComposioTools(env: Env, toolkitSlug: string): Promise<Composi
         if (toolkit && toolkit !== normalizedToolkit) continue;
         // input_parameters is the real field name (confirmed live via
         // /tools?tool_slugs=...) — input_schema/inputSchema/parameters/schema
-        // never matched anything, so inputSchema was always null here,
-        // silently forcing canvaArguments() onto its hardcoded fallback
-        // instead of the tool's actual declared properties.
+        // never matched anything, so inputSchema was always null here.
         const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
         found.set(slug, { slug, name: stringValue(record.name ?? record.display_name) || slug, description: stringValue(record.description) || "", toolkitSlug: toolkit || normalizedToolkit, inputSchema: Object.keys(schema).length ? schema : null });
       }
@@ -302,141 +313,80 @@ function toolText(tool: ComposioTool): string {
   return `${tool.slug} ${tool.name} ${tool.description}`.toLowerCase();
 }
 
-function scoreCanvaCreateTool(tool: ComposioTool): number {
-  const text = toolText(tool);
-  if (!text.includes("design")) return -100;
-  if (/export|metadata|access|format|list|get|fetch|delete|update|comment|folder/.test(text)) return -50;
-  return (/create/.test(text) ? 80 : 0) + (/post/.test(text) ? 45 : 0) + (/designs?/.test(text) ? 30 : 0) + (/instagram|social/.test(text) ? 20 : 0) + (/canva/.test(text) ? 10 : 0);
+/**
+ * Chemin unique du visuel, partagé par /api/production/execute et par le cycle
+ * de tentacules — qu'il soit déclenché par un onglet ou par le Cron.
+ *
+ * Passe désormais par la Canva Connect API en direct (voir `canva.ts`).
+ * Composio n'est plus dans ce chemin : son catalogue Canva n'exposait aucune
+ * porte praticable, et c'est ce qui a fait échouer 45 itérations en silence.
+ *
+ * Deux différences de fond avec la version Composio :
+ *
+ * 1. Le **texte généré** est transmis, pas seulement le titre. Un visuel qui
+ *    ignore le contenu de la parcelle n'illustre rien.
+ * 2. L'échec porte une raison nommée au lieu d'un `null` muet.
+ */
+async function executeCanvaDesign(
+  env: Env,
+  title: string,
+  options: { body?: string } = {},
+): Promise<{ url: string; designId: string; brandTemplateId: string } | { failure: CanvaVisualResult & { ok: false } }> {
+  const result = await createCanvaVisual(env, { title, body: options.body });
+  return result.ok
+    ? { url: result.url, designId: result.designId, brandTemplateId: result.brandTemplateId }
+    : { failure: result };
 }
 
-function selectCanvaCreateTools(tools: ComposioTool[]): ComposioTool[] {
-  return tools.map((tool) => ({ tool, score: scoreCanvaCreateTool(tool) })).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score).map((entry) => entry.tool);
-}
-
-function schemaProperties(tool: ComposioTool): Record<string, Record<string, any>> {
-  const schema = asRecord(tool.inputSchema);
-  const properties = asRecord(schema.properties ?? asRecord(schema.schema).properties);
-  return Object.fromEntries(Object.entries(properties).map(([key, value]) => [key, asRecord(value)]));
-}
-
-function schemaRequired(tool: ComposioTool): string[] {
-  const schema = asRecord(tool.inputSchema);
-  const required = schema.required ?? asRecord(schema.schema).required;
-  return Array.isArray(required) ? required.filter((item): item is string => typeof item === "string") : [];
-}
-
-function preferredEnum(values: unknown[], key: string): unknown {
-  const normalized = values.map((value) => ({ value, text: String(value).toLowerCase() }));
-  const preferences = key.includes("type") ? ["instagram", "social", "post", "custom", "square"] : ["png", "public", "edit", "view"];
-  for (const preference of preferences) {
-    const found = normalized.find((entry) => entry.text.includes(preference));
-    if (found) return found.value;
+/**
+ * État de Canva pour les diagnostics.
+ *
+ * `status: "executable"` est un contrat : `scripts/check-publisher-providers.mjs`
+ * teste exactement cette valeur. Il n'est rendu que si l'accès OAuth fonctionne
+ * ET que le brand template déclare au moins un champ texte — sans quoi
+ * l'autofill produirait un visuel sans mots.
+ */
+async function describeCanvaReadiness(env: Env): Promise<Record<string, unknown>> {
+  const brandTemplateId = env.CANVA_BRAND_TEMPLATE_ID?.trim() || null;
+  if (!isCanvaConfigured(env)) {
+    return {
+      status: "unavailable",
+      connected: false,
+      provider: "canva-connect",
+      brandTemplateId,
+      error: "CANVA_CLIENT_ID et CANVA_BRAND_TEMPLATE_ID sont requis.",
+    };
   }
-  return values[0];
-}
 
-function schemaValue(key: string, definition: Record<string, any>, title: string): unknown {
-  const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
-  const enumValues = Array.isArray(definition.enum) ? definition.enum : [];
-  if (enumValues.length) return preferredEnum(enumValues, normalized);
-  const type = String(definition.type ?? "").toLowerCase();
-  if (/title|name|label/.test(normalized)) return `Visuel principal ${title}`;
-  if (/width|height/.test(normalized)) return 1080;
-  if (/design.?type|format|preset|category/.test(normalized)) return type === "object" ? { type: "custom", width: 1080, height: 1080 } : "instagram_post";
-  if (/description|prompt|content|text/.test(normalized)) return `Créer un visuel Instagram carré pour ${title}.`;
-  if (type === "number" || type === "integer") return 1080;
-  if (type === "boolean") return false;
-  if (type === "array") return [];
-  if (type === "object") return {};
-  return title;
-}
-
-function canvaArguments(tool: ComposioTool, title: string): Record<string, unknown> {
-  const properties = schemaProperties(tool);
-  const required = new Set(schemaRequired(tool));
-  const args: Record<string, unknown> = {};
-  for (const [key, definition] of Object.entries(properties)) {
-    const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
-    if (required.has(key) || /title|name|label|width|height|design.?type|format|preset|category|description|prompt|content|text/.test(normalized)) args[key] = schemaValue(key, definition, title);
-  }
-  // Fallback for when Composio doesn't expose an inputSchema for this tool
-  // (confirmed live: null for CANVA_CREATE_CANVA_DESIGN_WITH_OPTIONAL_ASSET) —
-  // Canva's own REST API rejected a bare string here ("One of 'design_type'
-  // or 'asset_id' must be defined", confirmed live via the raw response),
-  // because design_type is an object ({type, name}), not a string.
-  return Object.keys(args).length ? args : { title: `Visuel principal ${title}`, design_type: { type: "preset", name: "instagram_post" } };
-}
-
-function walkPayload(value: unknown, visit: (key: string, item: unknown) => void, depth = 0): void {
-  if (depth > 8 || value === null || value === undefined) return;
-  if (Array.isArray(value)) { value.forEach((item) => walkPayload(item, visit, depth + 1)); return; }
-  if (typeof value !== "object") return;
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    visit(key, item);
-    walkPayload(item, visit, depth + 1);
+  try {
+    const fields = await getBrandTemplateFields(env, brandTemplateId!);
+    const textFields = fields.filter((field) => field.type === "text").map((field) => field.name);
+    return {
+      status: textFields.length ? "executable" : "connected",
+      connected: true,
+      provider: "canva-connect",
+      brandTemplateId,
+      textFields,
+      error: textFields.length ? null : "Le brand template ne déclare aucun champ texte.",
+    };
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    const entitlement = error instanceof CanvaHttpError && error.isEntitlement;
+    return {
+      status: entitlement ? "not-entitled" : "not-connected",
+      connected: false,
+      provider: "canva-connect",
+      brandTemplateId,
+      error: entitlement ? `${detail} — l'autofill demande un compte Canva Enterprise.` : detail,
+    };
   }
 }
 
-export function extractCanvaArtifact(payload: unknown, title: string) {
-  // Composio wraps every tool call the same way regardless of the tool's
-  // own outcome: { data, successful, error, log_id }. successful:false
-  // still carries a log_id (its own execution-trace id, unrelated to
-  // Canva) — confirmed live: a failed call ("One of 'design_type' or
-  // 'asset_id' must be defined") was previously mistaken for success
-  // because nothing checked this flag, and its log_id got turned into a
-  // fake link like canva.com/design/log_XXXX/edit that 400s on Canva's
-  // side. Bail out before even looking for a url/id.
-  const envelope = asRecord(payload);
-  if (envelope.successful === false) return null;
-
-  const urls: string[] = [];
-  const ids: string[] = [];
-  walkPayload(payload, (key, item) => {
-    if (typeof item !== "string" || !item.trim()) return;
-    if (/url|link|href|thumbnail|download/i.test(key) && /^https?:\/\//i.test(item)) urls.push(item.trim());
-    // Requires "design" in the key (not optional) — a bare "..._id" (like
-    // Composio's own "log_id") used to match here too, confirmed live to
-    // be the exact cause of broken Canva links.
-    if (/(^|_)design_?id$|designid/i.test(key) && !/^https?:\/\//i.test(item)) ids.push(item.trim());
-  });
-  const id = ids.find(Boolean) ?? null;
-  const rankedUrls = [...new Set(urls)].sort((a, b) => ((/canva\.com\/design/i.test(b) ? 100 : 0) - (/canva\.com\/design/i.test(a) ? 100 : 0)));
-  const url = rankedUrls[0] ?? (id ? `https://www.canva.com/design/${encodeURIComponent(id)}/edit` : null);
-  if (!id && !url) return null;
-  return { id: id ?? `canva_${Date.now()}`, type: "social-visual", kind: "social-visual", title: `Visuel principal · ${title}`, url, downloadUrl: rankedUrls.find((item) => /download|export|\.png(?:\?|$)|\.jpg(?:\?|$)/i.test(item)) ?? null, mimeType: "image/png", rawReference: { designId: id } };
-}
-
-// Shared by the on-demand /api/production/execute route AND the Neon-backed
-// tentacle cycle (runImproveCycle/runPlayCycle) — one execution path for
-// Canva, whether triggered by a browser tab or by the Cron schedule.
-//
-// Cloudflare caps subrequests per Worker invocation, and Composio reports
-// 32 discovered Canva tools — trying every scored candidate on failure (or,
-// worse, running a whole second discovery pass just to pick an "untried"
-// slug, as an earlier version of this function's caller did) can blow that
-// cap on its own. `excludeSlugs`/`requireNovel` let "play" mode ask for an
-// untried tool from the SAME single discovery call instead of a separate
-// one, and the attempt loop is capped regardless of mode.
-const CANVA_MAX_ATTEMPTS = 4;
-
-async function executeCanvaDesign(env: Env, title: string, options: { excludeSlugs?: string[]; requireNovel?: boolean } = {}): Promise<{ toolSlug: string; artifact: NonNullable<ReturnType<typeof extractCanvaArtifact>> } | null> {
-  if (!(await isComposioConfigured(env))) return null;
-  const accounts = await listComposioConnectedAccounts(env);
-  const account = accountFor(accounts, "canva");
-  if (!account) return null;
-  const scored = selectCanvaCreateTools(await listComposioTools(env, "canva"));
-  const excluded = new Set(options.excludeSlugs || []);
-  const pool = options.requireNovel ? scored.filter((candidate) => !excluded.has(candidate.slug)) : scored;
-  if (options.requireNovel && !pool.length) return null;
-  for (const candidate of pool.slice(0, CANVA_MAX_ATTEMPTS)) {
-    const args = canvaArguments(candidate, title);
-    try {
-      const result = await executeComposioTool(env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
-      const artifact = extractCanvaArtifact(result, title);
-      if (artifact?.url) return { toolSlug: candidate.slug, artifact };
-    } catch (_) { /* try the next candidate */ }
-  }
-  return null;
+/** Vrai quand l'appel a produit un visuel — le `null` implicite en moins. */
+function isCanvaSuccess(
+  outcome: Awaited<ReturnType<typeof executeCanvaDesign>>,
+): outcome is { url: string; designId: string; brandTemplateId: string } {
+  return "url" in outcome;
 }
 
 // ============================================================================
@@ -537,17 +487,24 @@ app.get("/api/production/diagnostics", async (c) => {
   const env = c.env;
   try {
     const mistralConfigured = Boolean(await mistralApiKey(env));
+
+    // Canva ne dépend plus de Composio : son état se lit sur sa propre
+    // configuration, pas sur un compte connecté chez un intermédiaire.
+    const canvaState = await describeCanvaReadiness(env);
+
     if (!(await isComposioConfigured(env))) {
-      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, mistral: { status: mistralConfigured ? "executable" : "unavailable", configured: mistralConfigured, available: mistralConfigured } });
+      return c.json({
+        composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] },
+        canva: canvaState,
+        mistral: { status: mistralConfigured ? "executable" : "unavailable", configured: mistralConfigured, available: mistralConfigured },
+      });
     }
     const accounts = await listComposioConnectedAccounts(env);
-    const canva = accountFor(accounts, "canva");
     const elevenLabs = accountFor(accounts, "elevenlabs");
-    const canvaTools = canva ? await listComposioTools(env, "canva").catch(() => []) : [];
-    const canvaCreationTools = selectCanvaCreateTools(canvaTools);
     return c.json({
-      composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
-      canva: { status: canvaCreationTools.length ? "executable" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", discoveredToolCount: canvaTools.length },
+      // Composio ne sert plus qu'à ElevenLabs, pas encore porté.
+      composio: { configured: true, canvaConnected: false, elevenLabsConnected: Boolean(elevenLabs), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
+      canva: canvaState,
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
       // configured/available are aliases of the same boolean, for the
       // artifacts/blacklace-publisher dashboard (local-technique.tsx),
@@ -611,13 +568,33 @@ app.post("/api/production/execute", async (c) => {
     }
 
     if (["canva", "visual", "social-visual"].includes(capability) || tool === "canva") {
-      if (!(await isComposioConfigured(c.env))) return c.json({ status: "waiting-authorization", code: "COMPOSIO_NOT_CONFIGURED", error: "Composio n'est pas configuré dans Publisher." }, 409);
-      const accounts = await listComposioConnectedAccounts(c.env);
-      if (!accountFor(accounts, "canva")) return c.json({ status: "waiting-authorization", code: "CANVA_NOT_CONNECTED", error: "Canva nécessite une connexion ou une autorisation." }, 409);
       const title = (body.input?.title as string) || (body.title as string) || "Production Publisher";
-      const result = await executeCanvaDesign(c.env, title);
-      if (!result) return c.json({ status: "failed", code: "CANVA_EXECUTION_FAILED", error: "Aucune action Canva n'a produit de visuel exploitable." }, 502);
-      return c.json({ status: "completed", provider: "composio", tool: "canva", action: result.toolSlug, artifact: result.artifact });
+      const text = (body.input?.text as string) || (body.input?.content as string) || (body.prompt as string) || undefined;
+      const result = await executeCanvaDesign(c.env, title, { body: text });
+
+      if (!isCanvaSuccess(result)) {
+        // Chaque raison a son code HTTP : une autorisation manquante et un
+        // droit absent ne se réparent pas de la même façon qu'une panne.
+        const { reason, detail } = result.failure;
+        const status = reason === "not-configured" || reason === "not-authorized" ? 409 : reason === "not-entitled" ? 402 : 502;
+        return c.json({ status: "failed", code: `CANVA_${reason.toUpperCase().replace(/-/g, "_")}`, error: detail }, status);
+      }
+
+      return c.json({
+        status: "completed",
+        provider: "canva-connect",
+        tool: "canva",
+        action: "autofill",
+        artifact: {
+          id: result.designId,
+          type: "social-visual",
+          kind: "social-visual",
+          title: `Visuel principal · ${title}`,
+          url: result.url,
+          mimeType: "image/png",
+          rawReference: { designId: result.designId, brandTemplateId: result.brandTemplateId },
+        },
+      });
     }
 
     return c.json({ status: "failed", code: "PRODUCER_NOT_IMPLEMENTED", error: `Le producteur ${tool || "inconnu"}/${action || "action inconnue"} n'a pas encore d'exécuteur validé sur ce Worker (ElevenLabs pas encore porté).` }, 400);
@@ -827,8 +804,15 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
 
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
-  const canva = await executeCanvaDesign(env, tentacle.title).catch(() => null);
-  if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
+  // Le texte vient d'être produit : il part avec le titre dans le visuel, au
+  // lieu d'être ignoré comme il l'était jusqu'ici.
+  const canva = await executeCanvaDesign(env, tentacle.title, { body: content ?? undefined });
+  if (isCanvaSuccess(canva)) {
+    visualUrl = canva.url;
+    toolCombination = `canva:autofill:${canva.brandTemplateId}`;
+  } else {
+    console.log(JSON.stringify({ event: "canva.skipped", seedId: tentacle.seed_id, reason: canva.failure.reason, detail: canva.failure.detail }));
+  }
 
   await recordIteration(sql, { seedId: tentacle.seed_id, mode: "improve", content, visualUrl, toolCombination });
   return { seedId: tentacle.seed_id, mode: "improve", status: content || visualUrl ? "completed" : "skipped-no-provider" };
@@ -841,19 +825,27 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
     { NOTION_API_KEY: notionApiKey, NOTION_DATABASE_ID: env.NOTION_DATABASE_ID, NOTION_PAGE_ID: env.NOTION_PAGE_ID },
     [tentacle.knowledge_slug, tentacle.parcel_id, tentacle.seed_id],
   );
-  const triedCanvaSlugs = (tentacle.tools_tried || []).filter((entry) => entry.startsWith("canva:")).map((entry) => entry.slice("canva:".length));
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
-  const canva = await executeCanvaDesign(env, `${tentacle.title} · expérimentation`, { excludeSlugs: triedCanvaSlugs, requireNovel: true }).catch(() => null);
-  if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
 
+  // Le texte d'abord, le visuel ensuite. L'ordre inverse — celui d'avant —
+  // condamnait le visuel à ne connaître que le titre.
   let content: string | null = null;
   if (knowledge.verified) {
     try {
-      const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, Boolean(toolCombination), knowledge.prompt), temperature: 0.9 });
+      const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, true, knowledge.prompt), temperature: 0.9 });
       content = artifact.content;
     } catch (_) { /* fine — this cycle just yields whatever it managed */ }
   }
+
+  const canva = await executeCanvaDesign(env, `${tentacle.title} · expérimentation`, { body: content ?? undefined });
+  if (isCanvaSuccess(canva)) {
+    visualUrl = canva.url;
+    toolCombination = `canva:autofill:${canva.brandTemplateId}`;
+  } else {
+    console.log(JSON.stringify({ event: "canva.skipped", seedId: tentacle.seed_id, reason: canva.failure.reason, detail: canva.failure.detail }));
+  }
+
   if (!toolCombination) toolCombination = "mistral:playful-riff";
 
   await recordIteration(sql, { seedId: tentacle.seed_id, mode: "play", content, visualUrl, toolCombination });
@@ -958,10 +950,8 @@ app.get("/api/tentacles/state", async (c) => {
 /**
  * Sonde Canva, en lecture seule.
  *
- * Le cycle appelle executeCanvaDesign derrière un `.catch(() => null)` : depuis
- * des dizaines d'itérations, Canva échoue et l'erreur est jetée, si bien que
- * visual_url reste null sans que personne sache pourquoi. Cette route refait
- * exactement la même tentative et **renvoie l'erreur telle quelle**.
+ * Elle refait exactement la tentative du cycle et **renvoie la raison telle
+ * quelle**, là où le cycle se contentait autrefois d'un `visual_url` nul.
  *
  * Volontairement en GET, et sans écriture : aucune itération n'est enregistrée,
  * aucun cooldown touché. Elle doit être ouvrable depuis un simple navigateur —
@@ -969,38 +959,19 @@ app.get("/api/tentacles/state", async (c) => {
  */
 app.get("/api/tentacles/diagnose-canva", async (c) => {
   const title = c.req.query("title") || "Diagnostic Canva";
+  const body = c.req.query("text") || undefined;
 
-  if (!(await isComposioConfigured(c.env))) {
-    return c.json({ configured: false, canvaError: "COMPOSIO_API_KEY n'est pas configuré." });
+  const readiness = await describeCanvaReadiness(c.env);
+  const base = { configured: isCanvaConfigured(c.env), provider: "canva-connect", readiness };
+
+  if (readiness.status !== "executable") {
+    return c.json({ ...base, canvaStatus: readiness.status, canvaError: readiness.error });
   }
 
-  const accounts = await listComposioConnectedAccounts(c.env).catch(() => []);
-  const account = accountFor(accounts, "canva");
-  const tools = await listComposioTools(c.env, "canva").catch(() => []);
-  const candidates = selectCanvaCreateTools(tools);
-
-  const base = {
-    configured: true,
-    composioUserId: composioUserId(c.env),
-    canvaAccount: account ? { id: account.id, status: account.status } : null,
-    discoveredToolCount: tools.length,
-    // L'ordre compte : c'est celui dans lequel le cycle les essaie.
-    creationCandidates: candidates.slice(0, 5).map((tool) => tool.slug),
-  };
-
-  if (!account) {
-    return c.json({ ...base, canvaStatus: "no-account", canvaError: "Aucun compte Canva actif pour cet identifiant utilisateur." });
-  }
-
-  try {
-    const result = await executeCanvaDesign(c.env, title);
-    return result
-      ? c.json({ ...base, canvaStatus: "success", toolSlug: result.toolSlug, artifactUrl: result.artifact.url })
-      : c.json({ ...base, canvaStatus: "no-candidate", canvaError: "Aucun outil de création exploitable parmi les outils découverts." });
-  } catch (error) {
-    // Le message brut de Composio : précisément ce que le cycle avalait.
-    return c.json({ ...base, canvaStatus: "error", canvaError: error instanceof Error ? error.message : String(error) });
-  }
+  const result = await executeCanvaDesign(c.env, title, { body });
+  return isCanvaSuccess(result)
+    ? c.json({ ...base, canvaStatus: "success", artifactUrl: result.url, designId: result.designId })
+    : c.json({ ...base, canvaStatus: result.failure.reason, canvaError: result.failure.detail });
 });
 
 app.get("/api/tentacles/iterations", async (c) => {
