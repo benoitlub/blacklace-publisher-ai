@@ -104,6 +104,18 @@ export async function ensureSchema(sql: NeonQueryFunction<false, false>): Promis
   // en base — le fichier est rechargé au rendu, puis mis en cache par l'edge.
   await sql`ALTER TABLE tentacles ADD COLUMN IF NOT EXISTS image_file_id TEXT`;
   await sql`ALTER TABLE tentacles ADD COLUMN IF NOT EXISTS image_iteration INTEGER`;
+
+  // Consommation réelle, par itération. Mistral renvoie `usage` à chaque appel
+  // et le Worker le lisait déjà — pour le jeter aussitôt. Rien n'était donc
+  // mesurable : ni le volume, ni le coût. Les colonnes sont ajoutées ici, ce
+  // qui veut dire que l'historique antérieur reste vide : ces chiffres ne
+  // peuvent commencer qu'au premier cycle qui suit le déploiement, et on ne va
+  // pas les reconstituer au jugé.
+  await sql`ALTER TABLE tentacle_iterations ADD COLUMN IF NOT EXISTS model TEXT`;
+  await sql`ALTER TABLE tentacle_iterations ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER`;
+  await sql`ALTER TABLE tentacle_iterations ADD COLUMN IF NOT EXISTS completion_tokens INTEGER`;
+  await sql`ALTER TABLE tentacle_iterations ADD COLUMN IF NOT EXISTS total_tokens INTEGER`;
+  await sql`ALTER TABLE tentacle_iterations ADD COLUMN IF NOT EXISTS images_generated INTEGER NOT NULL DEFAULT 0`;
   schemaEnsured = true;
 }
 
@@ -184,16 +196,27 @@ export function cooldownMs(iterationCount: number): number {
  *
  * Le numéro d'itération et l'id sont rendus : le visuel les affiche.
  */
+export interface IterationUsage {
+  model: string | null;
+  promptTokens: number | null;
+  completionTokens: number | null;
+  totalTokens: number | null;
+  imagesGenerated: number;
+}
+
 export async function recordIteration(sql: NeonQueryFunction<false, false>, input: {
   seedId: string; mode: TentacleMode; content: string | null; visualUrl: string | null; toolCombination: string | null; id?: string;
+  usage?: IterationUsage;
 }): Promise<{ id: string; iterationNumber: number }> {
   const [current] = await sql`SELECT iteration_count, tools_tried FROM tentacles WHERE seed_id = ${input.seedId}`;
   const row = current as unknown as { iteration_count: number; tools_tried: string[] } | undefined;
   const nextIteration = (row?.iteration_count ?? 0) + 1;
   const id = input.id ?? `iter_${input.seedId}_${Date.now()}`;
+  const usage = input.usage;
   await sql`
-    INSERT INTO tentacle_iterations (id, seed_id, iteration_number, mode, content, visual_url, tool_combination)
-    VALUES (${id}, ${input.seedId}, ${nextIteration}, ${input.mode}, ${input.content}, ${input.visualUrl}, ${input.toolCombination})
+    INSERT INTO tentacle_iterations (id, seed_id, iteration_number, mode, content, visual_url, tool_combination, model, prompt_tokens, completion_tokens, total_tokens, images_generated)
+    VALUES (${id}, ${input.seedId}, ${nextIteration}, ${input.mode}, ${input.content}, ${input.visualUrl}, ${input.toolCombination},
+            ${usage?.model ?? null}, ${usage?.promptTokens ?? null}, ${usage?.completionTokens ?? null}, ${usage?.totalTokens ?? null}, ${usage?.imagesGenerated ?? 0})
   `;
   const nextCooldown = new Date(Date.now() + cooldownMs(nextIteration)).toISOString();
   const toolsTried = new Set(row?.tools_tried ?? []);
@@ -238,4 +261,92 @@ export async function iterationById(
 
 export async function setTentacleMode(sql: NeonQueryFunction<false, false>, seedId: string, mode: TentacleMode): Promise<void> {
   await sql`UPDATE tentacles SET mode = ${mode}, updated_at = now() WHERE seed_id = ${seedId}`;
+}
+export interface UsageTotals {
+  iterations: number;
+  measured: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  images: number;
+}
+
+export interface UsageByModel extends UsageTotals { model: string }
+export interface UsageByParcel extends UsageTotals { parcelId: string; title: string }
+export interface UsageByDay extends UsageTotals { day: string }
+
+/**
+ * Consommation mesurée, agrégée trois fois.
+ *
+ * `measured` compte les itérations qui portent réellement un relevé, séparément
+ * du total. C'est essentiel : les itérations antérieures à l'ajout de ces
+ * colonnes n'en ont aucun, et confondre « zéro token » avec « non mesuré »
+ * ferait passer un trou de données pour de la sobriété.
+ */
+export async function usageSummary(sql: NeonQueryFunction<false, false>, days = 30): Promise<{
+  totals: UsageTotals;
+  byModel: UsageByModel[];
+  byParcel: UsageByParcel[];
+  byDay: UsageByDay[];
+  firstMeasuredAt: string | null;
+}> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+
+  const [totals] = (await sql`
+    SELECT COUNT(*)::int AS iterations,
+           COUNT(total_tokens)::int AS measured,
+           COALESCE(SUM(prompt_tokens), 0)::int AS "promptTokens",
+           COALESCE(SUM(completion_tokens), 0)::int AS "completionTokens",
+           COALESCE(SUM(total_tokens), 0)::int AS "totalTokens",
+           COALESCE(SUM(images_generated), 0)::int AS images
+    FROM tentacle_iterations
+    WHERE created_at >= ${since}
+  `) as unknown as UsageTotals[];
+
+  const byModel = (await sql`
+    SELECT COALESCE(model, 'non mesuré') AS model,
+           COUNT(*)::int AS iterations,
+           COUNT(total_tokens)::int AS measured,
+           COALESCE(SUM(prompt_tokens), 0)::int AS "promptTokens",
+           COALESCE(SUM(completion_tokens), 0)::int AS "completionTokens",
+           COALESCE(SUM(total_tokens), 0)::int AS "totalTokens",
+           COALESCE(SUM(images_generated), 0)::int AS images
+    FROM tentacle_iterations
+    WHERE created_at >= ${since}
+    GROUP BY 1 ORDER BY "totalTokens" DESC
+  `) as unknown as UsageByModel[];
+
+  const byParcel = (await sql`
+    SELECT t.seed_id AS "parcelId", t.title,
+           COUNT(*)::int AS iterations,
+           COUNT(i.total_tokens)::int AS measured,
+           COALESCE(SUM(i.prompt_tokens), 0)::int AS "promptTokens",
+           COALESCE(SUM(i.completion_tokens), 0)::int AS "completionTokens",
+           COALESCE(SUM(i.total_tokens), 0)::int AS "totalTokens",
+           COALESCE(SUM(i.images_generated), 0)::int AS images
+    FROM tentacle_iterations i
+    JOIN tentacles t ON t.seed_id = i.seed_id
+    WHERE i.created_at >= ${since}
+    GROUP BY 1, 2 ORDER BY "totalTokens" DESC
+  `) as unknown as UsageByParcel[];
+
+  const byDay = (await sql`
+    SELECT to_char(date_trunc('day', created_at), 'YYYY-MM-DD') AS day,
+           COUNT(*)::int AS iterations,
+           COUNT(total_tokens)::int AS measured,
+           COALESCE(SUM(prompt_tokens), 0)::int AS "promptTokens",
+           COALESCE(SUM(completion_tokens), 0)::int AS "completionTokens",
+           COALESCE(SUM(total_tokens), 0)::int AS "totalTokens",
+           COALESCE(SUM(images_generated), 0)::int AS images
+    FROM tentacle_iterations
+    WHERE created_at >= ${since}
+    GROUP BY 1 ORDER BY 1 ASC
+  `) as unknown as UsageByDay[];
+
+  const [first] = (await sql`
+    SELECT to_char(MIN(created_at), 'YYYY-MM-DD"T"HH24:MI:SSZ') AS "firstMeasuredAt"
+    FROM tentacle_iterations WHERE total_tokens IS NOT NULL
+  `) as unknown as Array<{ firstMeasuredAt: string | null }>;
+
+  return { totals, byModel, byParcel, byDay, firstMeasuredAt: first?.firstMeasuredAt ?? null };
 }

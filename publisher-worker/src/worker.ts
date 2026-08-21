@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { ensureSchema, getSql, isDatabaseConfigured, iterationById, latestIteration, listDueTentacles, recordIteration, setTentacleImage, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
+import { ensureSchema, getSql, isDatabaseConfigured, iterationById, latestIteration, listDueTentacles, recordIteration, setTentacleImage, upsertTentacles, usageSummary, type IterationUsage, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
 import { normalizeKnowledgeSlug, resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 import { fetchBlacklaceKnowledgeWithDiagnostics } from "./knowledge/notion";
 import { buildImagePrompt, generateImage, imageDataUri } from "./mistral-image";
@@ -34,6 +34,16 @@ type Env = {
   NOTION_API_KEY?: string | SecretsStoreSecret;
   NOTION_DATABASE_ID?: string;
   NOTION_PAGE_ID?: string;
+  /**
+   * Tarifs, en euros par million de tokens et par image. Non renseignés, la
+   * page de consommation montre les volumes sans afficher de coût.
+   *
+   * Volontairement en variables et non codés en dur : les grilles changent, et
+   * un tarif périmé affiché comme un fait serait pire que pas de tarif.
+   */
+  PRICE_INPUT_PER_MTOK?: string;
+  PRICE_OUTPUT_PER_MTOK?: string;
+  PRICE_PER_IMAGE?: string;
   /** Public origin of this Worker, announced to Octopus as the adapter base. */
   PUBLISHER_PUBLIC_URL?: string;
   OCTOPUS_ENGINE_URL?: string;
@@ -347,20 +357,44 @@ async function refreshTentacleImage(
   tentacle: TentacleRow,
   nextIteration: number,
   mode: TentacleMode,
-): Promise<void> {
-  if (!needsNewImage(tentacle, nextIteration, mode)) return;
+): Promise<boolean> {
+  if (!needsNewImage(tentacle, nextIteration, mode)) return false;
 
   try {
     const fileId = await generateImage(env, buildImagePrompt({ title: tentacle.title, objective: tentacle.objective }));
     await setTentacleImage(sql, tentacle.seed_id, fileId, nextIteration);
     console.log(JSON.stringify({ event: "visual.image.generated", seedId: tentacle.seed_id, iteration: nextIteration, fileId }));
+    return true;
   } catch (error) {
     console.log(JSON.stringify({
       event: "visual.image.failed",
       seedId: tentacle.seed_id,
       reason: error instanceof Error ? error.message : String(error),
     }));
+    return false;
   }
+}
+
+/** Relevé de consommation d'un cycle — `null` partout tant que rien n'a été mesuré. */
+function emptyUsage(): IterationUsage {
+  return { model: null, promptTokens: null, completionTokens: null, totalTokens: null, imagesGenerated: 0 };
+}
+
+/**
+ * Lit le relevé que Mistral joint à chaque réponse.
+ *
+ * Il était déjà là, dans `metadata.usage` — simplement jeté. C'est ce qui
+ * rendait toute question de coût sans réponse.
+ */
+function readUsage(metadata: Record<string, unknown> | undefined): Partial<IterationUsage> {
+  const usage = (metadata?.usage ?? null) as Record<string, unknown> | null;
+  const number = (value: unknown): number | null => (typeof value === "number" && Number.isFinite(value) ? value : null);
+  return {
+    model: typeof metadata?.model === "string" ? metadata.model : null,
+    promptTokens: number(usage?.prompt_tokens),
+    completionTokens: number(usage?.completion_tokens),
+    totalTokens: number(usage?.total_tokens),
+  };
 }
 
 function visualFor(env: Env, iterationId: string, content: string | null): { url: string | null; toolCombination: string | null } {
@@ -807,6 +841,7 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     [tentacle.knowledge_slug, tentacle.parcel_id, tentacle.seed_id],
   );
   let content: string | null = null;
+  const usage = emptyUsage();
   // Comme pour /api/production/execute : sans Knowledge Package vérifié,
   // pas d'appel Mistral. C'est ce cycle-ci, tournant seul toutes les 15
   // minutes sans supervision, qui a produit la majorité des inventions
@@ -816,6 +851,7 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     try {
       const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous, knowledge.prompt) });
       content = artifact.content;
+      Object.assign(usage, readUsage(artifact.metadata));
       mistralStatus = "success";
     } catch (error) {
       // Une carte peut encore tenir sans texte, mais la raison ne se perd plus.
@@ -830,7 +866,9 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
   // connaître avant l'insertion, pas après.
   const iterationId = `iter_${tentacle.seed_id}_${Date.now()}`;
   const visual = visualFor(env, iterationId, content);
-  if (visual.url) await refreshTentacleImage(env, sql, tentacle, tentacle.iteration_count + 1, "improve");
+  if (visual.url && await refreshTentacleImage(env, sql, tentacle, tentacle.iteration_count + 1, "improve")) {
+    usage.imagesGenerated = 1;
+  }
 
   await recordIteration(sql, {
     id: iterationId,
@@ -839,6 +877,7 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     content,
     visualUrl: visual.url,
     toolCombination: visual.toolCombination,
+    usage,
   });
   return {
     seedId: tentacle.seed_id,
@@ -865,10 +904,12 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
   // Le texte d'abord, le visuel ensuite : il en est désormais le sujet, alors
   // que l'ordre inverse le condamnait à ne connaître que le titre.
   let content: string | null = null;
+  const usage = emptyUsage();
   if (knowledge.verified) {
     try {
       const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, true, knowledge.prompt), temperature: 0.9 });
       content = artifact.content;
+      Object.assign(usage, readUsage(artifact.metadata));
       mistralStatus = "success";
     } catch (error) {
       mistralStatus = "error";
@@ -880,7 +921,9 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
 
   const iterationId = `iter_${tentacle.seed_id}_${Date.now()}`;
   const visual = visualFor(env, iterationId, content);
-  if (visual.url) await refreshTentacleImage(env, sql, tentacle, tentacle.iteration_count + 1, "play");
+  if (visual.url && await refreshTentacleImage(env, sql, tentacle, tentacle.iteration_count + 1, "play")) {
+    usage.imagesGenerated = 1;
+  }
 
   await recordIteration(sql, {
     id: iterationId,
@@ -889,6 +932,7 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
     content,
     visualUrl: visual.url,
     toolCombination: visual.toolCombination ?? "mistral:playful-riff",
+    usage,
   });
   return {
     seedId: tentacle.seed_id,
@@ -1029,6 +1073,65 @@ app.get("/api/knowledge", async (c) => {
     });
   } catch (error) {
     return c.json({ configured: true, connected: false, error: error instanceof Error ? error.message : String(error), items: [] }, 502);
+  }
+});
+
+/**
+ * Consommation réelle et coût estimé.
+ *
+ * Les tokens sont **mesurés**, pas déduits : ils viennent du relevé que Mistral
+ * joint à chaque réponse. Le coût, lui, est un calcul local à partir des tarifs
+ * configurés — d'où `pricing.configured`, qui dit franchement si un montant
+ * peut être affiché ou non.
+ *
+ * `measured` est distingué de `iterations` : les cycles antérieurs à la mise en
+ * place de ce relevé n'ont aucun chiffre, et prendre ce trou pour de la
+ * sobriété donnerait une facture faussement rassurante.
+ */
+app.get("/api/usage", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, error: "DATABASE_URL n'est pas configuré." });
+
+  const days = Math.min(Math.max(Number(c.req.query("days")) || 30, 1), 365);
+  const price = (value: string | undefined): number | null => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  };
+  const inputPrice = price(c.env.PRICE_INPUT_PER_MTOK);
+  const outputPrice = price(c.env.PRICE_OUTPUT_PER_MTOK);
+  const imagePrice = price(c.env.PRICE_PER_IMAGE);
+  const pricingConfigured = inputPrice !== null || outputPrice !== null || imagePrice !== null;
+
+  try {
+    const sql = await getSql(c.env);
+    await ensureSchema(sql);
+    const summary = await usageSummary(sql, days);
+
+    const cost = pricingConfigured
+      ? {
+          text: ((summary.totals.promptTokens / 1_000_000) * (inputPrice ?? 0))
+              + ((summary.totals.completionTokens / 1_000_000) * (outputPrice ?? 0)),
+          images: summary.totals.images * (imagePrice ?? 0),
+        }
+      : null;
+
+    return c.json({
+      configured: true,
+      days,
+      ...summary,
+      pricing: {
+        configured: pricingConfigured,
+        currency: "EUR",
+        inputPerMTok: inputPrice,
+        outputPerMTok: outputPrice,
+        perImage: imagePrice,
+        note: pricingConfigured
+          ? "Coût calculé localement à partir des tarifs configurés — à recouper avec la facture."
+          : "Renseigne PRICE_INPUT_PER_MTOK, PRICE_OUTPUT_PER_MTOK et PRICE_PER_IMAGE dans les variables du Worker pour voir un coût.",
+      },
+      cost: cost ? { ...cost, total: cost.text + cost.images } : null,
+    });
+  } catch (error) {
+    return c.json({ configured: true, error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
 

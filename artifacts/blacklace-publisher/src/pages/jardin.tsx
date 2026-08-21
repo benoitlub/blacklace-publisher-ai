@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BookOpen, ExternalLink, Image as ImageIcon, Sprout, TriangleAlert } from "lucide-react";
+import { BookOpen, ExternalLink, Gauge, Image as ImageIcon, Sprout, TriangleAlert } from "lucide-react";
 
 /**
  * Ce que Publisher sait, et ce qu'il a réellement produit.
@@ -110,6 +110,42 @@ function useJson<T>(path: string): { data: T | null; error: string | null; loadi
   }, [path]);
 
   return { data, error, loading };
+}
+
+interface UsageTotals {
+  iterations: number;
+  measured: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  images: number;
+}
+
+interface UsageResponse {
+  configured: boolean;
+  days?: number;
+  error?: string;
+  totals?: UsageTotals;
+  byModel?: Array<UsageTotals & { model: string }>;
+  byParcel?: Array<UsageTotals & { parcelId: string; title: string }>;
+  firstMeasuredAt?: string | null;
+  pricing?: {
+    configured: boolean;
+    currency: string;
+    inputPerMTok: number | null;
+    outputPerMTok: number | null;
+    perImage: number | null;
+    note: string;
+  };
+  cost?: { text: number; images: number; total: number } | null;
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("fr-FR").format(value);
+}
+
+function formatEuro(value: number): string {
+  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 2 }).format(value);
 }
 
 function Empty({ message }: { message: string }) {
@@ -252,6 +288,91 @@ function HarvestSection() {
   );
 }
 
+function UsageSection() {
+  const { data, error, loading } = useJson<UsageResponse>("/api/usage?days=30");
+
+  const totals = data?.totals;
+  // Un cycle sans relevé n'est pas un cycle gratuit : le distinguer évite une
+  // facture faussement rassurante.
+  const unmeasured = totals ? totals.iterations - totals.measured : 0;
+
+  return (
+    <Card className="border-border bg-card shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 font-serif text-lg">
+          <Gauge className="h-5 w-5 text-primary" />
+          Consommation — 30 derniers jours
+        </CardTitle>
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Tokens mesurés sur les relevés de Mistral. Le coût est calculé à partir des tarifs configurés.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {loading && <Empty message="Lecture de la consommation…" />}
+        {error && <Failure message={error} />}
+        {data?.error && <Failure message={data.error} />}
+
+        {totals && !error && (
+          <>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Tokens</p>
+                <p className="mt-1 text-xl font-medium text-foreground">{formatNumber(totals.totalTokens)}</p>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Entrée / sortie</p>
+                <p className="mt-1 text-sm text-foreground">
+                  {formatNumber(totals.promptTokens)} / {formatNumber(totals.completionTokens)}
+                </p>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Images</p>
+                <p className="mt-1 text-xl font-medium text-foreground">{formatNumber(totals.images)}</p>
+              </div>
+              <div className="rounded-md border border-border p-3">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Coût estimé</p>
+                <p className="mt-1 text-xl font-medium text-foreground">
+                  {data.cost ? formatEuro(data.cost.total) : "—"}
+                </p>
+              </div>
+            </div>
+
+            {data.pricing && !data.pricing.configured && (
+              <p className="text-sm leading-relaxed text-muted-foreground">{data.pricing.note}</p>
+            )}
+            {data.pricing?.configured && (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                {data.pricing.note}
+                {data.cost ? ` Texte ${formatEuro(data.cost.text)}, images ${formatEuro(data.cost.images)}.` : ""}
+              </p>
+            )}
+
+            {unmeasured > 0 && (
+              <Failure message={`${formatNumber(unmeasured)} itérations sur ${formatNumber(totals.iterations)} n'ont aucun relevé : elles sont antérieures à la mise en place de la mesure. Leur coût réel n'est pas nul, il est inconnu.`} />
+            )}
+
+            {(data.byParcel ?? []).filter((row) => row.totalTokens > 0).length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-medium text-foreground">Par parcelle</p>
+                <ul className="space-y-2">
+                  {(data.byParcel ?? []).filter((row) => row.totalTokens > 0).map((row) => (
+                    <li key={row.parcelId} className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+                      <span className="truncate text-sm text-foreground">{row.title}</span>
+                      <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                        {formatNumber(row.totalTokens)} tk · {row.images} img
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Jardin() {
   return (
     <div className="space-y-6">
@@ -262,6 +383,7 @@ export default function Jardin() {
         </p>
       </header>
 
+      <UsageSection />
       <KnowledgeSection />
       <HarvestSection />
     </div>
