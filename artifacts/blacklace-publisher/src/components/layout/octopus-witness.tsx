@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-api.onrender.com";
+const OFFICIAL_API_BASE_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev";
 
 type State = "checking" | "connected" | "publisher-only" | "error";
 type TraceStatus = "idle" | "received" | "running" | "ready" | "failed";

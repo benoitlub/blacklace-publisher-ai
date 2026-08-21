@@ -1,7 +1,8 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { ensureSchema, getSql, isDatabaseConfigured, iterationById, latestIteration, listDueTentacles, recordIteration, setTentacleImage, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
-import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
+import { normalizeKnowledgeSlug, resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
+import { fetchBlacklaceKnowledgeWithDiagnostics } from "./knowledge/notion";
 import { buildImagePrompt, generateImage, imageDataUri } from "./mistral-image";
 import { renderVisualSvg } from "./visual";
 import {
@@ -771,8 +772,35 @@ function buildPlayPrompt(tentacle: TentacleRow, previous: { content: string | nu
   return parts.filter(Boolean).join("\n\n");
 }
 
-async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
+/**
+ * Ce qu'un cycle a réellement fait, producteur par producteur.
+ *
+ * Ces diagnostics existaient déjà en production — mais injectés dans ce
+ * fichier *au moment du déploiement* par scripts/instrument-publisher-worker.mjs,
+ * qui réécrivait le source à coups de `String.replace` sur des ancres exactes.
+ * Le code déployé différait donc de `main`, et toute modification d'une de ces
+ * lignes faisait échouer le déploiement sur « anchor not found ».
+ *
+ * Ils vivent désormais dans le source. Le script est supprimé.
+ */
+export interface CycleDiagnostics {
+  knowledge: { verified: boolean; slug: string; source: string };
+  mistral: { status: string; error: string | null };
+  visual: { status: string; error: string | null; toolCombination: string | null };
+  visualUrl: string | null;
+}
+
+export interface CycleResult {
+  seedId: string;
+  mode: TentacleMode;
+  status: string;
+  diagnostics: CycleDiagnostics;
+}
+
+async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<CycleResult> {
   const previous = await latestIteration(sql, tentacle.seed_id);
+  let mistralStatus = "not-attempted";
+  let mistralError: string | null = null;
   const notionApiKey = await resolveSecret(env.NOTION_API_KEY);
   const knowledge = await resolveKnowledgePackage(
     { NOTION_API_KEY: notionApiKey, NOTION_DATABASE_ID: env.NOTION_DATABASE_ID, NOTION_PAGE_ID: env.NOTION_PAGE_ID },
@@ -788,7 +816,14 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     try {
       const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous, knowledge.prompt) });
       content = artifact.content;
-    } catch (_) { /* Mistral unavailable this cycle — a visual alone can still land */ }
+      mistralStatus = "success";
+    } catch (error) {
+      // Une carte peut encore tenir sans texte, mais la raison ne se perd plus.
+      mistralStatus = "error";
+      mistralError = error instanceof Error ? error.message : String(error);
+    }
+  } else {
+    mistralStatus = "skipped-unverified";
   }
 
   // L'id est décidé ici parce que l'URL du visuel le contient : il faut le
@@ -805,11 +840,23 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     visualUrl: visual.url,
     toolCombination: visual.toolCombination,
   });
-  return { seedId: tentacle.seed_id, mode: "improve", status: content || visual.url ? "completed" : "skipped-no-provider" };
+  return {
+    seedId: tentacle.seed_id,
+    mode: "improve",
+    status: content || visual.url ? "completed" : "skipped-no-provider",
+    diagnostics: {
+      knowledge: { verified: knowledge.verified, slug: knowledge.slug, source: knowledge.source },
+      mistral: { status: mistralStatus, error: mistralError },
+      visual: { status: visual.url ? "rendered" : "no-text", error: null, toolCombination: visual.toolCombination },
+      visualUrl: visual.url,
+    },
+  };
 }
 
-async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
+async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<CycleResult> {
   const previous = await latestIteration(sql, tentacle.seed_id);
+  let mistralStatus = "not-attempted";
+  let mistralError: string | null = null;
   const notionApiKey = await resolveSecret(env.NOTION_API_KEY);
   const knowledge = await resolveKnowledgePackage(
     { NOTION_API_KEY: notionApiKey, NOTION_DATABASE_ID: env.NOTION_DATABASE_ID, NOTION_PAGE_ID: env.NOTION_PAGE_ID },
@@ -822,7 +869,13 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
     try {
       const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, true, knowledge.prompt), temperature: 0.9 });
       content = artifact.content;
-    } catch (_) { /* fine — this cycle just yields whatever it managed */ }
+      mistralStatus = "success";
+    } catch (error) {
+      mistralStatus = "error";
+      mistralError = error instanceof Error ? error.message : String(error);
+    }
+  } else {
+    mistralStatus = "skipped-unverified";
   }
 
   const iterationId = `iter_${tentacle.seed_id}_${Date.now()}`;
@@ -837,7 +890,17 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
     visualUrl: visual.url,
     toolCombination: visual.toolCombination ?? "mistral:playful-riff",
   });
-  return { seedId: tentacle.seed_id, mode: "play", status: content || visual.url ? "completed" : "skipped-no-provider" };
+  return {
+    seedId: tentacle.seed_id,
+    mode: "play",
+    status: content || visual.url ? "completed" : "skipped-no-provider",
+    diagnostics: {
+      knowledge: { verified: knowledge.verified, slug: knowledge.slug, source: knowledge.source },
+      mistral: { status: mistralStatus, error: mistralError },
+      visual: { status: visual.url ? "rendered" : "no-text", error: null, toolCombination: visual.toolCombination },
+      visualUrl: visual.url,
+    },
+  };
 }
 
 // Roughly one cycle in four is play/dream/experiment rather than a serious
@@ -915,6 +978,57 @@ app.post("/api/tentacles/sync", async (c) => {
     return c.json({ status: "ok", synced: count });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+/**
+ * Les Knowledge Packages tels que Publisher les voit réellement.
+ *
+ * Ils gouvernent tout : sans paquet **vérifié**, le cycle n'appelle pas Mistral
+ * — c'est la garde qui empêche Gérard d'inventer. Jusqu'ici rien ne les
+ * exposait, donc personne ne pouvait voir lesquels étaient reconnus, ni
+ * pourquoi une parcelle restait muette.
+ *
+ * `isMock` est rendu tel quel, sans être masqué : un paquet de démonstration
+ * pris pour une source réelle serait exactement le genre de faux succès que ce
+ * projet passe son temps à débusquer.
+ */
+app.get("/api/knowledge", async (c) => {
+  const notionApiKey = await resolveSecret(c.env.NOTION_API_KEY);
+  const knowledgeEnv = {
+    NOTION_API_KEY: notionApiKey,
+    NOTION_DATABASE_ID: c.env.NOTION_DATABASE_ID,
+    NOTION_PAGE_ID: c.env.NOTION_PAGE_ID,
+  };
+
+  if (!notionApiKey) {
+    return c.json({ configured: false, connected: false, error: "NOTION_API_KEY n'est pas configuré.", items: [] });
+  }
+
+  try {
+    const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics(knowledgeEnv);
+    return c.json({
+      configured: true,
+      connected: diagnostics.connected,
+      source: diagnostics.source,
+      error: diagnostics.error,
+      total: diagnostics.items.length,
+      verified: diagnostics.items.filter((item) => !item.isMock).length,
+      items: diagnostics.items.map((item) => ({
+        id: item.id,
+        title: item.title,
+        universe: item.universe,
+        slug: normalizeKnowledgeSlug(item.universe || item.title),
+        tags: item.tags,
+        isMock: item.isMock,
+        // Un extrait suffit à reconnaître le paquet ; le contenu complet
+        // alourdirait la réponse sans rien apprendre de plus à l'écran.
+        excerpt: item.content.slice(0, 400),
+        length: item.content.length,
+      })),
+    });
+  } catch (error) {
+    return c.json({ configured: true, connected: false, error: error instanceof Error ? error.message : String(error), items: [] }, 502);
   }
 });
 
