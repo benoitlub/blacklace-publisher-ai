@@ -11,6 +11,7 @@ import {
   Database,
   Sprout,
   Bot,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +24,7 @@ const NAV_GROUPS = [
       { href: "/radar", label: "Radar", icon: Radar },
       { href: "/memory", label: "Mémoire", icon: Database },
       { href: "/greenhouse", label: "Serre", icon: Sprout },
+      { href: "/jardin", label: "Jardin", icon: BookOpen },
       { href: "/autonomy", label: "Routine", icon: Bot },
     ],
   },

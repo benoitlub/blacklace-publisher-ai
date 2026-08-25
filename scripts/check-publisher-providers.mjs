@@ -15,15 +15,17 @@ console.log(JSON.stringify({
 if (!response.ok || payload.status === "failed") process.exit(1);
 
 const mistralOk = payload.mistral?.available === true;
-const canvaOk = payload.canva?.status === "executable";
+// `canva` a laissé la place à `visual` : le visuel n'est plus produit par un
+// tiers mais dessiné par le Worker lui-même (voir publisher-worker/src/visual.ts).
+const visualOk = payload.visual?.status === "executable";
 
-if (!mistralOk || !canvaOk) {
+if (!mistralOk || !visualOk) {
   console.error(JSON.stringify({
     status: "provider-not-ready",
     mistral: payload.mistral ?? null,
-    canva: payload.canva ?? null,
+    visual: payload.visual ?? null,
   }, null, 2));
   process.exit(2);
 }
 
-console.log(JSON.stringify({ status: "providers-ready", mistral: true, canva: true }));
+console.log(JSON.stringify({ status: "providers-ready", mistral: true, visual: true }));
