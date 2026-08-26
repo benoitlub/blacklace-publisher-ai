@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ObservationMemoryEntry } from "@/models/observation-memory";
 import { buildGreenhouse } from "@/knowledge/build-greenhouse";
 import { loadObservationMemory, OBSERVATION_MEMORY_CHANGED_EVENT } from "@/memory/observation-memory";
+import { syncObservationMemoryFromServer } from "@/memory/observation-sync";
 import { Ear, Eye, Send, Sprout } from "lucide-react";
 
 function formatDate(value?: string): string {
@@ -51,6 +52,9 @@ export default function Greenhouse() {
     refresh();
     window.addEventListener(OBSERVATION_MEMORY_CHANGED_EVENT, refresh);
     window.addEventListener("storage", refresh);
+    // Recharge depuis Neon : sans ça, la serre ne montrerait que ce que ce
+    // navigateur a lui-même observé.
+    void syncObservationMemoryFromServer();
     return () => {
       window.removeEventListener(OBSERVATION_MEMORY_CHANGED_EVENT, refresh);
       window.removeEventListener("storage", refresh);

@@ -13,6 +13,8 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260812.1",
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0",
     "tsx": "^4.23.12",
     "typescript": "^5.9.0",
     "wrangler": "^4.114.0"

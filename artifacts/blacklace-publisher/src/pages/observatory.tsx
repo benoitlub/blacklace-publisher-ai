@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { KnowledgeObservatoryResult, SourceKind } from "@/models/knowledge-observatory";
 import { runKnowledgeObservatory } from "@/services/knowledge-observatory";
-import { sendObservatoryObservation, type PublisherOctopusObservationResult } from "@/services/octopus-observation";
+import type { PublisherOctopusTranslation } from "@/services/octopus-observation";
+import { persistObservatorySource } from "@/services/observatory-sources";
 import { rememberObservation } from "@/memory/observation-memory";
 
 const SOURCE_KINDS: Array<{ value: SourceKind; label: string }> = [
@@ -58,7 +59,7 @@ function ListBlock({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-function priorityLabel(priority: PublisherOctopusObservationResult["publisher"]["harvestPriority"]) {
+function priorityLabel(priority: PublisherOctopusTranslation["harvestPriority"]) {
   if (priority === "prioritize") return "Prioritaire";
   if (priority === "prepare") return "À préparer";
   return "À observer";
@@ -71,8 +72,10 @@ export default function Observatory() {
   const [result, setResult] = useState<KnowledgeObservatoryResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [remembered, setRemembered] = useState(false);
-  const [octopusResult, setOctopusResult] = useState<PublisherOctopusObservationResult | null>(null);
+  const [octopusResult, setOctopusResult] = useState<PublisherOctopusTranslation | null>(null);
   const [octopusError, setOctopusError] = useState<string | null>(null);
+  const [persisted, setPersisted] = useState(false);
+  const [persistError, setPersistError] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
   const packJson = useMemo(() => (result ? JSON.stringify(result.pack, null, 2) : ""), [result]);
@@ -86,24 +89,33 @@ export default function Observatory() {
     setRemembered(true);
     setOctopusResult(null);
     setOctopusError(null);
+    setPersisted(false);
+    setPersistError(null);
     setSending(true);
 
+    // L'enregistrement local ci-dessus n'est qu'un cache navigateur. C'est
+    // cet appel qui écrit réellement la source dans Neon — sans lui, ni un
+    // autre appareil ni le job nocturne GitHub Actions ne la verrait jamais.
     try {
-      const octopus = await sendObservatoryObservation({
-        id: `publisher-observation-${Date.now()}`,
+      const saved = await persistObservatorySource({
         kind,
-        title: nextResult.observation.source.label || safeValue.slice(0, 120),
+        value: safeValue,
+        name: nextResult.observation.source.label || safeValue.slice(0, 120),
         summary: nextResult.observation.summary,
         confidence: nextResult.observation.confidence,
         category: nextResult.observation.category,
         language: nextResult.observation.language,
+        tags: nextResult.pack.tags,
+        pack: nextResult.pack,
         features: nextResult.extraction.features,
         patterns: nextResult.pack.patterns,
         recommendations: nextResult.pack.recommendations,
       });
-      setOctopusResult(octopus);
+      setPersisted(true);
+      if (saved.publisher) setOctopusResult(saved.publisher);
+      if (saved.octopusError) setOctopusError(saved.octopusError);
     } catch (error) {
-      setOctopusError(error instanceof Error ? error.message : "Octopus n'a pas pu mémoriser cette observation.");
+      setPersistError(error instanceof Error ? error.message : "La source n'a pas pu être enregistrée côté serveur.");
     } finally {
       setSending(false);
     }
@@ -161,13 +173,19 @@ export default function Observatory() {
       </Card>
 
       {remembered ? (
-        <Card className={octopusError ? "border-amber-500/30 bg-amber-500/10" : "border-primary/20 bg-primary/10"}>
+        <Card className={persistError || octopusError ? "border-amber-500/30 bg-amber-500/10" : "border-primary/20 bg-primary/10"}>
           <CardContent className="space-y-4 p-4">
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div className="flex items-center gap-3 text-sm">
-                {octopusError ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <Database className="h-4 w-4 text-primary" />}
-                <span className={octopusError ? "text-amber-600" : "text-primary"}>
-                  {sending ? "Observation locale enregistrée. Octopus est en cours de consultation…" : octopusError ? `Observation locale conservée, mais ${octopusError}` : "Observation mémorisée localement et reliée par Octopus."}
+                {persistError || octopusError ? <AlertTriangle className="h-4 w-4 text-amber-500" /> : <Database className="h-4 w-4 text-primary" />}
+                <span className={persistError || octopusError ? "text-amber-600" : "text-primary"}>
+                  {sending
+                    ? "Observation locale enregistrée. Écriture dans la base Neon…"
+                    : persistError
+                      ? `Observation conservée dans ce navigateur uniquement : ${persistError} Tant qu'elle n'est pas en base, le job nocturne ne la verra pas.`
+                      : octopusError
+                        ? `Source enregistrée en base, mais ${octopusError}`
+                        : "Source enregistrée en base et reliée par Octopus."}
                 </span>
               </div>
               <Link href="/memory"><Button variant="outline" size="sm">Voir la mémoire</Button></Link>
@@ -175,11 +193,11 @@ export default function Observatory() {
 
             {octopusResult ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Pertinence</p><p className="mt-1 text-2xl font-semibold text-foreground">{octopusResult.publisher.relevanceScore}%</p></div>
-                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Nouveauté</p><p className="mt-1 text-2xl font-semibold text-foreground">{octopusResult.publisher.noveltyScore}%</p></div>
-                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Relations</p><p className="mt-1 text-2xl font-semibold text-foreground">{octopusResult.publisher.relatedCount}</p></div>
-                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Récolte</p><p className="mt-1 text-base font-semibold text-foreground">{priorityLabel(octopusResult.publisher.harvestPriority)}</p></div>
-                <p className="sm:col-span-2 xl:col-span-4 text-sm text-muted-foreground">{octopusResult.publisher.summary}</p>
+                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Pertinence</p><p className="mt-1 text-2xl font-semibold text-foreground">{octopusResult.relevanceScore}%</p></div>
+                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Nouveauté</p><p className="mt-1 text-2xl font-semibold text-foreground">{octopusResult.noveltyScore}%</p></div>
+                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Relations</p><p className="mt-1 text-2xl font-semibold text-foreground">{octopusResult.relatedCount}</p></div>
+                <div className="rounded-md border border-border bg-background/50 p-3"><p className="text-[10px] font-mono uppercase tracking-widest text-muted-foreground">Récolte</p><p className="mt-1 text-base font-semibold text-foreground">{priorityLabel(octopusResult.harvestPriority)}</p></div>
+                <p className="sm:col-span-2 xl:col-span-4 text-sm text-muted-foreground">{octopusResult.summary}</p>
               </div>
             ) : null}
           </CardContent>
@@ -193,7 +211,7 @@ export default function Observatory() {
             <StepCard icon={RadioTower} title="Observation"><p>{result.observation.summary}</p><p>Confiance : {Math.round(result.observation.confidence * 100)}%</p></StepCard>
             <StepCard icon={FlaskConical} title="Extraction"><p>{result.extraction.features.length} fonctionnalites</p><p>{result.extraction.workflowPatterns.length} workflow patterns</p></StepCard>
             <StepCard icon={BrainCircuit} title="Knowledge"><p>{result.knowledge.length} themes regroupes</p><p>{result.pack.patterns.length} patterns</p></StepCard>
-            <StepCard icon={PackageCheck} title="Mémoire" done={!octopusError}><p>{octopusResult ? "Mémoire universelle consultée." : "Pack enregistré localement."}</p><Badge className="font-mono text-[10px] uppercase">{octopusResult ? "octopus" : "local"}</Badge></StepCard>
+            <StepCard icon={PackageCheck} title="Mémoire" done={!persistError && !octopusError}><p>{persisted ? "Source persistée dans Neon." : "Pack enregistré localement seulement."}</p><Badge className="font-mono text-[10px] uppercase">{persisted ? (octopusResult ? "neon + octopus" : "neon") : "local"}</Badge></StepCard>
           </div>
 
           <div className="grid gap-6 xl:grid-cols-2">

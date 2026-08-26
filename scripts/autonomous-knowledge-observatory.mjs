@@ -5,6 +5,13 @@ const NOTION_API_KEY = process.env.NOTION_API_KEY;
 const NOTION_VERSION = "2022-06-28";
 const OUTPUT_DIR = path.resolve("public/knowledge-packs");
 
+// Le Worker Cloudflare est le seul backend déployé à parler à Neon. Ce job
+// tourne sans `pnpm install` (voir le workflow), donc il l'interroge en HTTP
+// plutôt que d'ouvrir une connexion Postgres.
+const PUBLISHER_API_URL = (process.env.PUBLISHER_API_URL
+  || "https://blacklace-publisher-worker.benoitlubert.workers.dev").replace(/\/$/, "");
+const USER_SOURCES_SLUG = "observatory-user-sources";
+
 const PARCELS = [
   ["terra", ["terra"]],
   ["gerard-et-gerard", ["gérard et gérard", "gerard et gerard", "gerard & gerard"]],
@@ -122,6 +129,89 @@ async function buildPack(slug, aliases) {
   };
 }
 
+/**
+ * Sources ajoutées à la main depuis l'Observatoire du dashboard.
+ *
+ * Elles vivaient auparavant uniquement dans le localStorage du navigateur :
+ * ce job n'en voyait aucune, d'où un tableau de bord bloqué à 0 et des
+ * sources jamais traitées. Elles sont désormais persistées dans Neon par le
+ * Worker, et c'est cette file (`status=pending`) que l'on vide ici.
+ */
+async function fetchPendingUserSources() {
+  const response = await fetch(`${PUBLISHER_API_URL}/api/observatory/sources?status=pending&limit=200`, {
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`Publisher API returned HTTP ${response.status}`);
+  const payload = await response.json();
+  if (payload.configured === false) throw new Error("Publisher n'a pas de base Neon configurée.");
+  return Array.isArray(payload.sources) ? payload.sources : [];
+}
+
+async function markUserSourcesProcessed(ids) {
+  if (!ids.length) return;
+  const response = await fetch(`${PUBLISHER_API_URL}/api/observatory/sources/mark-processed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (!response.ok) throw new Error(`mark-processed returned HTTP ${response.status}`);
+}
+
+function userSourcesPack(sources) {
+  return {
+    version: 1,
+    slug: USER_SOURCES_SLUG,
+    status: sources.length ? "verified" : "empty",
+    source: "publisher-observatory-user-sources",
+    aliases: [],
+    sources: sources.map((source) => ({
+      id: source.id,
+      title: source.name,
+      url: source.kind === "url" || source.kind === "github" ? source.value : null,
+      content: [
+        source.summary,
+        Array.isArray(source.pack?.patterns) && source.pack.patterns.length
+          ? `Patterns : ${source.pack.patterns.join(", ")}`
+          : "",
+        Array.isArray(source.pack?.recommendations) && source.pack.recommendations.length
+          ? `Recommandations : ${source.pack.recommendations.join(", ")}`
+          : "",
+      ].filter(Boolean).join("\n\n") || source.value,
+      capturedAt: source.lastObservedAt,
+      kind: source.kind,
+      decision: source.decision,
+      tags: source.tags ?? [],
+      octopus: source.octopus ?? null,
+    })),
+    sourceCount: sources.length,
+    generatedAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Volontairement isolé du pipeline Notion ci-dessus : une API Publisher
+ * injoignable ne doit jamais faire échouer le rafraîchissement des packs
+ * existants (Bazar du Feuch & co.).
+ */
+async function refreshUserSourcesPack() {
+  try {
+    const sources = await fetchPendingUserSources();
+    const pack = userSourcesPack(sources);
+    await fs.writeFile(
+      path.join(OUTPUT_DIR, `${USER_SOURCES_SLUG}.json`),
+      `${JSON.stringify(pack, null, 2)}\n`,
+      "utf8",
+    );
+    await markUserSourcesProcessed(sources.map((source) => source.id));
+    console.log(`${USER_SOURCES_SLUG}: ${sources.length} source(s) utilisateur traitée(s)`);
+    return { slug: USER_SOURCES_SLUG, status: pack.status, sourceCount: pack.sourceCount, generatedAt: pack.generatedAt };
+  } catch (error) {
+    console.warn(`${USER_SOURCES_SLUG}: sources utilisateur non lues (${error.message})`);
+    return null;
+  }
+}
+
 async function main() {
   if (!NOTION_API_KEY) {
     throw new Error("NOTION_API_KEY is required for the autonomous observatory");
@@ -145,6 +235,9 @@ async function main() {
     });
     console.log(`${slug}: ${pack.sourceCount} source(s)`);
   }
+
+  const userSourcesEntry = await refreshUserSourcesPack();
+  if (userSourcesEntry) index.push(userSourcesEntry);
 
   await fs.writeFile(
     path.join(OUTPUT_DIR, "index.json"),

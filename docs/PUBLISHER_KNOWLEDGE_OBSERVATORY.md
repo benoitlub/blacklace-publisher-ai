@@ -145,6 +145,48 @@ Plus tard seulement :
 - RSS ;
 - directories IA.
 
+## Persistance des sources (Neon)
+
+Une source ajoutee depuis l'Observatoire n'existait longtemps que dans le
+localStorage du navigateur. Consequence : le tableau de bord affichait
+`Entrees: 0 / Observations: 0 / Enrichies par Octopus: 0` des qu'on changeait
+d'appareil, et le job nocturne `Autonomous Knowledge Observatory`, qui tourne
+cote serveur, ne voyait aucune de ces sources.
+
+Le trajet reel est desormais :
+
+```txt
+Observatoire (UI)
+→ POST /api/observatory/sources (Worker Cloudflare)
+→ table Neon `observatory_sources`
+→ GET /api/observatory/sources?status=pending
+→ job nocturne GitHub Actions
+→ public/knowledge-packs/observatory-user-sources.json
+→ POST /api/observatory/sources/mark-processed
+```
+
+Points de contrat :
+
+- Le Worker Cloudflare est le seul backend deploye a parler a Neon (pilote
+  HTTP `@neondatabase/serverless` : le runtime Workers n'a pas de socket TCP).
+  L'api-server Render est mort, ses routes ne sont plus un chemin de
+  persistance.
+- L'ecriture en base precede l'appel a Octopus. Une panne d'Octopus renvoie
+  `status: "persisted-without-octopus"` mais ne fait plus perdre la source.
+- Le localStorage reste, mais comme **cache de lecture** : au chargement,
+  Memoire et Serre se resynchronisent depuis la base
+  (`memory/observation-sync.ts`). Une observation faite hors ligne est
+  conservee localement plutot que perdue.
+- La cle de deduplication (`observatorySourceKey`) doit rester identique des
+  deux cotes : Worker (`publisher-worker/src/db.ts`) et navigateur
+  (`memory/observation-memory.ts`).
+- Le DDL fait foi dans `ensureObservatorySchema`. `lib/db/src/schema/observatory-sources.ts`
+  n'en est que le miroir Drizzle, pour relire la table depuis un contexte Node
+  (`pnpm --filter @workspace/scripts run verify-observatory-sources`).
+- Le pipeline Notion existant (Bazar du Feuch & co.) est inchange : la lecture
+  des sources utilisateur est isolee derriere un try/catch, une API Publisher
+  injoignable ne fait pas echouer le rafraichissement des packs.
+
 ## Regles d'architecture
 
 - Ne pas creer une deuxieme architecture Publisher.

@@ -1,6 +1,27 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { ensureSchema, getSql, isDatabaseConfigured, latestIteration, listDueTentacles, recordIteration, upsertTentacles, type TentacleMode, type TentacleRow, type TentacleSeedInput } from "./db";
+import {
+  OBSERVATORY_DECISIONS,
+  attachObservatoryOctopus,
+  ensureObservatorySchema,
+  ensureSchema,
+  getSql,
+  isDatabaseConfigured,
+  latestIteration,
+  listDueTentacles,
+  listObservatorySources,
+  markObservatorySourcesProcessed,
+  recordIteration,
+  setObservatoryDecision,
+  upsertObservatorySource,
+  upsertTentacles,
+  type ObservatoryDecision,
+  type ObservatorySourceInput,
+  type ObservatorySourceRow,
+  type TentacleMode,
+  type TentacleRow,
+  type TentacleSeedInput,
+} from "./db";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 import {
   ADAPTER_EXECUTION_CONTRACT,
@@ -1111,6 +1132,181 @@ app.post("/api/octopus-adapter/observe", async (c) => {
     return c.json(result);
   } catch (error) {
     return c.json({ status: "failed", code: "OCTOPUS_UNAVAILABLE", summary: error instanceof Error ? error.message : "Octopus could not process the observation." }, 502);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Observatoire : sources persistées dans Neon.
+//
+// Avant ces routes, "ajouter une source" depuis le dashboard n'écrivait que
+// dans le localStorage du navigateur. Rien n'atteignait jamais le serveur,
+// donc le job nocturne (Autonomous Knowledge Observatory) ne voyait aucune
+// source utilisateur et les compteurs du tableau de bord restaient à 0 dès
+// qu'on changeait de navigateur ou d'appareil.
+//
+// L'ordre compte : on écrit d'abord en base, on interroge Octopus ensuite.
+// Une panne d'Octopus ne doit plus faire perdre la source.
+// ---------------------------------------------------------------------------
+
+function observatorySourceResponse(row: ObservatorySourceRow) {
+  return {
+    id: row.id,
+    sourceKey: row.source_key,
+    kind: row.kind,
+    value: row.value,
+    name: row.name,
+    category: row.category,
+    summary: row.summary,
+    averageConfidence: Number(row.average_confidence ?? 0),
+    tags: row.tags ?? [],
+    decision: row.decision,
+    observationCount: row.observation_count,
+    pack: row.pack ?? null,
+    octopus: row.octopus ?? null,
+    firstObservedAt: row.first_observed_at,
+    lastObservedAt: row.last_observed_at,
+    processedAt: row.processed_at,
+  };
+}
+
+app.post("/api/observatory/sources", async (c) => {
+  const body = (await c.req.json().catch(() => null)) as
+    | (ObservatorySourceInput & {
+        language?: string;
+        features?: string[];
+        patterns?: string[];
+        recommendations?: string[];
+      })
+    | null;
+
+  if (!body || typeof body.value !== "string" || !body.value.trim() || typeof body.kind !== "string" || !body.kind.trim()) {
+    return c.json({ status: "rejected", code: "INVALID_SOURCE", error: "Une source requiert un `kind` et une `value`." }, 400);
+  }
+
+  if (!(await isDatabaseConfigured(c.env))) {
+    return c.json({ status: "waiting-authorization", code: "DATABASE_NOT_CONFIGURED", error: "DATABASE_URL n'est pas configuré dans Publisher." }, 409);
+  }
+
+  let row: ObservatorySourceRow;
+  try {
+    const sql = await getSql(c.env);
+    await ensureObservatorySchema(sql);
+    row = await upsertObservatorySource(sql, {
+      id: body.id,
+      kind: body.kind,
+      value: body.value,
+      name: body.name,
+      category: body.category,
+      summary: body.summary,
+      confidence: body.confidence,
+      tags: body.tags,
+      pack: body.pack,
+    });
+  } catch (error) {
+    return c.json({ status: "failed", code: "PERSISTENCE_FAILED", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+
+  // Enrichissement Octopus : best-effort. La source est déjà en base, donc
+  // un échec ici est signalé mais ne perd rien.
+  const features = Array.isArray(body.features) ? body.features : [];
+  const patterns = Array.isArray(body.patterns) ? body.patterns : [];
+  const recommendations = Array.isArray(body.recommendations) ? body.recommendations : [];
+
+  try {
+    const observation = await observeWithOctopus(octopusEngineUrl(c.env), {
+      id: row.id,
+      kind: `knowledge-observation:${row.kind}`,
+      title: row.name,
+      source: "publisher-observatory",
+      occurredAt: new Date().toISOString(),
+      metrics: {
+        confidence: Number(row.average_confidence ?? 0),
+        featureCount: features.length,
+        patternCount: patterns.length,
+        recommendationCount: recommendations.length,
+      },
+      context: {
+        category: row.category,
+        language: typeof body.language === "string" ? body.language : null,
+      },
+      tags: [...new Set([row.kind, ...(row.category ? [row.category] : []), ...(row.tags ?? [])])],
+      metadata: {
+        summary: row.summary,
+        features,
+        patterns,
+        recommendations,
+      },
+    });
+    const sql = await getSql(c.env);
+    const enriched = await attachObservatoryOctopus(sql, row.id, {
+      ...observation.publisher,
+      receivedAt: new Date().toISOString(),
+    });
+    return c.json({ status: "ok", source: observatorySourceResponse(enriched ?? row), publisher: observation.publisher });
+  } catch (error) {
+    return c.json({
+      status: "persisted-without-octopus",
+      source: observatorySourceResponse(row),
+      octopusError: error instanceof Error ? error.message : "Octopus n'a pas pu mémoriser cette observation.",
+    });
+  }
+});
+
+// `status=pending` : ce que le job nocturne doit encore traiter (jamais
+// traité, ou ré-observé depuis son dernier passage), en excluant les
+// sources que l'utilisateur a décidé d'ignorer.
+app.get("/api/observatory/sources", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, sources: [] });
+  try {
+    const sql = await getSql(c.env);
+    await ensureObservatorySchema(sql);
+    const limitParam = Number.parseInt(c.req.query("limit") ?? "", 10);
+    const rows = await listObservatorySources(sql, {
+      limit: Number.isFinite(limitParam) ? limitParam : undefined,
+      pendingOnly: c.req.query("status") === "pending",
+    });
+    return c.json({ configured: true, sources: rows.map(observatorySourceResponse) });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+app.post("/api/observatory/sources/:id/decision", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { decision?: string };
+  const decision = String(body.decision ?? "") as ObservatoryDecision;
+  if (!OBSERVATORY_DECISIONS.includes(decision)) {
+    return c.json({ status: "rejected", code: "INVALID_DECISION", error: `Décision inconnue : ${body.decision}.` }, 400);
+  }
+  if (!(await isDatabaseConfigured(c.env))) {
+    return c.json({ status: "waiting-authorization", code: "DATABASE_NOT_CONFIGURED", error: "DATABASE_URL n'est pas configuré dans Publisher." }, 409);
+  }
+  try {
+    const sql = await getSql(c.env);
+    await ensureObservatorySchema(sql);
+    const row = await setObservatoryDecision(sql, c.req.param("id"), decision);
+    if (!row) return c.json({ status: "not-found", error: "Source inconnue." }, 404);
+    return c.json({ status: "ok", source: observatorySourceResponse(row) });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+// Appelé par le job nocturne une fois les sources intégrées à un Knowledge
+// Pack : elles sortent de la file `status=pending` jusqu'à leur prochaine
+// ré-observation.
+app.post("/api/observatory/sources/mark-processed", async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { ids?: unknown };
+  const ids = Array.isArray(body.ids) ? body.ids.map((id) => String(id)) : [];
+  if (!(await isDatabaseConfigured(c.env))) {
+    return c.json({ status: "waiting-authorization", code: "DATABASE_NOT_CONFIGURED", error: "DATABASE_URL n'est pas configuré dans Publisher." }, 409);
+  }
+  try {
+    const sql = await getSql(c.env);
+    await ensureObservatorySchema(sql);
+    const processed = await markObservatorySourcesProcessed(sql, ids);
+    return c.json({ status: "ok", processed });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
 

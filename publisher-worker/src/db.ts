@@ -196,3 +196,202 @@ export async function recordIteration(sql: NeonQueryFunction<false, false>, inpu
 export async function setTentacleMode(sql: NeonQueryFunction<false, false>, seedId: string, mode: TentacleMode): Promise<void> {
   await sql`UPDATE tentacles SET mode = ${mode}, updated_at = now() WHERE seed_id = ${seedId}`;
 }
+// ---------------------------------------------------------------------------
+// Observatory sources
+//
+// L'Observatoire du dashboard n'écrivait que dans le localStorage du
+// navigateur : une source ajoutée depuis l'UI n'existait nulle part côté
+// serveur, donc le job nocturne (Autonomous Knowledge Observatory) n'avait
+// rien à observer et les compteurs "Entrées / Observations / Enrichies par
+// Octopus" restaient à 0 sur tout autre appareil. Ces tables sont le
+// pendant serveur de ObservationMemoryEntry
+// (artifacts/blacklace-publisher/src/models/observation-memory.ts).
+// ---------------------------------------------------------------------------
+
+export type ObservatoryDecision = "watch" | "ignore" | "seed" | "harvest" | "article" | "compare";
+
+export const OBSERVATORY_DECISIONS: readonly ObservatoryDecision[] = [
+  "watch",
+  "ignore",
+  "seed",
+  "harvest",
+  "article",
+  "compare",
+];
+
+export interface ObservatorySourceRow {
+  id: string;
+  source_key: string;
+  kind: string;
+  value: string;
+  name: string;
+  category: string | null;
+  summary: string | null;
+  average_confidence: number;
+  tags: string[];
+  decision: ObservatoryDecision;
+  observation_count: number;
+  pack: unknown;
+  octopus: unknown;
+  first_observed_at: string;
+  last_observed_at: string;
+  processed_at: string | null;
+  updated_at: string;
+}
+
+export interface ObservatorySourceInput {
+  id?: string;
+  kind: string;
+  value: string;
+  name?: string;
+  category?: string;
+  summary?: string;
+  confidence?: number;
+  tags?: string[];
+  pack?: unknown;
+}
+
+/**
+ * Même normalisation que `normalizeKey` côté navigateur
+ * (memory/observation-memory.ts) : c'est elle qui décide qu'une deuxième
+ * observation de la même URL met à jour la fiche existante au lieu d'en
+ * créer une seconde.
+ */
+export function observatorySourceKey(value: string): string {
+  return value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
+}
+
+let observatorySchemaEnsured = false;
+
+export async function ensureObservatorySchema(sql: NeonQueryFunction<false, false>): Promise<void> {
+  if (observatorySchemaEnsured) return;
+  await sql`
+    CREATE TABLE IF NOT EXISTS observatory_sources (
+      id TEXT PRIMARY KEY,
+      source_key TEXT NOT NULL UNIQUE,
+      kind TEXT NOT NULL,
+      value TEXT NOT NULL,
+      name TEXT NOT NULL,
+      category TEXT,
+      summary TEXT,
+      average_confidence REAL NOT NULL DEFAULT 0,
+      tags TEXT[] NOT NULL DEFAULT '{}',
+      decision TEXT NOT NULL DEFAULT 'watch',
+      observation_count INTEGER NOT NULL DEFAULT 1,
+      pack JSONB,
+      octopus JSONB,
+      first_observed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_observed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      processed_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS observatory_sources_last_observed_idx ON observatory_sources (last_observed_at DESC)`;
+  await sql`CREATE INDEX IF NOT EXISTS observatory_sources_processed_at_idx ON observatory_sources (processed_at)`;
+  observatorySchemaEnsured = true;
+}
+
+/**
+ * Insère la source, ou fusionne une nouvelle observation dans la fiche
+ * existante (compteur, moyenne de confiance, union des tags). Remet
+ * `processed_at` à NULL : une nouvelle observation redevient du travail en
+ * attente pour le job nocturne. `decision` n'est jamais écrasée — elle
+ * appartient à l'utilisateur, pas à l'observation.
+ */
+export async function upsertObservatorySource(
+  sql: NeonQueryFunction<false, false>,
+  input: ObservatorySourceInput,
+): Promise<ObservatorySourceRow> {
+  const value = input.value.trim();
+  if (!value) throw new Error("Une source doit avoir une valeur.");
+  const sourceKey = observatorySourceKey(value);
+  const id = input.id?.trim() || `obs_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const name = (input.name || value).trim().slice(0, 200);
+  const confidence = Number.isFinite(input.confidence) ? Number(input.confidence) : 0;
+  const tags = [...new Set((input.tags ?? []).map((tag) => String(tag).trim()).filter(Boolean))];
+
+  const rows = await sql`
+    INSERT INTO observatory_sources (
+      id, source_key, kind, value, name, category, summary, average_confidence, tags, observation_count, pack
+    ) VALUES (
+      ${id}, ${sourceKey}, ${input.kind}, ${value}, ${name}, ${input.category ?? null}, ${input.summary ?? null},
+      ${confidence}, ${tags}, 1, ${input.pack ? JSON.stringify(input.pack) : null}
+    )
+    ON CONFLICT (source_key) DO UPDATE SET
+      kind = EXCLUDED.kind,
+      value = EXCLUDED.value,
+      name = EXCLUDED.name,
+      category = COALESCE(EXCLUDED.category, observatory_sources.category),
+      summary = COALESCE(EXCLUDED.summary, observatory_sources.summary),
+      average_confidence = (
+        (observatory_sources.average_confidence * observatory_sources.observation_count) + EXCLUDED.average_confidence
+      ) / (observatory_sources.observation_count + 1),
+      tags = ARRAY(SELECT DISTINCT unnest(observatory_sources.tags || EXCLUDED.tags)),
+      observation_count = observatory_sources.observation_count + 1,
+      pack = COALESCE(EXCLUDED.pack, observatory_sources.pack),
+      last_observed_at = now(),
+      processed_at = NULL,
+      updated_at = now()
+    RETURNING *
+  `;
+  return rows[0] as unknown as ObservatorySourceRow;
+}
+
+export async function listObservatorySources(
+  sql: NeonQueryFunction<false, false>,
+  options: { limit?: number; pendingOnly?: boolean } = {},
+): Promise<ObservatorySourceRow[]> {
+  const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
+  const rows = options.pendingOnly
+    ? await sql`
+        SELECT * FROM observatory_sources
+        WHERE processed_at IS NULL AND decision <> 'ignore'
+        ORDER BY last_observed_at DESC
+        LIMIT ${limit}
+      `
+    : await sql`SELECT * FROM observatory_sources ORDER BY last_observed_at DESC LIMIT ${limit}`;
+  return rows as unknown as ObservatorySourceRow[];
+}
+
+export async function attachObservatoryOctopus(
+  sql: NeonQueryFunction<false, false>,
+  id: string,
+  octopus: unknown,
+): Promise<ObservatorySourceRow | null> {
+  const rows = await sql`
+    UPDATE observatory_sources
+    SET octopus = ${JSON.stringify(octopus)}, updated_at = now()
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as unknown as ObservatorySourceRow) ?? null;
+}
+
+export async function setObservatoryDecision(
+  sql: NeonQueryFunction<false, false>,
+  id: string,
+  decision: ObservatoryDecision,
+): Promise<ObservatorySourceRow | null> {
+  const rows = await sql`
+    UPDATE observatory_sources
+    SET decision = ${decision}, updated_at = now()
+    WHERE id = ${id}
+    RETURNING *
+  `;
+  return (rows[0] as unknown as ObservatorySourceRow) ?? null;
+}
+
+export async function markObservatorySourcesProcessed(
+  sql: NeonQueryFunction<false, false>,
+  ids: string[],
+): Promise<number> {
+  const wanted = [...new Set(ids.map((id) => String(id).trim()).filter(Boolean))];
+  if (!wanted.length) return 0;
+  const rows = await sql`
+    UPDATE observatory_sources
+    SET processed_at = now(), updated_at = now()
+    WHERE id = ANY(${wanted})
+    RETURNING id
+  `;
+  return rows.length;
+}

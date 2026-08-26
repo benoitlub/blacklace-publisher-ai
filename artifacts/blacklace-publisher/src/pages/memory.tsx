@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ObservationDecision, ObservationMemoryEntry } from "@/models/observation-memory";
 import { clearObservationMemory, loadObservationMemory, OBSERVATION_MEMORY_CHANGED_EVENT, updateObservationDecision } from "@/memory/observation-memory";
+import { persistObservationDecision, syncObservationMemoryFromServer } from "@/memory/observation-sync";
 
 const DECISION_LABELS: Record<ObservationDecision, string> = {
   watch: "A surveiller",
@@ -159,12 +160,17 @@ function MemoryCard({ entry, onDecisionChange }: { entry: ObservationMemoryEntry
 
 export default function Memory() {
   const [entries, setEntries] = useState<ObservationMemoryEntry[]>([]);
+  const [offline, setOffline] = useState(false);
 
   useEffect(() => {
     const refresh = () => setEntries(loadObservationMemory());
     refresh();
     window.addEventListener(OBSERVATION_MEMORY_CHANGED_EVENT, refresh);
     window.addEventListener("storage", refresh);
+    // Le localStorage n'est qu'un cache : la vérité est dans Neon, sinon
+    // ces compteurs restent à 0 sur tout appareil autre que celui qui a
+    // saisi la source.
+    void syncObservationMemoryFromServer().then((synced) => setOffline(synced === null));
     return () => {
       window.removeEventListener(OBSERVATION_MEMORY_CHANGED_EVENT, refresh);
       window.removeEventListener("storage", refresh);
@@ -172,8 +178,16 @@ export default function Memory() {
   }, []);
 
   const onDecisionChange = (id: string, decision: ObservationDecision) => {
+    // Optimiste côté cache, puis écriture serveur : c'est elle qui fait que
+    // le job nocturne respecte la décision.
     updateObservationDecision(id, decision);
     setEntries(loadObservationMemory());
+    void persistObservationDecision(id, decision)
+      .then(() => {
+        setEntries(loadObservationMemory());
+        setOffline(false);
+      })
+      .catch(() => setOffline(true));
   };
 
   const onClear = () => {
@@ -195,6 +209,12 @@ export default function Memory() {
           <Button variant="outline" onClick={onClear}>Vider la memoire locale</Button>
         ) : null}
       </div>
+
+      {offline ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
+          Base Neon injoignable : ces fiches viennent du cache de ce navigateur. Elles ne reflètent pas forcément ce que le job nocturne voit côté serveur.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-border bg-card shadow-sm">
@@ -230,7 +250,7 @@ export default function Memory() {
         <Card className="border-dashed border-border bg-card/50">
           <CardContent className="flex flex-col items-center justify-center gap-3 p-10 text-center">
             <Database className="h-8 w-8 text-muted-foreground" />
-            <p className="font-mono text-sm text-muted-foreground">Aucune observation memorisee. Observe un candidat depuis le Radar ou l'Observatoire.</p>
+            <p className="font-mono text-sm text-muted-foreground">Aucune source enregistree en base. Observe un candidat depuis le Radar ou l'Observatoire.</p>
           </CardContent>
         </Card>
       )}

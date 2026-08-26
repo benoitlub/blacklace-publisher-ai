@@ -1,5 +1,5 @@
 import type { KnowledgeObservatoryResult } from "@/models/knowledge-observatory";
-import type { ObservationDecision, ObservationMemoryEntry, ObservationOctopusEnrichment } from "@/models/observation-memory";
+import type { ObservationDecision, ObservationMemoryEntry } from "@/models/observation-memory";
 
 const STORAGE_KEY = "blacklace.publisher.observationMemory.v1";
 export const OBSERVATION_MEMORY_CHANGED_EVENT = "blacklace:observation-memory-changed";
@@ -8,7 +8,12 @@ function createId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-function normalizeKey(value: string): string {
+/**
+ * Doit rester identique à `observatorySourceKey` côté Worker
+ * (publisher-worker/src/db.ts) : c'est la clé qui décide qu'une deuxième
+ * observation de la même source met à jour la fiche existante des deux côtés.
+ */
+export function normalizeKey(value: string): string {
   return value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
 }
 
@@ -51,7 +56,7 @@ export function loadObservationMemory(): ObservationMemoryEntry[] {
   }
 }
 
-function saveObservationMemory(entries: ObservationMemoryEntry[]): void {
+export function saveObservationMemory(entries: ObservationMemoryEntry[]): void {
   if (typeof window === "undefined") return;
 
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
@@ -115,22 +120,6 @@ export function rememberObservation(result: KnowledgeObservatoryResult): Observa
 
   saveObservationMemory(entries.sort((a, b) => new Date(b.lastObservedAt).getTime() - new Date(a.lastObservedAt).getTime()));
   return saved;
-}
-
-export function attachOctopusToLatestObservation(enrichment: Omit<ObservationOctopusEnrichment, "receivedAt">): void {
-  const entries = loadObservationMemory();
-  if (!entries.length) return;
-  const [latest, ...rest] = entries;
-  saveObservationMemory([
-    {
-      ...latest,
-      octopus: {
-        ...enrichment,
-        receivedAt: new Date().toISOString(),
-      },
-    },
-    ...rest,
-  ]);
 }
 
 export function updateObservationDecision(entryId: string, decision: ObservationDecision): void {
