@@ -2,7 +2,7 @@ import type { KnowledgePack } from "@/models/knowledge-observatory";
 import type { ObservationDecision, ObservationMemoryEntry } from "@/models/observation-memory";
 import type { ObservatorySourceRecord } from "@/models/observatory-source";
 import { loadObservationMemory, normalizeKey, saveObservationMemory } from "@/memory/observation-memory";
-import { listObservatorySources, updateObservatorySourceDecision } from "@/services/observatory-sources";
+import { listObservatorySources, persistObservatorySource, updateObservatorySourceDecision } from "@/services/observatory-sources";
 
 /**
  * Réconciliation entre la table Neon `observatory_sources` (la vérité) et le
@@ -79,20 +79,93 @@ export function mergeServerRecords(
   return merged.sort((a, b) => new Date(b.lastObservedAt).getTime() - new Date(a.lastObservedAt).getTime());
 }
 
+export interface ObservationSyncResult {
+  entries: ObservationMemoryEntry[];
+  /** Fiches purement locales remontées vers la base pendant cette synchro. */
+  pushed: number;
+  /** Fiches locales que la base a refusées — réessayées au prochain chargement. */
+  failed: number;
+}
+
 /**
- * Recharge les fiches depuis le serveur et met le cache local à jour.
- * Renvoie `null` si l'API est injoignable : l'appelant garde alors ce qu'il
- * a déjà en cache au lieu d'afficher une page vide.
+ * Fiches déjà tentées pendant cette session : une fiche que la base refuse
+ * (source vide, payload invalide) ne doit pas être repoussée à chaque
+ * remontée de la Mémoire ou de la Serre. Volontairement en mémoire et non
+ * dans le localStorage : recharger la page reste le geste naturel pour
+ * réessayer.
  */
-export async function syncObservationMemoryFromServer(): Promise<ObservationMemoryEntry[] | null> {
+const attemptedKeys = new Set<string>();
+
+/**
+ * Remonte vers la base les fiches qui n'existent que dans ce navigateur —
+ * celles observées avant que l'Observatoire n'écrive côté serveur, ou
+ * pendant une panne d'API. Sans ça, elles resteraient visibles ici mais
+ * invisibles pour tout autre appareil et pour le job nocturne.
+ *
+ * Le serveur déduplique sur la même clé que `normalizeKey` : remonter deux
+ * fois la même source la met à jour au lieu de la dupliquer.
+ */
+export async function backfillLocalOnlyObservations(
+  serverKeys: Set<string>,
+  localEntries: ObservationMemoryEntry[],
+): Promise<{ records: ObservatorySourceRecord[]; failed: number }> {
+  const records: ObservatorySourceRecord[] = [];
+  let failed = 0;
+
+  for (const entry of localEntries) {
+    const key = normalizeKey(entry.sourceValue);
+    if (!key || serverKeys.has(key) || attemptedKeys.has(key)) continue;
+    attemptedKeys.add(key);
+
+    try {
+      const saved = await persistObservatorySource({
+        kind: entry.sourceKind,
+        value: entry.sourceValue,
+        name: entry.name,
+        category: entry.category,
+        summary: entry.lastSummary,
+        confidence: entry.averageConfidence,
+        tags: entry.tags,
+        pack: entry.lastPack,
+        patterns: entry.lastPack?.patterns,
+        recommendations: entry.lastPack?.recommendations,
+      });
+      // L'upsert ne touche jamais `decision` : une fiche que l'utilisateur
+      // avait déjà classée doit garder son classement en arrivant en base.
+      records.push(
+        entry.currentDecision !== "watch"
+          ? await updateObservatorySourceDecision(saved.source.id, entry.currentDecision)
+          : saved.source,
+      );
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { records, failed };
+}
+
+/**
+ * Recharge les fiches depuis le serveur, remonte celles qui n'existaient que
+ * localement, et met le cache local à jour. Renvoie `null` si l'API est
+ * injoignable : l'appelant garde alors ce qu'il a déjà en cache au lieu
+ * d'afficher une page vide.
+ */
+export async function syncObservationMemoryFromServer(): Promise<ObservationSyncResult | null> {
+  let records: ObservatorySourceRecord[];
   try {
-    const records = await listObservatorySources();
-    const entries = mergeServerRecords(records);
-    saveObservationMemory(entries);
-    return entries;
+    records = await listObservatorySources();
   } catch {
     return null;
   }
+
+  const serverKeys = new Set(records.map((record) => normalizeKey(record.value)));
+  const localOnly = loadObservationMemory().filter((entry) => !serverKeys.has(normalizeKey(entry.sourceValue)));
+  const backfill = await backfillLocalOnlyObservations(serverKeys, localOnly);
+
+  const entries = mergeServerRecords([...records, ...backfill.records]);
+  saveObservationMemory(entries);
+  return { entries, pushed: backfill.records.length, failed: backfill.failed };
 }
 
 /**

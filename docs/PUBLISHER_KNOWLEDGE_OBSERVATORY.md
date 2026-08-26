@@ -177,6 +177,13 @@ Points de contrat :
   Memoire et Serre se resynchronisent depuis la base
   (`memory/observation-sync.ts`). Une observation faite hors ligne est
   conservee localement plutot que perdue.
+- Les fiches qui n'existent que dans un navigateur — observees avant ce
+  correctif, ou pendant une panne d'API — sont **remontees automatiquement**
+  vers la base a la synchro suivante, decision utilisateur comprise. Le
+  serveur dedupliquant sur la meme cle, une remontee ne cree jamais de
+  doublon. Une fiche que la base refuse est comptee et laissee en local ;
+  elle n'est pas repoussee en boucle dans la meme session (recharger la page
+  reessaie).
 - La cle de deduplication (`observatorySourceKey`) doit rester identique des
   deux cotes : Worker (`publisher-worker/src/db.ts`) et navigateur
   (`memory/observation-memory.ts`).

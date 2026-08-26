@@ -161,6 +161,7 @@ function MemoryCard({ entry, onDecisionChange }: { entry: ObservationMemoryEntry
 export default function Memory() {
   const [entries, setEntries] = useState<ObservationMemoryEntry[]>([]);
   const [offline, setOffline] = useState(false);
+  const [backfill, setBackfill] = useState<{ pushed: number; failed: number } | null>(null);
 
   useEffect(() => {
     const refresh = () => setEntries(loadObservationMemory());
@@ -170,7 +171,10 @@ export default function Memory() {
     // Le localStorage n'est qu'un cache : la vérité est dans Neon, sinon
     // ces compteurs restent à 0 sur tout appareil autre que celui qui a
     // saisi la source.
-    void syncObservationMemoryFromServer().then((synced) => setOffline(synced === null));
+    void syncObservationMemoryFromServer().then((synced) => {
+      setOffline(synced === null);
+      if (synced && (synced.pushed || synced.failed)) setBackfill({ pushed: synced.pushed, failed: synced.failed });
+    });
     return () => {
       window.removeEventListener(OBSERVATION_MEMORY_CHANGED_EVENT, refresh);
       window.removeEventListener("storage", refresh);
@@ -213,6 +217,13 @@ export default function Memory() {
       {offline ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600">
           Base Neon injoignable : ces fiches viennent du cache de ce navigateur. Elles ne reflètent pas forcément ce que le job nocturne voit côté serveur.
+        </div>
+      ) : null}
+
+      {backfill ? (
+        <div className={backfill.failed ? "rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-600" : "rounded-lg border border-primary/20 bg-primary/10 px-4 py-3 text-sm text-primary"}>
+          {backfill.pushed ? `${backfill.pushed} fiche(s) qui n'existaient que dans ce navigateur ont été remontées en base — le job nocturne peut désormais les lire. ` : ""}
+          {backfill.failed ? `${backfill.failed} fiche(s) locale(s) n'ont pas pu être remontées ; recharge la page pour réessayer.` : ""}
         </div>
       ) : null}
 
