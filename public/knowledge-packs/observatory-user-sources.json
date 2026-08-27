@@ -6,84 +6,20 @@
   "aliases": [],
   "sources": [
     {
-      "id": "obs_mtadqgfd_81wxl4",
-      "title": "Make - automatisation visuelle de workflows SaaS",
-      "url": null,
-      "content": "Observation locale de la source : Make - automatisation visuelle de workflows SaaS.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
-      "capturedAt": "2026-08-26T17:40:29.114Z",
-      "kind": "markdown",
-      "decision": "watch",
-      "tags": [
-        "documentation",
-        "automatisation"
-      ],
-      "octopus": null
-    },
-    {
-      "id": "obs_mtadplaj_xyk7p1",
-      "title": "Gamma - creation de presentations par IA",
-      "url": null,
-      "content": "Observation locale de la source : Gamma - creation de presentations par IA.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
-      "capturedAt": "2026-08-26T17:39:48.671Z",
-      "kind": "markdown",
-      "decision": "watch",
-      "tags": [
-        "documentation",
-        "web",
-        "saas",
-        "analyse locale"
-      ],
-      "octopus": null
-    },
-    {
-      "id": "obs_mtado45d_awi7nb",
-      "title": "https://bolt.new",
-      "url": "https://bolt.new",
-      "content": "Observation locale de la source : https://bolt.new.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
-      "capturedAt": "2026-08-26T17:38:39.802Z",
+      "id": "obs_mtae5wrp_sao27b",
+      "title": "curl -sS -X POST https://blacklace-publisher-worker.benoitlubert...",
+      "url": "curl -sS -X POST https://blacklace-publisher-worker.benoitlubert.workers.dev/api/observatory/sources \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"kind\":\"url\",\"value\":\"https://bolt.new\",\"name\":\"https://bolt.new\"}'",
+      "content": "Observation locale de la source : curl -sS -X POST https://blacklace-publisher-worker.benoitlubert.workers.dev/api/observatory/sources \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"kind\":\"url\",\"value\":\"https://....\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
+      "capturedAt": "2026-08-26T17:52:30.232Z",
       "kind": "url",
       "decision": "watch",
       "tags": [
         "site web / saas",
-        "web",
-        "saas",
-        "analyse locale"
-      ],
-      "octopus": null
-    },
-    {
-      "id": "obs_mtadm9pt_blh4of",
-      "title": "https://github.com/vercel/ai",
-      "url": "https://github.com/vercel/ai",
-      "content": "Depot GitHub detecte : vercel/ai (owner vercel, repo ai). Analyse locale sans appel API.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
-      "capturedAt": "2026-08-26T17:37:13.724Z",
-      "kind": "github",
-      "decision": "watch",
-      "tags": [
-        "depot logiciel",
-        "open source",
-        "repository",
-        "readme potentiel",
-        "github"
-      ],
-      "octopus": null
-    },
-    {
-      "id": "obs_mtadj9b2_6evps2",
-      "title": "Lovable est un outil de creation d'applications web a partir...",
-      "url": null,
-      "content": "Pack genere depuis une texte source avec 74% de confiance.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
-      "capturedAt": "2026-08-26T17:34:53.199Z",
-      "kind": "text",
-      "decision": "watch",
-      "tags": [
-        "texte source",
-        "react",
         "api"
       ],
       "octopus": null
     }
   ],
-  "sourceCount": 5,
-  "generatedAt": "2026-08-26T17:46:18.666Z"
+  "sourceCount": 1,
+  "generatedAt": "2026-08-27T16:33:58.665Z"
 }
