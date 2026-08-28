@@ -23,7 +23,8 @@ import {
   type TentacleSeedInput,
 } from "./db";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
-import { fetchBlacklaceKnowledgeWithDiagnostics, type NotionDiagnostics } from "./knowledge/notion";
+import type { NotionDiagnostics } from "./knowledge/notion";
+import { knowledgeSourceDiagnostics } from "./knowledge/notion-preview";
 import {
   ADAPTER_EXECUTION_CONTRACT,
   DEFAULT_OCTOPUS_URL,
@@ -1116,7 +1117,7 @@ export function knowledgeSourcePreview(diagnostics: NotionDiagnostics) {
 // La route répond donc toujours 200 — la carte doit afficher « Mock » et sa
 // cause, pas une erreur de chargement.
 app.get("/api/connectors/knowledge-source/preview", async (c) => {
-  const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics(await knowledgeEnvFor(c.env));
+  const diagnostics = await knowledgeSourceDiagnostics(await knowledgeEnvFor(c.env));
   return c.json(knowledgeSourcePreview(diagnostics));
 });
 

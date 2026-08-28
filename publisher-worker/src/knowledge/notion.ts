@@ -39,7 +39,8 @@ const MOCK_KNOWLEDGE: BlacklaceKnowledgeItem[] = [
   },
 ];
 
-function mockDiagnostics(error: string | null = null): NotionDiagnostics {
+/** Exporté pour que le diagnostic par recherche partage exactement le même repli. */
+export function mockDiagnostics(error: string | null = null): NotionDiagnostics {
   const charCount = MOCK_KNOWLEDGE.reduce((sum, item) => sum + item.content.length, 0);
   return {
     connected: false,
