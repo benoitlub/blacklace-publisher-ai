@@ -23,6 +23,7 @@ import {
   type TentacleSeedInput,
 } from "./db";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
+import { fetchBlacklaceKnowledgeWithDiagnostics, type NotionDiagnostics } from "./knowledge/notion";
 import {
   ADAPTER_EXECUTION_CONTRACT,
   DEFAULT_OCTOPUS_URL,
@@ -1080,6 +1081,44 @@ async function knowledgeEnvFor(env: Env) {
     NOTION_PAGE_ID: env.NOTION_PAGE_ID,
   };
 }
+
+/**
+ * Met les diagnostics Notion à la forme attendue par la carte « Source de
+ * connaissance » du dashboard (schéma KnowledgeSourcePreview de
+ * lib/api-spec/openapi.yaml). Exportée pour être testée directement : c'est
+ * la seule logique de la route, le reste n'est que du transport.
+ */
+export function knowledgeSourcePreview(diagnostics: NotionDiagnostics) {
+  return {
+    connected: diagnostics.connected,
+    source: diagnostics.source,
+    title: diagnostics.title,
+    charCount: diagnostics.charCount,
+    sectionCount: diagnostics.sectionCount,
+    error: diagnostics.error,
+    items: diagnostics.items.slice(0, 10).map((item) => ({
+      id: item.id,
+      title: item.title,
+      universe: item.universe,
+      excerpt: item.content.slice(0, 200),
+      isMock: item.isMock,
+    })),
+  };
+}
+
+// La carte « Source de connaissance » du dashboard appelait cette route
+// depuis l'api-server Render, mort depuis. Seul le Worker est déployé, il ne
+// l'exposait pas : 404 permanent, carte en erreur. Portée telle quelle depuis
+// artifacts/api-server/src/routes/connectors.ts.
+//
+// fetchBlacklaceKnowledgeWithDiagnostics ne lève jamais : sans clé Notion, ou
+// si l'API Notion échoue, elle renvoie le mock avec la raison dans `error`.
+// La route répond donc toujours 200 — la carte doit afficher « Mock » et sa
+// cause, pas une erreur de chargement.
+app.get("/api/connectors/knowledge-source/preview", async (c) => {
+  const diagnostics = await fetchBlacklaceKnowledgeWithDiagnostics(await knowledgeEnvFor(c.env));
+  return c.json(knowledgeSourcePreview(diagnostics));
+});
 
 /** Health of *this adapter* — distinct from the octopus-witness view above. */
 app.get("/api/adapter/health", async (c) => {
