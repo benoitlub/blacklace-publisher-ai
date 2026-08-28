@@ -1,25 +1,10 @@
 {
   "version": 1,
   "slug": "observatory-user-sources",
-  "status": "verified",
+  "status": "empty",
   "source": "publisher-observatory-user-sources",
   "aliases": [],
-  "sources": [
-    {
-      "id": "obs_mtae5wrp_sao27b",
-      "title": "curl -sS -X POST https://blacklace-publisher-worker.benoitlubert...",
-      "url": "curl -sS -X POST https://blacklace-publisher-worker.benoitlubert.workers.dev/api/observatory/sources \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"kind\":\"url\",\"value\":\"https://bolt.new\",\"name\":\"https://bolt.new\"}'",
-      "content": "Observation locale de la source : curl -sS -X POST https://blacklace-publisher-worker.benoitlubert.workers.dev/api/observatory/sources \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"kind\":\"url\",\"value\":\"https://....\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
-      "capturedAt": "2026-08-26T17:52:30.232Z",
-      "kind": "url",
-      "decision": "watch",
-      "tags": [
-        "site web / saas",
-        "api"
-      ],
-      "octopus": null
-    }
-  ],
-  "sourceCount": 1,
-  "generatedAt": "2026-08-27T16:33:58.665Z"
+  "sources": [],
+  "sourceCount": 0,
+  "generatedAt": "2026-08-28T17:28:47.563Z"
 }
