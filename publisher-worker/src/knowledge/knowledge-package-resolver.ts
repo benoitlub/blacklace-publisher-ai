@@ -37,6 +37,14 @@ const KNOWN_ALIASES: Record<string, string[]> = {
   "feuch-institute": ["feuch institute"],
   "bazar-du-feuch": ["bazar du feuch"],
   "poulpe-fiction": ["poulpe fiction"],
+  "yael-prequalification-de-prospects": [
+    "yaelbali",
+    "yael bali",
+    "financement immobilier",
+    "capacite d'emprunt",
+    "courtage financement",
+    "montigny-le-bretonneux",
+  ],
 };
 
 export function normalizeKnowledgeSlug(value: unknown): string {
