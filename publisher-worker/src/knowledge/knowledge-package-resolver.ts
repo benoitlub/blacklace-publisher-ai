@@ -40,6 +40,11 @@ const KNOWN_ALIASES: Record<string, string[]> = {
   "yael-prequalification-de-prospects": [
     "yaelbali",
     "yael bali",
+    // L'identifiant réel de la graine côté poulpe-fiction
+    // (yael-parcel.js) : sans lui, une mission lancée sur cette graine
+    // n'atteignait pas ce pack, aucun des autres alias n'étant sous-chaîne
+    // de « yael-prospection » ni l'inverse.
+    "yael prospection",
     "financement immobilier",
     "capacite d'emprunt",
     "courtage financement",
