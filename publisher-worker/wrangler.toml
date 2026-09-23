@@ -42,4 +42,4 @@ secret_name = "GITHUB_TOKEN"
 # every 15 minutes; each tentacle's own cooldown (20min-6h, doubling per
 # iteration) governs actual pacing, so most ticks find nothing due.
 [triggers]
-crons = ["*/15 * * * *"]
+crons = [] # Temporarily suspend autonomous tentacle cycles while diagnosing Mistral 429.
