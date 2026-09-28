@@ -107,7 +107,7 @@ function workerBase(): string {
   return String(import.meta.env.VITE_API_BASE_URL || WORKER_BASE_URL).trim().replace(/\/$/, "");
 }
 
-type CanvaDiagnostic = { configured?: boolean; canvaStatus?: string; canvaError?: string; discoveredToolCount?: number; creationCandidates?: string[]; artifactUrl?: string; toolSlug?: string; };
+type CanvaDiagnostic = { configured?: boolean; canvaStatus?: string; canvaError?: string; discoveredToolCount?: number; creationCandidates?: string[]; artifactUrl?: string; toolSlug?: string; attemptFailures?: Array<{ toolSlug: string; error: string }>; };
 
 type Iteration = {
   id?: string;
@@ -190,6 +190,7 @@ function VisualProductionHealth() {
         <div className="flex flex-wrap items-center gap-2"><Badge variant={healthy ? "default" : "outline"}>{loading ? "Diagnostic…" : healthy ? "Canva opérationnel" : `Canva · ${diagnostic?.canvaStatus || "indisponible"}`}</Badge>{typeof diagnostic?.discoveredToolCount === "number" ? <Badge variant="outline">{diagnostic.discoveredToolCount} outils découverts</Badge> : null}</div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         {diagnostic?.canvaError ? <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm"><strong>Échec visible :</strong> {diagnostic.canvaError}</div> : null}
+        {diagnostic?.attemptFailures?.length ? <div className="space-y-2">{diagnostic.attemptFailures.map((failure, index) => <div key={`${failure.toolSlug}-${index}`} className="rounded-lg border border-border p-3 text-xs"><p className="break-all font-mono font-medium text-foreground">{failure.toolSlug}</p><p className="mt-1 whitespace-pre-wrap break-words text-muted-foreground">{failure.error}</p></div>)}</div> : null}
         {diagnostic?.artifactUrl ? <a href={diagnostic.artifactUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline"><ExternalLink className="h-4 w-4" />Ouvrir le visuel de diagnostic</a> : null}
         {diagnostic?.creationCandidates?.length ? <p className="text-xs text-muted-foreground">Candidats : {diagnostic.creationCandidates.join(" · ")}</p> : null}
       </CardContent>
