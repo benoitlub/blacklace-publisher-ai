@@ -1,4 +1,5 @@
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
+import { buildObservatoryToolPack, getSql } from "./db";
 
 /**
  * Octopus adapter surface, running on Cloudflare.
@@ -34,6 +35,7 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "content.article.write",
   "content.social.write",
   "knowledge.search",
+  "tool.search",
 ] as const;
 
 export type PublisherAdapterCapability = (typeof PUBLISHER_ADAPTER_CAPABILITIES)[number];
@@ -83,6 +85,7 @@ export type MistralTextExecutor = (request: {
 }) => Promise<{ content: string; title: string; id: string }>;
 
 export interface KnowledgeEnvLike {
+  DATABASE_URL?: any;
   NOTION_API_KEY?: string;
   NOTION_DATABASE_ID?: string;
   NOTION_PAGE_ID?: string;
@@ -161,6 +164,26 @@ export async function executeAdapterMission(
   }
 
   try {
+    if (capability === "tool.search") {
+      const seedId = stringValue(mission.context?.metadata?.["seedId"])
+        ?? stringValue(mission.context?.metadata?.["parcelId"])
+        ?? stringValue(mission.context?.id)
+        ?? stringValue(mission.title)
+        ?? operationId;
+      const deliverable = stringValue(mission.context?.metadata?.["deliverable"])
+        ?? stringValue(mission.context?.metadata?.["capability"])
+        ?? stringValue(mission.objective)
+        ?? "";
+      const sql = await getSql(deps.knowledgeEnv);
+      const pack = await buildObservatoryToolPack(sql, { seedId, deliverable });
+      return {
+        operationId,
+        status: "completed",
+        summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s)).`,
+        output: { capability, ...pack, executable: false, authorizationRequired: true },
+      };
+    }
+
     if (capability === "knowledge.search") {
       const knowledge = await resolveKnowledgePackage(deps.knowledgeEnv, [
         mission.context?.metadata?.["knowledgeSlug"],
