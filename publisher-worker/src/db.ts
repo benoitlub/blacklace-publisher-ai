@@ -62,6 +62,20 @@ export async function isDatabaseConfigured(env: { DATABASE_URL?: string | Secret
   return Boolean(await resolveDatabaseUrl(env.DATABASE_URL));
 }
 
+export async function databaseBindingDiagnostics(env: { DATABASE_URL?: string | SecretsStoreSecret }): Promise<Record<string, unknown>> {
+  const binding = env.DATABASE_URL;
+  if (typeof binding === "string") return { bindingPresent: true, bindingKind: "string", getSucceeded: true, nonEmpty: Boolean(binding.trim()) };
+  if (!binding) return { bindingPresent: false, bindingKind: "missing", getSucceeded: false, nonEmpty: false };
+  const getter = (binding as SecretsStoreSecret).get;
+  if (typeof getter !== "function") return { bindingPresent: true, bindingKind: typeof binding, getSucceeded: false, nonEmpty: false, error: "Binding has no get() method" };
+  try {
+    const value = await getter.call(binding);
+    return { bindingPresent: true, bindingKind: "secrets-store", getSucceeded: true, nonEmpty: typeof value === "string" && Boolean(value.trim()) };
+  } catch (error) {
+    return { bindingPresent: true, bindingKind: "secrets-store", getSucceeded: false, nonEmpty: false, error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
 let schemaEnsured = false;
 
 export async function ensureSchema(sql: NeonQueryFunction<false, false>): Promise<void> {

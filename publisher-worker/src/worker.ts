@@ -7,6 +7,7 @@ import {
   ensureSchema,
   getSql,
   isDatabaseConfigured,
+  databaseBindingDiagnostics,
   latestIteration,
   listDueTentacles,
   listObservatorySources,
@@ -1204,6 +1205,10 @@ app.get("/api/connectors/knowledge-source/preview", async (c) => {
 });
 
 /** Health of *this adapter* — distinct from the octopus-witness view above. */
+app.get("/api/diagnostics/database", async (c) => {
+  return c.json(await databaseBindingDiagnostics(c.env));
+});
+
 app.get("/api/adapter/health", async (c) => {
   const textProducerConfigured = Boolean(await mistralApiKey(c.env));
   return c.json({
