@@ -437,9 +437,16 @@ export function extractCanvaArtifact(payload: unknown, title: string) {
   });
   const id = ids.find(Boolean) ?? null;
   const rankedUrls = [...new Set(urls)].sort((a, b) => ((/canva\.com\/design/i.test(b) ? 100 : 0) - (/canva\.com\/design/i.test(a) ? 100 : 0)));
-  const url = rankedUrls[0] ?? (id ? `https://www.canva.com/design/${encodeURIComponent(id)}/edit` : null);
-  if (!id && !url) return null;
-  return { id: id ?? `canva_${Date.now()}`, type: "social-visual", kind: "social-visual", title: `Visuel principal · ${title}`, url, downloadUrl: rankedUrls.find((item) => /download|export|\.png(?:\?|$)|\.jpg(?:\?|$)/i.test(item)) ?? null, mimeType: "image/png", rawReference: { designId: id } };
+  const downloadUrl = rankedUrls.find((item) => /download|export|\.png(?:\?|$)|\.jpe?g(?:\?|$)|\.webp(?:\?|$)/i.test(item)) ?? null;
+  // A Canva editor/design URL only proves that a design container exists. It
+  // does NOT prove that the requested visual was rendered. We previously
+  // labelled such empty designs as `social-visual`, which is a false positive.
+  // Until Composio returns an exported/rendered image reference, keep the
+  // attempt as a failure so Gérard never presents an empty Canva document as
+  // a harvested visual.
+  if (!downloadUrl) return null;
+  const url = rankedUrls.find((item) => /canva\.com\/design/i.test(item)) ?? downloadUrl;
+  return { id: id ?? `canva_${Date.now()}`, type: "social-visual", kind: "social-visual", title: `Visuel principal · ${title}`, url, downloadUrl, mimeType: "image/png", rawReference: { designId: id } };
 }
 
 // Shared by the on-demand /api/production/execute route AND the Neon-backed
