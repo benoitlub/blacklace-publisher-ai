@@ -1,5 +1,4 @@
 import {
-  fetchBlacklaceKnowledgeWithDiagnostics,
   mockDiagnostics,
   type BlacklaceKnowledgeItem,
   type KnowledgeEnv,
@@ -139,12 +138,8 @@ async function searchDiagnostics(apiKey: string): Promise<NotionDiagnostics> {
 }
 
 export async function knowledgeSourceDiagnostics(env: KnowledgeEnv): Promise<NotionDiagnostics> {
-  // Un identifiant explicite reste prioritaire : il désigne une source
-  // précise, la recherche n'est que le repli de ce dépôt.
-  if (env.NOTION_DATABASE_ID || env.NOTION_PAGE_ID) {
-    return fetchBlacklaceKnowledgeWithDiagnostics(env);
-  }
-
+  // Le diagnostic d'état teste la connexion Notion elle-même. Un ancien
+  // PAGE_ID/DATABASE_ID ne doit pas masquer un workspace réellement accessible.
   if (!env.NOTION_API_KEY) {
     return mockDiagnostics("NOTION_API_KEY n'est pas configuré dans le Worker.");
   }
