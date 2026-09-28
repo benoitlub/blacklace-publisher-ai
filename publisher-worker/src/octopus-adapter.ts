@@ -34,6 +34,7 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "copy.generate",
   "content.article.write",
   "content.social.write",
+  "social.publish",
   "knowledge.search",
   "tool.search",
 ] as const;
@@ -181,6 +182,40 @@ export async function executeAdapterMission(
         status: "completed",
         summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s)).`,
         output: { capability, ...pack, executable: false, authorizationRequired: true },
+      };
+    }
+
+    if (capability === "social.publish") {
+      const approved = mission.authorizedResources?.includes("social.publish") === true;
+      const destination = stringValue(mission.context?.metadata?.["destination"]);
+      const content = stringValue(mission.context?.metadata?.["content"]) ?? stringValue(mission.prompt);
+      if (!approved) {
+        return {
+          operationId,
+          status: "needs-input",
+          summary: "Publication préparée mais validation humaine requise avant toute diffusion externe.",
+          output: {
+            capability,
+            authorizationRequired: true,
+            requiredAuthorization: "social.publish",
+            destination: destination ?? null,
+            content: content ?? null,
+            executable: false,
+          },
+        };
+      }
+      return {
+        operationId,
+        status: "needs-input",
+        summary: "Publication autorisée, mais l’exécuteur Metricool n’est pas encore activé. Aucun contenu n’a été publié.",
+        output: {
+          capability,
+          authorizationRequired: false,
+          destination: destination ?? null,
+          content: content ?? null,
+          executable: false,
+          provider: "metricool",
+        },
       };
     }
 
