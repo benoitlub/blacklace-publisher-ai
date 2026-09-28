@@ -345,6 +345,14 @@ function selectCanvaCreateTools(tools: ComposioTool[]): ComposioTool[] {
   return tools.map((tool) => ({ tool, score: scoreCanvaCreateTool(tool) })).filter((entry) => entry.score > 0).sort((a, b) => b.score - a.score).map((entry) => entry.tool);
 }
 
+function selectCanvaGenerativeTools(tools: ComposioTool[]): ComposioTool[] {
+  return tools.filter((tool) => {
+    const text = toolText(tool);
+    return /\b(generate|autofill|image|text.?to.?image|magic|template|fill)\b/.test(text)
+      && !/\b(get|list|fetch|retrieve|delete|status|metadata|comment)\b/.test(text);
+  });
+}
+
 function schemaProperties(tool: ComposioTool): Record<string, Record<string, any>> {
   const schema = asRecord(tool.inputSchema);
   const properties = asRecord(schema.properties ?? asRecord(schema.schema).properties);
@@ -611,9 +619,10 @@ app.get("/api/production/diagnostics", async (c) => {
     }));
     const canvaTools = canva ? await listComposioTools(env, "canva").catch(() => []) : [];
     const canvaCreationTools = selectCanvaCreateTools(canvaTools);
+    const canvaGenerativeTools = selectCanvaGenerativeTools(canvaTools);
     return c.json({
       composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), metricoolConnected: Boolean(metricool), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
-      canva: { status: canvaCreationTools.length ? "executable" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", discoveredToolCount: canvaTools.length },
+      canva: { status: canvaGenerativeTools.length ? "generative-candidates-found" : canvaCreationTools.length ? "design-container-tools-only" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", executable: false, discoveredToolCount: canvaTools.length, generativeCandidates: canvaGenerativeTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
       metricool: { status: metricoolPublishTools.length ? "candidate-tools-found" : metricool ? "connected-no-publish-tool" : "not-connected", connected: Boolean(metricool), provider: "composio", executable: false, discoveredToolCount: metricoolTools.length, publishCandidates: metricoolPublishTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
       socialChannels,
