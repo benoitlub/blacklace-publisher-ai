@@ -1018,6 +1018,13 @@ app.get("/api/tentacles/diagnose-canva", async (c) => {
     discoveredToolCount: tools.length,
     // L'ordre compte : c'est celui dans lequel le cycle les essaie.
     creationCandidates: candidates.slice(0, 5).map((tool) => tool.slug),
+    candidateDiagnostics: candidates.slice(0, 5).map((tool) => ({
+      slug: tool.slug,
+      inputSchema: tool.inputSchema,
+      required: schemaRequired(tool),
+      propertyNames: Object.keys(schemaProperties(tool)),
+      constructedArguments: canvaArguments(tool, title),
+    })),
   };
 
   if (!account) {
