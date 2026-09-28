@@ -43,6 +43,7 @@ import { observeWithOctopus, type PublisherObservationInput } from "./octopus-ob
 //   `.get()` that resolves to the string. Support both so this doesn't break
 //   again depending on which one a secret was configured through.
 export type SecretsStoreSecret = { get(): Promise<string> };
+type ServiceBinding = { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> };
 type Env = {
   MISTRAL_API_KEY?: string | SecretsStoreSecret;
   AI_API_KEY?: string | SecretsStoreSecret;
@@ -57,6 +58,7 @@ type Env = {
   /** Public origin of this Worker, announced to Octopus as the adapter base. */
   PUBLISHER_PUBLIC_URL?: string;
   OCTOPUS_ENGINE_URL?: string;
+  OCTOPUS_ENGINE?: ServiceBinding;
 };
 
 async function resolveSecret(value: string | SecretsStoreSecret | undefined): Promise<string> {
@@ -88,6 +90,7 @@ app.get("/api/health", async (c) => {
   const adapterRegistration = await registerWithOctopus({
     octopusUrl: octopusEngineUrl(c.env),
     publicBaseUrl: publisherPublicUrl(c.env),
+    fetcher: c.env.OCTOPUS_ENGINE ? c.env.OCTOPUS_ENGINE.fetch.bind(c.env.OCTOPUS_ENGINE) as typeof fetch : undefined,
   });
   return c.json({
     status: "ok",
@@ -1231,6 +1234,7 @@ app.post("/api/adapter/register", async (c) => {
   const outcome = await registerWithOctopus({
     octopusUrl: octopusEngineUrl(c.env),
     publicBaseUrl: publisherPublicUrl(c.env),
+    fetcher: c.env.OCTOPUS_ENGINE ? c.env.OCTOPUS_ENGINE.fetch.bind(c.env.OCTOPUS_ENGINE) as typeof fetch : undefined,
   });
   return c.json(outcome, outcome.registered ? 200 : 502);
 });
@@ -1440,6 +1444,7 @@ export default {
       registerWithOctopus({
         octopusUrl: octopusEngineUrl(env),
         publicBaseUrl: publisherPublicUrl(env),
+        fetcher: env.OCTOPUS_ENGINE ? env.OCTOPUS_ENGINE.fetch.bind(env.OCTOPUS_ENGINE) as typeof fetch : undefined,
       }).catch(() => {}),
     );
   },
