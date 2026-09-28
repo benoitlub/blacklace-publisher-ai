@@ -1160,6 +1160,7 @@ function octopusEngineUrl(env: Env): string {
 
 async function knowledgeEnvFor(env: Env) {
   return {
+    DATABASE_URL: env.DATABASE_URL,
     NOTION_API_KEY: await resolveSecret(env.NOTION_API_KEY),
     NOTION_DATABASE_ID: env.NOTION_DATABASE_ID,
     NOTION_PAGE_ID: env.NOTION_PAGE_ID,
