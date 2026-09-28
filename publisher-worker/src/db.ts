@@ -69,7 +69,7 @@ export async function databaseBindingDiagnostics(env: { DATABASE_URL?: string | 
   const getter = (binding as SecretsStoreSecret).get;
   if (typeof getter !== "function") return { bindingPresent: true, bindingKind: typeof binding, getSucceeded: false, nonEmpty: false, error: "Binding has no get() method" };
   try {
-    const value = await getter.call(binding);
+    const value = await (binding as SecretsStoreSecret).get();
     return { bindingPresent: true, bindingKind: "secrets-store", getSucceeded: true, nonEmpty: typeof value === "string" && Boolean(value.trim()) };
   } catch (error) {
     return { bindingPresent: true, bindingKind: "secrets-store", getSucceeded: false, nonEmpty: false, error: error instanceof Error ? error.message : String(error) };
