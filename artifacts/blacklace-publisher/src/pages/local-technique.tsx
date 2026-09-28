@@ -140,7 +140,7 @@ export default function LocalTechnique() {
           </div>
           <div className="rounded-lg border border-border bg-background/40 p-4">
             <p className="font-medium">Secrets administrateur</p>
-            <p className="mt-1 text-sm text-muted-foreground">Les clés maîtresses restent dans les secrets du serveur Render. Cette page montre leur état sans jamais révéler leur valeur.</p>
+            <p className="mt-1 text-sm text-muted-foreground">Les clés maîtresses restent dans les secrets du Worker Cloudflare. Cette page montre leur état sans jamais révéler leur valeur.</p>
           </div>
         </CardContent>
       </Card>
