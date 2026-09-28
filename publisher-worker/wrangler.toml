@@ -22,12 +22,9 @@ binding = "COMPOSIO_API_KEY"
 store_id = "6cd697779c5d45a0ab6b8833a434adc6"
 secret_name = "COMPOSIO_API_KEY"
 
-# Neon Postgres connection string (postgresql://...). Neon's HTTP driver is
-# what makes this reachable at all from a Worker — no raw TCP sockets here.
-[[secrets_store_secrets]]
-binding = "DATABASE_URL"
-store_id = "6cd697779c5d45a0ab6b8833a434adc6"
-secret_name = "DATABASE_URL"
+# DATABASE_URL is configured as a classic per-Worker secret in Cloudflare.
+# Do not redeclare it as a Secrets Store binding here: the deployed Worker
+# reads the encrypted string directly from env.DATABASE_URL.
 
 # Fine-grained PAT, read-only, "Public Repositories" access is enough —
 # only used to read Actions run history on public repos (octopus-engine),
