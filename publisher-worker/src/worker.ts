@@ -1212,17 +1212,18 @@ app.get("/api/diagnostics/database", async (c) => {
 
 app.get("/api/observatory/discovery/schema", async (c) => {
   try {
-    const payload = await composioRequest(c.env, "/tools?tool_slugs=COMPOSIO_SEARCH_WEB");
+    const payload = await composioRequest(c.env, "/tools?limit=100");
     const tools = extractItems(payload).map((item) => {
       const record = asRecord(item);
       const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
       return {
         slug: stringValue(record.slug ?? record.name ?? record.tool_slug ?? record.toolSlug),
+        name: stringValue(record.name ?? record.display_name),
         toolkit: toolkitFrom(record),
         description: stringValue(record.description),
         inputSchema: schema,
       };
-    }).filter((tool) => tool.slug === "COMPOSIO_SEARCH_WEB");
+    }).filter((tool) => [tool.slug, tool.name, tool.toolkit, tool.description].filter(Boolean).join(" ").toLowerCase().includes("search"));
     return c.json({ status: "ok", executable: false, tools });
   } catch (error) {
     return c.json({ status: "failed", executable: false, error: error instanceof Error ? error.message : String(error) }, 502);
