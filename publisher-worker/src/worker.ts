@@ -566,17 +566,21 @@ app.get("/api/production/diagnostics", async (c) => {
   try {
     const mistralConfigured = Boolean(await mistralApiKey(env));
     if (!(await isComposioConfigured(env))) {
-      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, mistral: { status: mistralConfigured ? "executable" : "unavailable", configured: mistralConfigured, available: mistralConfigured } });
+      return c.json({ composio: { configured: false, canvaConnected: false, elevenLabsConnected: false, metricoolConnected: false, connectedAccounts: [] }, canva: { status: "unavailable", connected: false }, metricool: { status: "unavailable", connected: false, executable: false, discoveredToolCount: 0, publishCandidates: [] }, mistral: { status: mistralConfigured ? "executable" : "unavailable", configured: mistralConfigured, available: mistralConfigured } });
     }
     const accounts = await listComposioConnectedAccounts(env);
     const canva = accountFor(accounts, "canva");
     const elevenLabs = accountFor(accounts, "elevenlabs");
+    const metricool = accountFor(accounts, "metricool");
+    const metricoolTools = metricool ? await listComposioTools(env, "metricool").catch(() => []) : [];
+    const metricoolPublishTools = metricoolTools.filter((tool) => /publish|post|schedule|social/.test(toolText(tool)) && !/get|list|fetch|delete|analytics|metric/.test(toolText(tool)));
     const canvaTools = canva ? await listComposioTools(env, "canva").catch(() => []) : [];
     const canvaCreationTools = selectCanvaCreateTools(canvaTools);
     return c.json({
-      composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
+      composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), metricoolConnected: Boolean(metricool), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
       canva: { status: canvaCreationTools.length ? "executable" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", discoveredToolCount: canvaTools.length },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
+      metricool: { status: metricoolPublishTools.length ? "candidate-tools-found" : metricool ? "connected" : "not-connected", connected: Boolean(metricool), provider: "composio", executable: false, discoveredToolCount: metricoolTools.length, publishCandidates: metricoolPublishTools.slice(0, 10).map((tool) => tool.slug) },
       // configured/available are aliases of the same boolean, for the
       // artifacts/blacklace-publisher dashboard (local-technique.tsx),
       // which reads those field names instead of `status`.
