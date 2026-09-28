@@ -1212,7 +1212,7 @@ app.get("/api/diagnostics/database", async (c) => {
 
 app.get("/api/observatory/discovery/schema", async (c) => {
   try {
-    const payload = await composioRequest(c.env, "/tools?limit=100");
+    const payload = await composioRequest(c.env, "/tools?toolkit_slugs=composio_search&limit=100");
     const tools = extractItems(payload).map((item) => {
       const record = asRecord(item);
       const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
