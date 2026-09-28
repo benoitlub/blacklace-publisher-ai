@@ -1223,7 +1223,19 @@ app.get("/api/observatory/discovery/schema", async (c) => {
         description: stringValue(record.description),
         inputSchema: schema,
       };
-    }).filter((tool) => [tool.slug, tool.name, tool.toolkit, tool.description].filter(Boolean).join(" ").toLowerCase().includes("search"));
+    }).filter((tool) => {
+      const slug = tool.slug.toUpperCase();
+      const haystack = [tool.slug, tool.name, tool.description].filter(Boolean).join(" ").toLowerCase();
+      return (
+        slug === "COMPOSIO_SEARCH_WEB" ||
+        slug === "COMPOSIO_SEARCH_TAVILY" ||
+        slug === "COMPOSIO_SEARCH_DUCK_DUCK_GO" ||
+        slug === "COMPOSIO_SEARCH_GOOGLE" ||
+        slug === "COMPOSIO_SEARCH_BING" ||
+        (slug.startsWith("COMPOSIO_SEARCH_") &&
+          /web|internet|tavily|duck.?duck.?go|google|bing|search engine/.test(haystack))
+      );
+    });
     return c.json({ status: "ok", executable: false, tools });
   } catch (error) {
     return c.json({ status: "failed", executable: false, error: error instanceof Error ? error.message : String(error) }, 502);
