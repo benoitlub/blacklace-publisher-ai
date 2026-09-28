@@ -395,3 +395,51 @@ export async function markObservatorySourcesProcessed(
   `;
   return rows.length;
 }
+
+
+export async function buildObservatoryToolPack(
+  sql: NeonQueryFunction<false, false>,
+  input: { seedId: string; deliverable?: string; limit?: number },
+): Promise<{ version: number; seedId: string; deliverable: string; generatedAt: string; tools: Array<Record<string, unknown>>; source: string }> {
+  await ensureObservatorySchema(sql);
+  const rows = await listObservatorySources(sql, { limit: 500 });
+  const normalize = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const seed = normalize(input.seedId);
+  const deliverable = normalize(input.deliverable);
+  const families: Record<string, string[]> = {
+    video: ["video", "kling", "runway", "animation", "reel", "tiktok"],
+    voice: ["voice", "voix", "audio", "elevenlabs", "tts"],
+    visual: ["image", "visuel", "canva", "design", "illustration"],
+    publish: ["metricool", "publication", "schedule", "instagram", "social"],
+    landing: ["landing", "html", "site", "page", "web"],
+  };
+  const ranked = rows
+    .filter((row) => row.decision !== "ignore")
+    .map((row) => {
+      const pack = row.pack && typeof row.pack === "object" && !Array.isArray(row.pack) ? row.pack as Record<string, unknown> : {};
+      const capabilities = Array.isArray(pack.capabilities) ? pack.capabilities.map(String) : row.tags;
+      const recipe = typeof pack.recipe === "string" ? pack.recipe : undefined;
+      const haystack = normalize([row.name, row.category, row.summary, row.value, ...row.tags, ...capabilities, recipe].filter(Boolean).join(" "));
+      let score = Math.max(1, Math.round(row.average_confidence * 10));
+      for (const token of [...seed.split(" "), ...deliverable.split(" ")].filter((token) => token.length > 2)) if (haystack.includes(token)) score += 4;
+      for (const [family, terms] of Object.entries(families)) if (deliverable.includes(family) && terms.some((term) => haystack.includes(term))) score += 12;
+      return { row, pack, capabilities, recipe, score };
+    })
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, Math.min(Math.max(input.limit ?? 12, 1), 25))
+    .map(({ row, pack, capabilities, recipe, score }) => ({
+      id: row.id,
+      name: row.name,
+      role: typeof pack.role === "string" ? pack.role : row.category ?? deliverable || "production",
+      reason: row.summary ?? `Outil observé pertinent pour ${input.deliverable || input.seedId}`,
+      recipe: recipe ?? "À préciser depuis l'Observatoire",
+      capabilities,
+      url: row.value.startsWith("http") ? row.value : null,
+      confidence: Math.min(0.99, Math.max(0.4, row.average_confidence || score / 20)),
+      source: "publisher-observatory-neon",
+      decision: row.decision,
+      observationCount: row.observation_count,
+    }));
+  return { version: 2, seedId: input.seedId, deliverable: input.deliverable ?? "", generatedAt: new Date().toISOString(), tools: ranked, source: "publisher-observatory-neon" };
+}
