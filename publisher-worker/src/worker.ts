@@ -1210,6 +1210,25 @@ app.get("/api/diagnostics/database", async (c) => {
   return c.json(await databaseBindingDiagnostics(c.env));
 });
 
+app.get("/api/observatory/discovery/schema", async (c) => {
+  try {
+    const payload = await composioRequest(c.env, "/tools?tool_slugs=COMPOSIO_SEARCH_WEB");
+    const tools = extractItems(payload).map((item) => {
+      const record = asRecord(item);
+      const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
+      return {
+        slug: stringValue(record.slug ?? record.name ?? record.tool_slug ?? record.toolSlug),
+        toolkit: toolkitFrom(record),
+        description: stringValue(record.description),
+        inputSchema: schema,
+      };
+    }).filter((tool) => tool.slug === "COMPOSIO_SEARCH_WEB");
+    return c.json({ status: "ok", executable: false, tools });
+  } catch (error) {
+    return c.json({ status: "failed", executable: false, error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/adapter/health", async (c) => {
   const textProducerConfigured = Boolean(await mistralApiKey(c.env));
   return c.json({
