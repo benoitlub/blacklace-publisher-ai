@@ -1242,6 +1242,46 @@ app.get("/api/observatory/discovery/schema", async (c) => {
   }
 });
 
+app.post("/api/observatory/discovery/preview", async (c) => {
+  try {
+    const body = await c.req.json<{ query?: string }>().catch(() => ({}));
+    const query = String(body.query || "").trim();
+    if (!query) return c.json({ status: "failed", executable: false, error: "query is required" }, 400);
+
+    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_TAVILY", {
+      method: "POST",
+      body: JSON.stringify({
+        arguments: {
+          query,
+          max_results: 5,
+          search_depth: "basic",
+          include_answer: false,
+          include_images: false,
+          include_raw_content: false,
+        },
+        entity_id: composioUserId(c.env),
+      }),
+    });
+
+    return c.json({
+      status: "ok",
+      executable: false,
+      persisted: false,
+      engine: "COMPOSIO_SEARCH_TAVILY",
+      limit: 5,
+      query,
+      preview,
+    });
+  } catch (error) {
+    return c.json({
+      status: "failed",
+      executable: false,
+      persisted: false,
+      error: error instanceof Error ? error.message : String(error),
+    }, 502);
+  }
+});
+
 app.get("/api/adapter/health", async (c) => {
   const textProducerConfigured = Boolean(await mistralApiKey(c.env));
   return c.json({
