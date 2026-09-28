@@ -107,6 +107,8 @@ function workerBase(): string {
   return String(import.meta.env.VITE_API_BASE_URL || WORKER_BASE_URL).trim().replace(/\/$/, "");
 }
 
+type CanvaDiagnostic = { configured?: boolean; canvaStatus?: string; canvaError?: string; discoveredToolCount?: number; creationCandidates?: string[]; artifactUrl?: string; toolSlug?: string; };
+
 type Iteration = {
   id?: string;
   seed_id?: string;
@@ -157,6 +159,42 @@ function toParcels(iterations: readonly Iteration[]): Parcel[] {
   }
 
   return [...bySeed.values()].sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+}
+
+function VisualProductionHealth() {
+  const [diagnostic, setDiagnostic] = useState<CanvaDiagnostic | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const refresh = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${workerBase()}/api/tentacles/diagnose-canva?title=${encodeURIComponent("Diagnostic visuel Publisher")}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`Worker ${response.status}`);
+      setDiagnostic(await response.json() as CanvaDiagnostic);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Diagnostic Canva indisponible");
+    } finally { setLoading(false); }
+  };
+
+  useEffect(() => { void refresh(); }, []);
+  const healthy = diagnostic?.canvaStatus === "success";
+  return (
+    <Card className="border-border bg-card shadow-sm">
+      <CardHeader className="gap-3 border-b border-border pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <div><CardTitle className="flex items-center gap-2 font-serif text-xl"><Sparkles className="h-5 w-5 text-primary" />Atelier visuel</CardTitle><p className="mt-1 text-sm text-muted-foreground">Sonde la même chaîne Canva que les tentacules, sans enregistrer d’itération ni toucher aux cooldowns.</p></div>
+        <Button variant="outline" size="sm" className="gap-2" onClick={() => void refresh()} disabled={loading}><RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />Tester Canva</Button>
+      </CardHeader>
+      <CardContent className="space-y-3 pt-5">
+        <div className="flex flex-wrap items-center gap-2"><Badge variant={healthy ? "default" : "outline"}>{loading ? "Diagnostic…" : healthy ? "Canva opérationnel" : `Canva · ${diagnostic?.canvaStatus || "indisponible"}`}</Badge>{typeof diagnostic?.discoveredToolCount === "number" ? <Badge variant="outline">{diagnostic.discoveredToolCount} outils découverts</Badge> : null}</div>
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+        {diagnostic?.canvaError ? <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-sm"><strong>Échec visible :</strong> {diagnostic.canvaError}</div> : null}
+        {diagnostic?.artifactUrl ? <a href={diagnostic.artifactUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-primary hover:underline"><ExternalLink className="h-4 w-4" />Ouvrir le visuel de diagnostic</a> : null}
+        {diagnostic?.creationCandidates?.length ? <p className="text-xs text-muted-foreground">Candidats : {diagnostic.creationCandidates.join(" · ")}</p> : null}
+      </CardContent>
+    </Card>
+  );
 }
 
 function ParcelsTile() {
@@ -405,6 +443,8 @@ export default function Dashboard() {
       </section>
 
       <GerardGardenTile />
+
+      <VisualProductionHealth />
 
       <ParcelsTile />
 
