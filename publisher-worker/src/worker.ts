@@ -328,7 +328,7 @@ function toolText(tool: ComposioTool): string {
 function scoreCanvaCreateTool(tool: ComposioTool): number {
   const text = toolText(tool);
   if (!text.includes("design")) return -100;
-  if (/export|metadata|access|format|list|get|fetch|delete|update|comment|folder/.test(text)) return -50;
+  if (/export|metadata|access|format|list|get|fetch|delete|update|comment|folder|retrieve|status|job/.test(text)) return -50;
   return (/create/.test(text) ? 80 : 0) + (/post/.test(text) ? 45 : 0) + (/designs?/.test(text) ? 30 : 0) + (/instagram|social/.test(text) ? 20 : 0) + (/canva/.test(text) ? 10 : 0);
 }
 
@@ -387,6 +387,10 @@ function canvaArguments(tool: ComposioTool, title: string): Record<string, unkno
   // Canva's own REST API rejected a bare string here ("One of 'design_type'
   // or 'asset_id' must be defined", confirmed live via the raw response),
   // because design_type is an object ({type, name}), not a string.
+  if (!("design_type" in args) && !("asset_id" in args) && /create.*canva.*design/i.test(tool.slug)) {
+    args.design_type = { type: "preset", name: "instagram_post" };
+  }
+  if (!("title" in args) && /create.*canva.*design/i.test(tool.slug)) args.title = `Visuel principal ${title}`;
   return Object.keys(args).length ? args : { title: `Visuel principal ${title}`, design_type: { type: "preset", name: "instagram_post" } };
 }
 
