@@ -26,6 +26,20 @@ const CONNECTOR_FAMILIES = [
   { id: "other", label: "Autres liaisons", description: "Connecteurs disponibles sans famille specifique.", keywords: [] },
 ] as const;
 
+function messageFrom(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try { return JSON.stringify(error); } catch { return "Erreur inconnue"; }
+}
+
+function RealMockIndicator({ result }: { readonly result: ConnectorTestResult | undefined }) {
+  if (!result) return null;
+  const isError = !result.success || (!!result.error && !result.source);
+  const dot = isError ? "bg-destructive" : result.isMock ? "bg-amber-500" : "bg-green-500";
+  const label = isError ? "Erreur" : result.isMock ? "Mock" : "Réel";
+  return <div className="flex items-center gap-1.5"><span className={`inline-block w-2 h-2 rounded-full ${dot}`} /><span className="font-mono text-[10px] uppercase text-muted-foreground">{label}</span></div>;
+}
+
 export default function Connectors() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
