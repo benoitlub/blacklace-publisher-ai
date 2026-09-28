@@ -441,5 +441,24 @@ export async function buildObservatoryToolPack(
       decision: row.decision,
       observationCount: row.observation_count,
     }));
-  return { version: 2, seedId: input.seedId, deliverable: input.deliverable ?? "", generatedAt: new Date().toISOString(), tools: ranked, source: "publisher-observatory-neon" };
+  const assisted = deliverable && ["video", "reel", "animation", "mockup", "storyboard"].some((term) => deliverable.includes(term))
+    ? [{
+        id: "assisted:morphic",
+        name: "Morphic",
+        role: "creative-studio",
+        reason: "Studio créatif assisté pertinent pour vidéo, animation, mockup et storyboard.",
+        recipe: "Préparer un Morphic Pack : objectif, prompt, storyboard, références, format, durée, texte/voix et destination. L'utilisateur lance ensuite la production dans Morphic et rattache l'asset obtenu à la récolte.",
+        capabilities: ["video", "animation", "image-to-video", "storyboard", "mockup"],
+        url: "https://morphic.com/",
+        confidence: 0.9,
+        source: "publisher-assisted-tool",
+        decision: "use",
+        observationCount: 0,
+        executable: false,
+        authorizationRequired: true,
+        handoff: "human",
+      }]
+    : [];
+  const tools = [...assisted, ...ranked].slice(0, Math.min(Math.max(input.limit ?? 12, 1), 25));
+  return { version: 3, seedId: input.seedId, deliverable: input.deliverable ?? "", generatedAt: new Date().toISOString(), tools, source: "publisher-observatory-neon+assisted" };
 }
