@@ -79,7 +79,22 @@ async function mistralApiKey(env: Env): Promise<string> {
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", cors());
 
-app.get("/api/health", (c) => c.json({ status: "ok", service: "blacklace-publisher-worker" }));
+app.get("/api/health", async (c) => {
+  // Keep the adapter registration alive independently from the expensive
+  // tentacle cron. Octopus stores adapters in memory, while Publisher's
+  // autonomous production cron is intentionally disabled during quota control.
+  // A normal health/readiness probe is therefore enough to heal a recycled
+  // Octopus isolate without reactivating any Mistral/Canva production loop.
+  const adapterRegistration = await registerWithOctopus({
+    octopusUrl: octopusEngineUrl(c.env),
+    publicBaseUrl: publisherPublicUrl(c.env),
+  });
+  return c.json({
+    status: "ok",
+    service: "blacklace-publisher-worker",
+    adapterRegistration,
+  });
+});
 
 function safeContent(value: unknown): string {
   if (typeof value === "string") return value.trim();
