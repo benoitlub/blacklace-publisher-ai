@@ -442,7 +442,7 @@ export function extractCanvaArtifact(payload: unknown, title: string) {
 // one, and the attempt loop is capped regardless of mode.
 const CANVA_MAX_ATTEMPTS = 4;
 
-async function executeCanvaDesign(env: Env, title: string, options: { excludeSlugs?: string[]; requireNovel?: boolean } = {}): Promise<{ toolSlug: string; artifact: NonNullable<ReturnType<typeof extractCanvaArtifact>> } | null> {
+async function executeCanvaDesign(env: Env, title: string, options: { excludeSlugs?: string[]; requireNovel?: boolean; onAttemptFailure?: (failure: { toolSlug: string; error: string }) => void } = {}): Promise<{ toolSlug: string; artifact: NonNullable<ReturnType<typeof extractCanvaArtifact>> } | null> {
   if (!(await isComposioConfigured(env))) return null;
   const accounts = await listComposioConnectedAccounts(env);
   const account = accountFor(accounts, "canva");
@@ -457,7 +457,12 @@ async function executeCanvaDesign(env: Env, title: string, options: { excludeSlu
       const result = await executeComposioTool(env, { toolSlug: candidate.slug, connectedAccountId: account.id, arguments: args });
       const artifact = extractCanvaArtifact(result, title);
       if (artifact?.url) return { toolSlug: candidate.slug, artifact };
-    } catch (_) { /* try the next candidate */ }
+      const envelope = asRecord(result);
+      const detail = stringValue(envelope.error) || (envelope.successful === false ? "Composio a renvoyé successful:false sans artefact Canva." : "Réponse reçue, mais aucun artefact Canva exploitable.");
+      options.onAttemptFailure?.({ toolSlug: candidate.slug, error: detail });
+    } catch (error) {
+      options.onAttemptFailure?.({ toolSlug: candidate.slug, error: error instanceof Error ? error.message : String(error) });
+    }
   }
   return null;
 }
@@ -1016,10 +1021,13 @@ app.get("/api/tentacles/diagnose-canva", async (c) => {
   }
 
   try {
-    const result = await executeCanvaDesign(c.env, title);
+    const attemptFailures: Array<{ toolSlug: string; error: string }> = [];
+    const result = await executeCanvaDesign(c.env, title, { onAttemptFailure: (failure) => attemptFailures.push(failure) });
     return result
-      ? c.json({ ...base, canvaStatus: "success", toolSlug: result.toolSlug, artifactUrl: result.artifact.url })
-      : c.json({ ...base, canvaStatus: "no-candidate", canvaError: "Aucun outil de création exploitable parmi les outils découverts." });
+      ? c.json({ ...base, canvaStatus: "success", toolSlug: result.toolSlug, artifactUrl: result.artifact.url, attemptFailures })
+      : candidates.length
+        ? c.json({ ...base, canvaStatus: "generation-failed", canvaError: "Les outils de création ont été trouvés mais aucune tentative n’a produit d’artefact Canva.", attemptFailures })
+        : c.json({ ...base, canvaStatus: "no-candidate", canvaError: "Aucun outil de création exploitable parmi les outils découverts.", attemptFailures });
   } catch (error) {
     // Le message brut de Composio : précisément ce que le cycle avalait.
     return c.json({ ...base, canvaStatus: "error", canvaError: error instanceof Error ? error.message : String(error) });
