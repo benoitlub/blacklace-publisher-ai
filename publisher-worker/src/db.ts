@@ -431,7 +431,7 @@ export async function buildObservatoryToolPack(
     .map(({ row, pack, capabilities, recipe, score }) => ({
       id: row.id,
       name: row.name,
-      role: typeof pack.role === "string" ? pack.role : row.category ?? deliverable || "production",
+      role: typeof pack.role === "string" ? pack.role : (row.category ?? deliverable) || "production",
       reason: row.summary ?? `Outil observé pertinent pour ${input.deliverable || input.seedId}`,
       recipe: recipe ?? "À préciser depuis l'Observatoire",
       capabilities,
