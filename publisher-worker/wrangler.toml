@@ -43,3 +43,9 @@ secret_name = "GITHUB_TOKEN"
 # iteration) governs actual pacing, so most ticks find nothing due.
 [triggers]
 crons = [] # Temporarily suspend autonomous tentacle cycles while diagnosing Mistral 429.
+
+# Worker-to-Worker calls on the same workers.dev zone must use a Service Binding.
+# This avoids Cloudflare error 1042 while keeping the public URL as a fallback.
+[[services]]
+binding = "OCTOPUS_ENGINE"
+service = "octopus-engine-app"

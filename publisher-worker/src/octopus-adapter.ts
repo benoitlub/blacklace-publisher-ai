@@ -325,6 +325,7 @@ export async function registerWithOctopus(options: {
   octopusUrl: string;
   publicBaseUrl: string;
   version?: string;
+  fetcher?: typeof fetch;
 }): Promise<RegistrationOutcome> {
   const octopusUrl = options.octopusUrl.replace(/\/$/, "");
   const publicBaseUrl = options.publicBaseUrl.replace(/\/$/, "");
@@ -334,7 +335,8 @@ export async function registerWithOctopus(options: {
   }
 
   try {
-    const response = await fetch(`${octopusUrl}/adapters/register`, {
+    const requestFetch = options.fetcher ?? fetch;
+    const response = await requestFetch(`${octopusUrl}/adapters/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
