@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ExternalLink, KeyRound, LockKeyhole, RefreshCw, Server, ShieldCheck } from "lucide-react";
+import { KeyRound, LockKeyhole, RefreshCw, Server, ShieldCheck } from "lucide-react";
 
 // dry-dew-8fb3blacklace-publisher-relay is a write-only mission-intake
 // endpoint (POST {parcelId, objective} -> "Mission transmise") — verified
@@ -29,13 +29,6 @@ type Provider = {
   connectedAccountId?: string | null;
 };
 
-type Catalog = {
-  configured: boolean;
-  userId: string;
-  providers: Provider[];
-  error?: string;
-};
-
 type Diagnostics = {
   mistral?: { configured?: boolean; available?: boolean };
   composio?: { configured?: boolean };
@@ -43,19 +36,10 @@ type Diagnostics = {
   elevenLabs?: { connected?: boolean };
 };
 
-function statusLabel(status: Provider["status"]) {
-  if (status === "connected") return "Connecté";
-  if (status === "authorization-required") return "Autorisation requise";
-  if (status === "available") return "Prêt à connecter";
-  return "Indisponible";
-}
-
 export default function LocalTechnique() {
-  const { toast } = useToast();
-  const [catalog, setCatalog] = useState<Catalog | null>(null);
+  useToast();
   const [diagnostics, setDiagnostics] = useState<Diagnostics | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pending, setPending] = useState<string | null>(null);
 
   async function readJson(response: Response) {
     const text = await response.text();
@@ -66,60 +50,27 @@ export default function LocalTechnique() {
   async function refresh() {
     setLoading(true);
     try {
-      const [catalogResponse, diagnosticsResponse] = await Promise.all([
-        fetch(apiUrl("/connectors/composio/catalog"), { cache: "no-store" }),
-        fetch(apiUrl("/production/diagnostics"), { cache: "no-store" }),
-      ]);
-      const nextCatalog = await readJson(catalogResponse);
+      const diagnosticsResponse = await fetch(apiUrl("/production/diagnostics"), { cache: "no-store" });
       const nextDiagnostics = await readJson(diagnosticsResponse);
-      setCatalog(catalogResponse.ok ? nextCatalog : { configured: false, userId: "", providers: [], error: nextCatalog?.error || `Erreur ${catalogResponse.status}` });
       setDiagnostics(diagnosticsResponse.ok ? nextDiagnostics : null);
     } catch (error) {
-      setCatalog({ configured: false, userId: "", providers: [], error: error instanceof Error ? error.message : "Erreur inconnue" });
       setDiagnostics(null);
     } finally {
       setLoading(false);
     }
   }
 
-  async function connect(provider: Provider) {
-    setPending(provider.id);
-    try {
-      const callbackUrl = `${window.location.origin}/local-technique?composio=return&provider=${encodeURIComponent(provider.id)}`;
-      const response = await fetch(apiUrl("/connectors/composio/connect"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider: provider.id, callbackUrl }),
-      });
-      const payload = await readJson(response);
-      if (!response.ok) throw new Error(payload?.error || `Connexion impossible (${response.status})`);
-      if (!payload?.redirectUrl) throw new Error("Aucune page d’autorisation n’a été retournée.");
-      window.location.assign(payload.redirectUrl);
-    } catch (error) {
-      toast({
-        title: `Connexion ${provider.label} impossible`,
-        description: error instanceof Error ? error.message : "Erreur inconnue",
-        variant: "destructive",
-      });
-      setPending(null);
-    }
-  }
 
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("composio") === "return") {
-      toast({ title: "Autorisation reçue", description: "Le Local technique vérifie maintenant la connexion." });
-      window.history.replaceState({}, "", "/local-technique");
-    }
     void refresh();
   }, []);
 
   const infrastructure = useMemo(() => [
     { label: "Mistral", ready: Boolean(diagnostics?.mistral?.configured), detail: "Génération côté serveur" },
-    { label: "Composio", ready: Boolean(diagnostics?.composio?.configured ?? catalog?.configured), detail: "OAuth et comptes externes" },
-    { label: "Canva", ready: Boolean(diagnostics?.canva?.connected), detail: "Production visuelle" },
+    { label: "Composio", ready: Boolean(diagnostics?.composio?.configured), detail: "OAuth et comptes externes" },
+    { label: "Canva", ready: Boolean(diagnostics?.canva?.connected), detail: "Compte Canva connecté — génération vérifiée séparément" },
     { label: "ElevenLabs", ready: Boolean(diagnostics?.elevenLabs?.connected), detail: "Voix et audio" },
-  ], [diagnostics, catalog]);
+  ], [diagnostics]);
 
   return (
     <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -153,20 +104,6 @@ export default function LocalTechnique() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           {infrastructure.map((item) => (
             <Card key={item.label} className="bg-card"><CardContent className="p-4"><div className="flex items-start justify-between gap-3"><Server className="h-5 w-5 text-primary" /><Badge variant={item.ready ? "default" : "outline"}>{item.ready ? "Disponible" : "À configurer"}</Badge></div><p className="mt-3 font-medium">{item.label}</p><p className="mt-1 text-xs text-muted-foreground">{item.detail}</p></CardContent></Card>
-          ))}
-        </div>
-      </section>
-
-      <section className="space-y-3">
-        <div><h2 className="text-xl font-serif font-semibold">Connexions autorisables</h2><p className="text-sm text-muted-foreground">Les boutons ouvrent le véritable flux d’autorisation du service.</p></div>
-        {catalog?.error ? <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{catalog.error}</div> : null}
-        {!loading && !catalog?.configured ? <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-600">Le serveur doit d’abord disposer de sa clé Composio maîtresse. Elle reste réservée à l’administrateur.</div> : null}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {(catalog?.providers ?? []).map((provider) => (
-            <Card key={provider.id} className="bg-card">
-              <CardHeader className="pb-3"><div className="flex items-start justify-between gap-3"><div><CardTitle className="text-lg">{provider.label}</CardTitle><p className="mt-1 text-xs text-muted-foreground">{provider.capability}</p></div><Badge variant={provider.status === "connected" ? "default" : "outline"}>{statusLabel(provider.status)}</Badge></div></CardHeader>
-              <CardContent className="space-y-3"><p className="text-xs text-muted-foreground">{provider.connectedAccountId ? "Compte autorisé et confirmé par le serveur." : "Aucun compte autorisé pour cet espace."}</p>{provider.status === "connected" ? <Button variant="outline" disabled className="w-full">Connecté</Button> : <Button className="w-full" onClick={() => void connect(provider)} disabled={!catalog?.configured || pending === provider.id}><ExternalLink className="mr-2 h-4 w-4" />{pending === provider.id ? "Ouverture…" : "Connecter le compte"}</Button>}</CardContent>
-            </Card>
           ))}
         </div>
       </section>
