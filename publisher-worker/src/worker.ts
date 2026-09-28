@@ -592,8 +592,23 @@ app.get("/api/production/diagnostics", async (c) => {
     const canva = accountFor(accounts, "canva");
     const elevenLabs = accountFor(accounts, "elevenlabs");
     const metricool = accountFor(accounts, "metricool");
+    const linkedin = accountFor(accounts, "linkedin");
+    const instagram = accountFor(accounts, "instagram");
+    const whatsapp = accountFor(accounts, "whatsapp");
     const metricoolTools = metricool ? await listComposioTools(env, "metricool").catch(() => []) : [];
     const metricoolPublishTools = selectMetricoolPublishTools(metricoolTools);
+    const socialToolkits = [
+      { slug: "linkedin", account: linkedin },
+      { slug: "instagram", account: instagram },
+      { slug: "whatsapp", account: whatsapp },
+    ];
+    const socialChannels = await Promise.all(socialToolkits.map(async ({ slug, account }) => {
+      const tools = account ? await listComposioTools(env, slug).catch(() => []) : [];
+      const publish = tools.filter((tool) => /\b(create|publish|post|share|send)\b/.test(toolText(tool)) && !/\b(get|list|fetch|retrieve|delete|analytics|metric|report|status)\b/.test(toolText(tool)));
+      const conversation = tools.filter((tool) => /\b(message|conversation|comment|reply|dm|inbox)\b/.test(toolText(tool)) && !/\b(delete|analytics|metric|report)\b/.test(toolText(tool)));
+      const compact = (items: ComposioTool[]) => items.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) }));
+      return { slug, connected: Boolean(account), discoveredToolCount: tools.length, publishCandidates: compact(publish), conversationCandidates: compact(conversation), executable: false };
+    }));
     const canvaTools = canva ? await listComposioTools(env, "canva").catch(() => []) : [];
     const canvaCreationTools = selectCanvaCreateTools(canvaTools);
     return c.json({
@@ -601,6 +616,7 @@ app.get("/api/production/diagnostics", async (c) => {
       canva: { status: canvaCreationTools.length ? "executable" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", discoveredToolCount: canvaTools.length },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
       metricool: { status: metricoolPublishTools.length ? "candidate-tools-found" : metricool ? "connected-no-publish-tool" : "not-connected", connected: Boolean(metricool), provider: "composio", executable: false, discoveredToolCount: metricoolTools.length, publishCandidates: metricoolPublishTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
+      socialChannels,
       // configured/available are aliases of the same boolean, for the
       // artifacts/blacklace-publisher dashboard (local-technique.tsx),
       // which reads those field names instead of `status`.
