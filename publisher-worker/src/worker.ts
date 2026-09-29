@@ -1333,6 +1333,41 @@ app.post("/api/observatory/discovery/preview", async (c) => {
   }
 });
 
+app.post("/api/observatory/discovery/enrich", async (c) => {
+  try {
+    const body = await c.req.json<{ url?: string }>().catch(() => ({}));
+    const url = String(body.url || "").trim();
+    if (!url || !/^https?:\\/\\//i.test(url)) {
+      return c.json({ status: "rejected", executable: false, persisted: false, code: "INVALID_URL", error: "A public http(s) url is required." }, 400);
+    }
+
+    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_FETCH_URL_CONTENT", {
+      method: "POST",
+      body: JSON.stringify({
+        arguments: { urls: [url], text: true, summary: true, max_characters: 12000 },
+        user_id: await composioUserId(c.env),
+        version: "latest",
+      }),
+    });
+
+    return c.json({
+      status: "ok",
+      executable: false,
+      persisted: false,
+      engine: "COMPOSIO_SEARCH_FETCH_URL_CONTENT",
+      url,
+      preview,
+    });
+  } catch (error) {
+    return c.json({
+      status: "failed",
+      executable: false,
+      persisted: false,
+      error: error instanceof Error ? error.message : String(error),
+    }, 502);
+  }
+});
+
 app.post("/api/observatory/discovery/accept", async (c) => {
   const body = await c.req.json<{
     candidate?: { title?: string; url?: string; description?: string; publishedDate?: string; image?: string };
