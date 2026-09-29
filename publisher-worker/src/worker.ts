@@ -1283,16 +1283,20 @@ app.post("/api/observatory/discovery/preview", async (c) => {
     const previewRecord = asRecord(preview);
     const data = asRecord(previewRecord.data);
     const citations = Array.isArray(data.citations) ? data.citations : [];
+    const answer = stringValue(data.answer);
+    const answerSentences = answer.split(/(?<=[.!?])\\s+/).map((sentence) => sentence.trim()).filter(Boolean);
     const candidates = citations
-      .map((citation) => {
+      .map((citation, index) => {
         const item = asRecord(citation);
         const url = stringValue(item.url ?? item.id);
         const title = stringValue(item.title);
         if (!url || !title) return null;
+        const citationMarker = `[${index + 1}]`;
+        const citedDescription = answerSentences.filter((sentence) => sentence.includes(citationMarker)).join(" ");
         return {
           title,
           url,
-          description: stringValue(item.description ?? item.snippet),
+          description: stringValue(item.description ?? item.snippet) || citedDescription,
           publishedDate: stringValue(item.publishedDate ?? item.published_date),
           image: stringValue(item.image),
           provenance: {
@@ -1345,14 +1349,28 @@ app.post("/api/observatory/discovery/accept", async (c) => {
   try {
     const sql = await getSql(c.env);
     await ensureObservatorySchema(sql);
+    const description = String(candidate.description || "").trim();
+    const searchable = `${title} ${description}`.toLowerCase();
+    const capabilityRules: Array<[string, RegExp]> = [
+      ["content.plan", /content plan|planning|month of content|calendar/],
+      ["content.write", /writing|draft|post generator|generate.*post|content creation/],
+      ["content.repurpose", /repurpose|single idea|one idea|various formats|multiple formats/],
+      ["social.publish", /publish|publishing|multi-platform|social network|social media manager/],
+      ["visual.generate", /infographic|carousel|image|visual/],
+      ["video.generate", /video|reel/],
+      ["analytics.read", /analytics|performance/],
+    ];
+    const capabilities = capabilityRules.filter(([, pattern]) => pattern.test(searchable)).map(([capability]) => capability);
     const source = await upsertObservatorySource(sql, {
       kind: "web",
       value: url,
       name: title,
       category: "external-discovery",
-      summary: String(candidate.description || "").trim() || undefined,
-      tags: ["external-discovery", "composio-search"],
+      summary: description || undefined,
+      tags: ["external-discovery", "composio-search", ...capabilities],
       pack: {
+        role: "discovered-tool",
+        capabilities,
         provenance: {
           engine: "COMPOSIO_SEARCH_WEB",
           publishedDate: String(candidate.publishedDate || "").trim() || null,
