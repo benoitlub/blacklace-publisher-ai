@@ -1275,7 +1275,6 @@ app.post("/api/observatory/discovery/preview", async (c) => {
       method: "POST",
       body: JSON.stringify({
         arguments: { query },
-        connected_account_id: "hosted_account",
         user_id: await composioUserId(c.env),
         version: "latest",
       }),
