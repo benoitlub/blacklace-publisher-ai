@@ -1280,6 +1280,30 @@ app.post("/api/observatory/discovery/preview", async (c) => {
       }),
     });
 
+    const previewRecord = asRecord(preview);
+    const data = asRecord(previewRecord.data);
+    const citations = Array.isArray(data.citations) ? data.citations : [];
+    const candidates = citations
+      .map((citation) => {
+        const item = asRecord(citation);
+        const url = stringValue(item.url ?? item.id);
+        const title = stringValue(item.title);
+        if (!url || !title) return null;
+        return {
+          title,
+          url,
+          description: stringValue(item.description ?? item.snippet),
+          publishedDate: stringValue(item.publishedDate ?? item.published_date),
+          image: stringValue(item.image),
+          provenance: {
+            engine: "COMPOSIO_SEARCH_WEB",
+            query,
+          },
+        };
+      })
+      .filter((candidate): candidate is NonNullable<typeof candidate> => candidate !== null)
+      .slice(0, 5);
+
     return c.json({
       status: "ok",
       executable: false,
@@ -1287,6 +1311,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
       engine: "COMPOSIO_SEARCH_WEB",
       limit: 5,
       query,
+      candidates,
       preview,
     });
   } catch (error) {
