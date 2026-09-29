@@ -1372,6 +1372,7 @@ app.post("/api/observatory/discovery/accept", async (c) => {
   const body = await c.req.json<{
     candidate?: { title?: string; url?: string; description?: string; publishedDate?: string; image?: string };
     decision?: string;
+    autonomous?: boolean;
   }>().catch(() => ({}));
   const candidate = body.candidate;
   const title = String(candidate?.title || "").trim();
@@ -1379,8 +1380,9 @@ app.post("/api/observatory/discovery/accept", async (c) => {
   if (!candidate || !title || !url) {
     return c.json({ status: "rejected", persisted: false, code: "INVALID_CANDIDATE", error: "candidate.title and candidate.url are required" }, 400);
   }
-  if (body.decision !== "watch") {
-    return c.json({ status: "waiting-authorization", persisted: false, code: "WATCH_CONFIRMATION_REQUIRED", error: "Explicit decision=watch is required." }, 409);
+  const autonomous = body.autonomous === true;
+  if (!autonomous && body.decision !== "watch") {
+    return c.json({ status: "waiting-authorization", persisted: false, code: "WATCH_CONFIRMATION_REQUIRED", error: "Explicit decision=watch is required unless autonomous discovery ingestion is requested." }, 409);
   }
   if (!(await isDatabaseConfigured(c.env))) {
     return c.json({ status: "waiting-authorization", persisted: false, code: "DATABASE_NOT_CONFIGURED", error: "DATABASE_URL n'est pas configuré dans Publisher." }, 409);
@@ -1423,6 +1425,7 @@ app.post("/api/observatory/discovery/accept", async (c) => {
       status: "ok",
       persisted: true,
       decision: "watch",
+      autonomous,
       source: observatorySourceResponse(watched ?? source),
     });
   } catch (error) {
