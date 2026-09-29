@@ -1284,15 +1284,20 @@ app.post("/api/observatory/discovery/preview", async (c) => {
     const data = asRecord(previewRecord.data);
     const citations = Array.isArray(data.citations) ? data.citations : [];
     const answer = stringValue(data.answer);
-    const answerSentences = answer.split(/(?<=[.!?])\\s+/).map((sentence) => sentence.trim()).filter(Boolean);
+    const citedDescriptions = new Map<number, string>();
+    const citationPattern = /(?:^|\\s)([^[]*?)\\s*\\[(\\d+)](?=\\s|$)/g;
+    for (const match of answer.matchAll(citationPattern)) {
+      const citationNumber = Number.parseInt(match[2], 10);
+      const description = String(match[1] || "").trim();
+      if (Number.isFinite(citationNumber) && description) citedDescriptions.set(citationNumber, description);
+    }
     const candidates = citations
       .map((citation, index) => {
         const item = asRecord(citation);
         const url = stringValue(item.url ?? item.id);
         const title = stringValue(item.title);
         if (!url || !title) return null;
-        const citationMarker = `[${index + 1}]`;
-        const citedDescription = answerSentences.filter((sentence) => sentence.includes(citationMarker)).join(" ");
+        const citedDescription = citedDescriptions.get(index + 1) ?? "";
         return {
           title,
           url,
