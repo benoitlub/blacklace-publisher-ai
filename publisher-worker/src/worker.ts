@@ -1248,18 +1248,13 @@ app.post("/api/observatory/discovery/preview", async (c) => {
     const query = String(body.query || "").trim();
     if (!query) return c.json({ status: "failed", executable: false, error: "query is required" }, 400);
 
-    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_TAVILY", {
+    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_WEB", {
       method: "POST",
       body: JSON.stringify({
-        arguments: {
-          query,
-          max_results: 5,
-          search_depth: "basic",
-          include_answer: false,
-          include_images: false,
-          include_raw_content: false,
-        },
-        entity_id: composioUserId(c.env),
+        arguments: { query },
+        connected_account_id: "hosted_account",
+        user_id: composioUserId(c.env),
+        version: "latest",
       }),
     });
 
@@ -1267,7 +1262,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
       status: "ok",
       executable: false,
       persisted: false,
-      engine: "COMPOSIO_SEARCH_TAVILY",
+      engine: "COMPOSIO_SEARCH_WEB",
       limit: 5,
       query,
       preview,
