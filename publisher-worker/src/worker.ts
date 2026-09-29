@@ -1337,7 +1337,7 @@ app.post("/api/observatory/discovery/enrich", async (c) => {
   try {
     const body = await c.req.json<{ url?: string }>().catch(() => ({}));
     const url = String(body.url || "").trim();
-    if (!url || !/^https?:\\/\\//i.test(url)) {
+    if (!url || !/^https?:\/\//i.test(url)) {
       return c.json({ status: "rejected", executable: false, persisted: false, code: "INVALID_URL", error: "A public http(s) url is required." }, 400);
     }
 
