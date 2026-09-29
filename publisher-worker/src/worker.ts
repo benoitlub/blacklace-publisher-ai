@@ -50,7 +50,7 @@ type Env = {
   AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
-  COMPOSIO_USER_ID?: string;
+  COMPOSIO_USER_ID?: string | SecretsStoreSecret;
   DATABASE_URL?: string | SecretsStoreSecret;
   GITHUB_TOKEN?: string | SecretsStoreSecret;
   NOTION_API_KEY?: string | SecretsStoreSecret;
@@ -171,8 +171,8 @@ async function isComposioConfigured(env: Env): Promise<boolean> {
   return Boolean(await resolveSecret(env.COMPOSIO_API_KEY));
 }
 
-function composioUserId(env: Env): string {
-  return env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
+async function composioUserId(env: Env): Promise<string> {
+  return (await resolveSecret(env.COMPOSIO_USER_ID)) || "benoit-lubert";
 }
 
 /**
@@ -259,7 +259,7 @@ function extractItems(payload: unknown): unknown[] {
 }
 
 async function listComposioConnectedAccounts(env: Env): Promise<ComposioConnectedAccount[]> {
-  const userId = composioUserId(env);
+  const userId = await composioUserId(env);
   const paths = [
     `/connected_accounts?user_ids=${encodeURIComponent(userId)}&limit=100`,
     `/connected_accounts?user_id=${encodeURIComponent(userId)}&limit=100`,
@@ -336,7 +336,7 @@ async function executeComposioTool(env: Env, input: { toolSlug: string; connecte
   // entity_id alongside connected_account_id — confirmed live.
   return composioRequest(env, `/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
     method: "POST",
-    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId, entity_id: composioUserId(env) }),
+    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId, entity_id: await composioUserId(env) }),
   });
 }
 
@@ -1251,7 +1251,7 @@ app.get("/api/observatory/discovery/account", async (c) => {
     return c.json({
       status: "ok",
       configured: await isComposioConfigured(c.env),
-      userIdConfigured: Boolean(c.env.COMPOSIO_USER_ID?.trim()),
+      userIdConfigured: Boolean(await resolveSecret(c.env.COMPOSIO_USER_ID)),
       searchAccountCount: searchAccounts.length,
       searchAccounts,
       executable: false,
@@ -1276,7 +1276,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
       body: JSON.stringify({
         arguments: { query },
         connected_account_id: "hosted_account",
-        user_id: composioUserId(c.env),
+        user_id: await composioUserId(c.env),
         version: "latest",
       }),
     });
