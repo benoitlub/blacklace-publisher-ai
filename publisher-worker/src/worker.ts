@@ -1242,6 +1242,29 @@ app.get("/api/observatory/discovery/schema", async (c) => {
   }
 });
 
+app.get("/api/observatory/discovery/account", async (c) => {
+  try {
+    const accounts = await listComposioConnectedAccounts(c.env);
+    const searchAccounts = accounts
+      .filter((account) => account.toolkitSlug === "composio-search" || account.toolkitSlug === "composio_search")
+      .map((account) => ({ id: account.id, toolkit: account.toolkitSlug, status: account.status, active: isActiveComposioStatus(account.status) }));
+    return c.json({
+      status: "ok",
+      configured: await isComposioConfigured(c.env),
+      userIdConfigured: Boolean(c.env.COMPOSIO_USER_ID?.trim()),
+      searchAccountCount: searchAccounts.length,
+      searchAccounts,
+      executable: false,
+    });
+  } catch (error) {
+    return c.json({
+      status: "failed",
+      executable: false,
+      error: error instanceof Error ? error.message : String(error),
+    }, 502);
+  }
+});
+
 app.post("/api/observatory/discovery/preview", async (c) => {
   try {
     const body = await c.req.json<{ query?: string }>().catch(() => ({}));
