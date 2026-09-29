@@ -1324,6 +1324,54 @@ app.post("/api/observatory/discovery/preview", async (c) => {
   }
 });
 
+app.post("/api/observatory/discovery/accept", async (c) => {
+  const body = await c.req.json<{
+    candidate?: { title?: string; url?: string; description?: string; publishedDate?: string; image?: string };
+    decision?: string;
+  }>().catch(() => ({}));
+  const candidate = body.candidate;
+  const title = String(candidate?.title || "").trim();
+  const url = String(candidate?.url || "").trim();
+  if (!candidate || !title || !url) {
+    return c.json({ status: "rejected", persisted: false, code: "INVALID_CANDIDATE", error: "candidate.title and candidate.url are required" }, 400);
+  }
+  if (body.decision !== "watch") {
+    return c.json({ status: "waiting-authorization", persisted: false, code: "WATCH_CONFIRMATION_REQUIRED", error: "Explicit decision=watch is required." }, 409);
+  }
+  if (!(await isDatabaseConfigured(c.env))) {
+    return c.json({ status: "waiting-authorization", persisted: false, code: "DATABASE_NOT_CONFIGURED", error: "DATABASE_URL n'est pas configuré dans Publisher." }, 409);
+  }
+
+  try {
+    const sql = await getSql(c.env);
+    await ensureObservatorySchema(sql);
+    const source = await upsertObservatorySource(sql, {
+      kind: "web",
+      value: url,
+      name: title,
+      category: "external-discovery",
+      summary: String(candidate.description || "").trim() || undefined,
+      tags: ["external-discovery", "composio-search"],
+      pack: {
+        provenance: {
+          engine: "COMPOSIO_SEARCH_WEB",
+          publishedDate: String(candidate.publishedDate || "").trim() || null,
+          image: String(candidate.image || "").trim() || null,
+        },
+      },
+    });
+    const watched = await setObservatoryDecision(sql, source.id, "watch");
+    return c.json({
+      status: "ok",
+      persisted: true,
+      decision: "watch",
+      source: observatorySourceResponse(watched ?? source),
+    });
+  } catch (error) {
+    return c.json({ status: "failed", persisted: false, error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/adapter/health", async (c) => {
   const textProducerConfigured = Boolean(await mistralApiKey(c.env));
   return c.json({
