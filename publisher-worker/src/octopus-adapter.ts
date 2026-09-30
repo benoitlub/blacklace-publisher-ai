@@ -175,8 +175,11 @@ export async function executeAdapterMission(
         ?? stringValue(mission.context?.metadata?.["capability"])
         ?? stringValue(mission.objective)
         ?? "";
+      const gardenContext = isRecord(mission.context?.metadata?.["gardenContext"])
+        ? mission.context?.metadata?.["gardenContext"] as Record<string, unknown>
+        : undefined;
       const sql = await getSql(deps.knowledgeEnv);
-      const pack = await buildObservatoryToolPack(sql, { seedId, deliverable });
+      const pack = await buildObservatoryToolPack(sql, { seedId, deliverable, gardenContext });
       return {
         operationId,
         status: "completed",
