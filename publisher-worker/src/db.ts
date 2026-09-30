@@ -413,11 +413,26 @@ export async function markObservatorySourcesProcessed(
 
 export async function buildObservatoryToolPack(
   sql: NeonQueryFunction<false, false>,
-  input: { seedId: string; deliverable?: string; limit?: number },
-): Promise<{ version: number; seedId: string; deliverable: string; generatedAt: string; tools: Array<Record<string, unknown>>; source: string }> {
+  input: { seedId: string; deliverable?: string; limit?: number; gardenContext?: Record<string, unknown> },
+): Promise<{ version: number; seedId: string; deliverable: string; generatedAt: string; context: Record<string, unknown>; tools: Array<Record<string, unknown>>; source: string }> {
   await ensureObservatorySchema(sql);
   const rows = await listObservatorySources(sql, { limit: 500 });
-  const normalize = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const normalize = (value: unknown) => String(value ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const records = (value: unknown) => Array.isArray(value) ? value.filter((item): item is Record<string, unknown> => Boolean(item) && typeof item === "object" && !Array.isArray(item)) : [];
+  const garden = input.gardenContext && input.gardenContext.contract === "garden-context-v1" ? input.gardenContext : {};
+  const seeds = records(garden.seeds);
+  const harvests = records(garden.recentHarvests);
+  const operations = records(garden.recentOperations);
+  const compost = records(garden.recentCompost);
+  const contextText = normalize([
+    ...seeds.flatMap((item) => [item.title, item.objective]),
+    ...harvests.map((item) => item.title),
+    ...compost.map((item) => item.reason),
+  ].filter(Boolean).join(" "));
+  const failedCapabilities = new Set(operations
+    .filter((item) => /fail|skip|error/i.test(String(item.status ?? "")))
+    .map((item) => normalize(item.capability))
+    .filter(Boolean));
   const seed = normalize(input.seedId);
   const deliverable = normalize(input.deliverable);
   const families: Record<string, string[]> = {
@@ -436,17 +451,22 @@ export async function buildObservatoryToolPack(
       const haystack = normalize([row.name, row.category, row.summary, row.value, ...row.tags, ...capabilities, recipe].filter(Boolean).join(" "));
       let score = Math.max(1, Math.round(row.average_confidence * 10));
       for (const token of [...seed.split(" "), ...deliverable.split(" ")].filter((token) => token.length > 2)) if (haystack.includes(token)) score += 4;
+      for (const token of contextText.split(" ").filter((token) => token.length > 3)) if (haystack.includes(token)) score += 2;
       for (const [family, terms] of Object.entries(families)) if (deliverable.includes(family) && terms.some((term) => haystack.includes(term))) score += 12;
-      return { row, pack, capabilities, recipe, score };
+      const previouslyFailed = capabilities.some((capability) => failedCapabilities.has(normalize(capability)));
+      if (previouslyFailed) score -= 8;
+      return { row, pack, capabilities, recipe, score, previouslyFailed };
     })
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, Math.min(Math.max(input.limit ?? 12, 1), 25))
-    .map(({ row, pack, capabilities, recipe, score }) => ({
+    .map(({ row, pack, capabilities, recipe, score, previouslyFailed }) => ({
       id: row.id,
       name: row.name,
       role: typeof pack.role === "string" ? pack.role : (row.category ?? deliverable) || "production",
-      reason: row.summary ?? `Outil observé pertinent pour ${input.deliverable || input.seedId}`,
+      reason: previouslyFailed
+        ? `Pertinent pour le besoin, mais une capacité similaire a déjà échoué dans le Garden. ${row.summary ?? ""}`.trim()
+        : row.summary ?? `Outil observé pertinent pour ${input.deliverable || input.seedId}`,
       recipe: recipe ?? "À préciser depuis l'Observatoire",
       capabilities,
       url: row.value.startsWith("http") ? row.value : null,
@@ -454,6 +474,22 @@ export async function buildObservatoryToolPack(
       source: "publisher-observatory-neon",
       decision: row.decision,
       observationCount: row.observation_count,
+      gardenSignals: { previouslyFailed },
     }));
-  return { version: 2, seedId: input.seedId, deliverable: input.deliverable ?? "", generatedAt: new Date().toISOString(), tools: ranked, source: "publisher-observatory-neon" };
+  return {
+    version: 3,
+    seedId: input.seedId,
+    deliverable: input.deliverable ?? "",
+    generatedAt: new Date().toISOString(),
+    context: {
+      contract: garden.contract === "garden-context-v1" ? "garden-context-v1" : null,
+      seedsSeen: seeds.length,
+      harvestsSeen: harvests.length,
+      operationsSeen: operations.length,
+      compostSeen: compost.length,
+      failedCapabilities: [...failedCapabilities],
+    },
+    tools: ranked,
+    source: "publisher-observatory-neon",
+  };
 }
