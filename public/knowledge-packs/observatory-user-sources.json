@@ -1,27 +1,10 @@
 {
   "version": 1,
   "slug": "observatory-user-sources",
-  "status": "verified",
+  "status": "empty",
   "source": "publisher-observatory-user-sources",
   "aliases": [],
-  "sources": [
-    {
-      "id": "obs_mumqz1qx_397jge",
-      "title": "Kompozy — Turn one idea into a month of content. On autopilot.",
-      "url": null,
-      "content": "https://kompozy.io/",
-      "capturedAt": "2026-09-29T14:42:35.781Z",
-      "kind": "web",
-      "decision": "watch",
-      "tags": [
-        "content.plan",
-        "external-discovery",
-        "content.repurpose",
-        "composio-search"
-      ],
-      "octopus": null
-    }
-  ],
-  "sourceCount": 1,
-  "generatedAt": "2026-09-30T11:12:39.238Z"
+  "sources": [],
+  "sourceCount": 0,
+  "generatedAt": "2026-10-02T11:09:45.929Z"
 }
