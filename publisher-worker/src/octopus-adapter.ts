@@ -127,7 +127,7 @@ function systemPromptFor(capability: PublisherAdapterCapability): string {
  */
 export async function executeAdapterMission(
   envelope: OctopusAdapterEnvelope,
-  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike },
+  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (request: { destination?: string; content: string; metadata?: Record<string, unknown> }) => Promise<{ provider: string; action: string; result: unknown }> },
 ): Promise<AdapterExecutionResult> {
   const mission = isRecord(envelope.mission) ? (envelope.mission as OctopusAdapterMission) : undefined;
   const operationId = stringValue(mission?.operationId) ?? `unknown-${Date.now()}`;
@@ -210,7 +210,7 @@ export async function executeAdapterMission(
       return {
         operationId,
         status: "needs-input",
-        summary: "Publication autorisée, mais l’exécuteur Metricool n’est pas encore activé. Aucun contenu n’a été publié.",
+        summary: deps.publishSocial ? "Publication prête pour l’exécuteur social configuré." : "Publication autorisée, mais aucun exécuteur social n’est configuré sur ce runtime.",
         output: {
           capability,
           authorizationRequired: false,
