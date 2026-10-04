@@ -901,8 +901,12 @@ function buildPlayPrompt(tentacle: TentacleRow, previous: { content: string | nu
   return parts.filter(Boolean).join("\n\n");
 }
 
-async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
+async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string; diagnostics?: Record<string, unknown> }> {
   const previous = await latestIteration(sql, tentacle.seed_id);
+  let mistralStatus = "not-attempted";
+  let mistralError: string | null = null;
+  let canvaStatus = "not-attempted";
+  let canvaError: string | null = null;
   const notionApiKey = await resolveSecret(env.NOTION_API_KEY);
   const knowledge = await resolveKnowledgePackage(
     { NOTION_API_KEY: notionApiKey, NOTION_DATABASE_ID: env.NOTION_DATABASE_ID, NOTION_PAGE_ID: env.NOTION_PAGE_ID },
@@ -918,16 +922,43 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     try {
       const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous, knowledge.prompt) });
       content = artifact.content;
-    } catch (_) { /* Mistral unavailable this cycle — a visual alone can still land */ }
+      mistralStatus = "success";
+    } catch (error) {
+      mistralStatus = "error";
+      mistralError = error instanceof Error ? error.message : String(error);
+    }
+  } else {
+    mistralStatus = "skipped-unverified";
   }
 
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
-  const canva = await executeCanvaDesign(env, tentacle.title).catch(() => null);
-  if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
+  try {
+    const canva = await executeCanvaDesign(env, tentacle.title);
+    if (canva) {
+      visualUrl = canva.artifact.url;
+      toolCombination = `canva:${canva.toolSlug}`;
+      canvaStatus = "success";
+    } else {
+      canvaStatus = "no-artifact";
+    }
+  } catch (error) {
+    canvaStatus = "error";
+    canvaError = error instanceof Error ? error.message : String(error);
+  }
 
   await recordIteration(sql, { seedId: tentacle.seed_id, mode: "improve", content, visualUrl, toolCombination });
-  return { seedId: tentacle.seed_id, mode: "improve", status: content || visualUrl ? "completed" : "skipped-no-provider" };
+  return {
+    seedId: tentacle.seed_id,
+    mode: "improve",
+    status: content || visualUrl ? "completed" : "skipped-no-provider",
+    diagnostics: {
+      knowledge: { verified: knowledge.verified, slug: knowledge.slug, source: knowledge.source },
+      mistral: { status: mistralStatus, error: mistralError },
+      canva: { status: canvaStatus, error: canvaError, toolCombination },
+      visualUrl,
+    },
+  };
 }
 
 async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string }> {
