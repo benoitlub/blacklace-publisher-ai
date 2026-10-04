@@ -1163,6 +1163,20 @@ app.get("/api/tentacles/iterations", async (c) => {
 // can be verified on demand instead of waiting for the schedule to fire.
 app.post("/api/tentacles/run-cycle", async (c) => {
   try {
+    // Safety gate: autonomous/manual tentacle cycles must not silently spend
+    // Mistral quota. AI generation is owned by Octopus; Publisher remains the
+    // adapter/memory surface. Keep this endpoint read/write-safe until the
+    // cultivate path is routed through an Octopus mission.
+    const source = String((await c.req.json<{ source?: string }>().catch(() => ({}))).source || "").trim();
+    if (source === "poulpe-fiction-gerard-cycle") {
+      return c.json({
+        status: "blocked",
+        code: "DIRECT_AI_BYPASS_BLOCKED",
+        reason: "Gerard cultivate must use Octopus for AI generation; direct Publisher tentacle inference is disabled.",
+        processed: 0,
+        results: [],
+      }, 409);
+    }
     const requestedLimit = Number(c.req.query("limit"));
     const result = await runTentacleCycle(c.env, { limit: Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, 3) : 1 });
     return c.json({ status: "ok", ...result });
