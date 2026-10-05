@@ -1281,6 +1281,8 @@ function classifyHarvestForSocial(row: {
   const commercial = /(prospect|prospection|préqualification|qualification commerciale|lead|crm|décisionnaire|score sur 100|message de premier contact)/i.test(text);
   const internal = /(journal de bord autonome|traçabilité|protocole|diagnostic|outil\/source|validation technique|workflow|publisher|observatoire)/i.test(text);
   const research = /(hypothèse|recherche|brainstorm|à vérifier|test a\/b|prochaine étape suggérée|visuel suggéré|maquette)/i.test(text);
+  const knowledgeMissing = /(knowledge pack vérifié|manque encore d.un knowledge pack|rassembler les faits vérifiés)/i.test(text);
+  const hasReadyAngles = /(trois angles immédiatement exploitables|premier contenu exploitable|accroche centrale|accroche primaire|format tiktok|format story instagram|bookstagram|booktok)/i.test(text);
 
   if (commercial) {
     editorialClass = "commercial";
@@ -1308,10 +1310,17 @@ function classifyHarvestForSocial(row: {
   if (canvaEditLink) score -= 15;
   score = Math.max(0, Math.min(100, score));
 
-  const eligible = editorialClass === "creative-promotable" && hasContent;
-  if (eligible && reasons.length === 0) reasons.push("matière créative existante exploitable sans nouvelle génération");
+  if (knowledgeMissing) {
+    score -= 35;
+    reasons.push("Knowledge Pack non vérifié : récolte de cadrage, pas publication prête");
+  }
+  if (hasReadyAngles) score += 15;
+  score = Math.max(0, Math.min(100, score));
 
-  return { editorialClass, eligible, score, reasons, media: { url: mediaUrl, direct: hasDirectMedia, canvaEditLink } };
+  const eligible = editorialClass === "creative-promotable" && hasContent && !knowledgeMissing && hasReadyAngles;
+  if (eligible && reasons.length === 0) reasons.push("matière créative avec angle social explicite, exploitable sans nouvelle génération");
+
+  return { editorialClass, eligible, score, reasons, signals: { knowledgeMissing, hasReadyAngles }, media: { url: mediaUrl, direct: hasDirectMedia, canvaEditLink } };
 }
 
 app.get("/api/garden/harvests/social-candidates", async (c) => {
