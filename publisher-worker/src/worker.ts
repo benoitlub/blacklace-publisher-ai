@@ -751,6 +751,70 @@ function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialP
   return { blogId: prepared.brandId, date: publicationDate, info };
 }
 
+app.post("/api/social/media/request", async (c) => {
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const harvestId = String(body.harvestId ?? "").trim();
+  if (!harvestId) return c.json({ status: "invalid", error: "harvestId est requis." }, 422);
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
+
+  try {
+    const sql = await getSql(c.env);
+    const harvest = await getGardenHarvestById(sql, harvestId);
+    if (!harvest) return c.json({ status: "invalid", error: "Récolte introuvable." }, 404);
+
+    const editorial = classifyHarvestForSocial(harvest);
+    const copy = extractSocialCopy(harvest.content);
+    if (!editorial.eligible || !copy.text) {
+      return c.json({ status: "rejected", harvestId, editorial }, 422);
+    }
+
+    if (editorial.media.direct && editorial.media.url) {
+      return c.json({
+        status: "publishable",
+        contract: "gerard-social-media-v1",
+        harvestId,
+        seedId: harvest.seed_id,
+        media: { url: editorial.media.url, direct: true },
+        verification: { generated: false, publishable: true, reason: "existing-direct-media" },
+      });
+    }
+
+    return c.json({
+      status: "requested",
+      contract: "gerard-social-media-v1",
+      harvestId,
+      seedId: harvest.seed_id,
+      title: harvest.title,
+      copy,
+      request: {
+        kind: "social-image",
+        purpose: "illustrate-existing-social-copy",
+        promptSource: "harvest-and-selected-copy",
+        text: copy.text,
+        project: harvest.seed_id,
+      },
+      production: {
+        provider: "unresolved",
+        generated: false,
+        outputUrl: null,
+      },
+      verification: {
+        generated: false,
+        publishable: false,
+        required: [
+          "real-image-output",
+          "retrievable-url",
+          "supported-image-format",
+          "no-editor-link-as-media",
+        ],
+      },
+      nextAction: "execute-image-producer-and-verify-output",
+    }, 202);
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/social/publication/candidate-plans", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
