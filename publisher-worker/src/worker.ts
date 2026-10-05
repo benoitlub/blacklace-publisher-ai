@@ -869,6 +869,23 @@ function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialP
   return { blogId: prepared.brandId, date: publicationDate, info };
 }
 
+// Manual browser-friendly test trigger. Intentionally delegates to the exact same
+// media production handler as POST /api/social/media/request; it does not publish
+// or touch Metricool. Useful from a phone where issuing a POST is awkward.
+app.get("/api/social/media/test", async (c) => {
+  const harvestId = String(c.req.query("harvestId") || "").trim();
+  if (!harvestId) return c.json({ status: "rejected", error: "harvestId is required" }, 400);
+  const url = new URL(c.req.url);
+  url.pathname = "/api/social/media/request";
+  url.search = "";
+  const request = new Request(url.toString(), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ harvestId }),
+  });
+  return app.fetch(request, c.env);
+});
+
 app.post("/api/social/media/request", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const harvestId = String(body.harvestId ?? "").trim();
