@@ -15,6 +15,7 @@ import {
   recordIteration,
   setObservatoryDecision,
   upsertObservatorySource,
+  upsertGardenHarvests,
   upsertTentacles,
   type ObservatoryDecision,
   type ObservatorySourceInput,
@@ -1137,6 +1138,38 @@ app.get("/api/tentacles/diagnose-canva", async (c) => {
   } catch (error) {
     // Le message brut de Composio : précisément ce que le cycle avalait.
     return c.json({ ...base, canvaStatus: "error", canvaError: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+app.post("/api/garden/harvests/sync", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, synced: 0 }, 503);
+  try {
+    const body = await c.req.json<{ harvests?: unknown[] }>().catch(() => ({ harvests: [] }));
+    const raw = Array.isArray(body.harvests) ? body.harvests.slice(0, 1000) : [];
+    const harvests = raw.flatMap((value) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return [];
+      const item = value as Record<string, unknown>;
+      const id = String(item.id ?? "").trim();
+      const parcelId = String(item.parcelId ?? "").trim();
+      const title = String(item.title ?? "").trim();
+      if (!id || !parcelId || !title) return [];
+      return [{
+        id, parcelId, title,
+        seedId: item.seedId ? String(item.seedId) : null,
+        operationId: item.operationId ? String(item.operationId) : null,
+        content: item.content ? String(item.content) : null,
+        url: item.url ? String(item.url) : null,
+        downloadUrl: item.downloadUrl ? String(item.downloadUrl) : null,
+        type: item.type ? String(item.type) : null,
+        status: item.status ? String(item.status) : null,
+        createdAt: item.createdAt ? String(item.createdAt) : null,
+      }];
+    });
+    const sql = await getSql(c.env);
+    const synced = await upsertGardenHarvests(sql, harvests);
+    return c.json({ status: "ok", received: raw.length, synced });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
 
