@@ -172,6 +172,51 @@ export async function upsertGardenHarvests(sql: NeonQueryFunction<false, false>,
   return count;
 }
 
+export interface GardenHarvestRow {
+  id: string;
+  parcel_id: string;
+  seed_id: string | null;
+  operation_id: string | null;
+  title: string;
+  content: string | null;
+  url: string | null;
+  download_url: string | null;
+  type: string | null;
+  status: string | null;
+  source: string;
+  created_at: string | null;
+  synced_at: string;
+}
+
+export async function listGardenHarvests(
+  sql: NeonQueryFunction<false, false>,
+  options: { limit?: number; seedId?: string; reusableOnly?: boolean } = {},
+): Promise<GardenHarvestRow[]> {
+  await ensureGardenHarvestSchema(sql);
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+  const seedId = options.seedId?.trim() || null;
+  const reusableOnly = options.reusableOnly !== false;
+  const rows = await sql`
+    SELECT *
+    FROM garden_harvests
+    WHERE (${seedId}::text IS NULL OR seed_id = ${seedId})
+      AND (
+        ${reusableOnly} = false
+        OR (
+          COALESCE(lower(status), '') NOT IN ('failed', 'error', 'deleted', 'composted')
+          AND (
+            NULLIF(trim(COALESCE(content, '')), '') IS NOT NULL
+            OR NULLIF(trim(COALESCE(url, '')), '') IS NOT NULL
+            OR NULLIF(trim(COALESCE(download_url, '')), '') IS NOT NULL
+          )
+        )
+      )
+    ORDER BY COALESCE(created_at, synced_at) DESC
+    LIMIT ${limit}
+  `;
+  return rows as unknown as GardenHarvestRow[];
+}
+
 export interface TentacleSeedInput {
   seedId: string;
   parcelId: string;
