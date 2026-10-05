@@ -1,5 +1,4 @@
 name: Test Gerard Social Image
-# retry 2 after Canva design_type fix
 
 on:
   push:
