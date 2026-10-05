@@ -426,6 +426,79 @@ function selectCanvaGenerativeTools(tools: ComposioTool[]): ComposioTool[] {
   });
 }
 
+function scoreCanvaImageGenerator(tool: ComposioTool): number {
+  const text = toolText(tool);
+  if (/\b(get|list|fetch|retrieve|delete|status|metadata|comment|design)\b/.test(text)) return -100;
+  return (/generate/.test(text) ? 100 : 0)
+    + (/image|text.?to.?image/.test(text) ? 90 : 0)
+    + (/asset|media/.test(text) ? 25 : 0)
+    + (/magic/.test(text) ? 10 : 0);
+}
+
+function selectCanvaImageGenerators(tools: ComposioTool[]): ComposioTool[] {
+  return tools
+    .map((tool) => ({ tool, score: scoreCanvaImageGenerator(tool) }))
+    .filter((entry) => entry.score > 100)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.tool);
+}
+
+function canvaImageArguments(tool: ComposioTool, prompt: string): Record<string, unknown> {
+  const properties = schemaProperties(tool);
+  const required = new Set(schemaRequired(tool));
+  const args: Record<string, unknown> = {};
+  for (const [key, definition] of Object.entries(properties)) {
+    const normalized = key.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (/prompt|description|text/.test(normalized)) args[key] = prompt;
+    else if (/aspectratio/.test(normalized)) {
+      const values = Array.isArray(definition.enum) ? definition.enum : [];
+      args[key] = values.find((value) => /square|1.?1/i.test(String(value))) ?? values[0] ?? "SQUARE_1_1";
+    } else if (required.has(key)) args[key] = schemaValue(key, definition, prompt);
+  }
+  if (!Object.keys(args).some((key) => /prompt|description|text/i.test(key))) args.prompt = prompt;
+  return args;
+}
+
+function extractCanvaMedia(payload: unknown) {
+  const envelope = asRecord(payload);
+  if (envelope.successful === false) return null;
+  let mediaId: string | null = null;
+  let mediaUrl: string | null = null;
+  walkPayload(payload, (key, item) => {
+    if (typeof item !== "string" || !item.trim()) return;
+    if (!mediaId && /^(media_?id|asset_?id|id)$/i.test(key) && !/^https?:\/\//i.test(item)) mediaId = item.trim();
+    if (!mediaUrl && /^(url|download_?url|image_?url|thumbnail)$/i.test(key) && /^https?:\/\//i.test(item)) mediaUrl = item.trim();
+  });
+  return mediaId || mediaUrl ? { mediaId, url: mediaUrl } : null;
+}
+
+async function executeCanvaImage(env: Env, prompt: string, options: { onAttemptFailure?: (failure: { toolSlug: string; error: string }) => void } = {}) {
+  if (!(await isComposioConfigured(env))) return null;
+  const accounts = await listComposioConnectedAccounts(env);
+  const account = accountFor(accounts, "canva");
+  if (!account) return null;
+  const generators = selectCanvaImageGenerators(await listComposioTools(env, "canva"));
+  for (const candidate of generators.slice(0, 2)) {
+    try {
+      const result = await executeComposioTool(env, {
+        toolSlug: candidate.slug,
+        connectedAccountId: account.id,
+        arguments: canvaImageArguments(candidate, prompt),
+      });
+      const media = extractCanvaMedia(result);
+      if (media) return { toolSlug: candidate.slug, media, raw: result };
+      const envelope = asRecord(result);
+      options.onAttemptFailure?.({
+        toolSlug: candidate.slug,
+        error: stringValue(envelope.error) || "Canva a répondu sans asset/media exploitable.",
+      });
+    } catch (error) {
+      options.onAttemptFailure?.({ toolSlug: candidate.slug, error: error instanceof Error ? error.message : String(error) });
+    }
+  }
+  return null;
+}
+
 function schemaProperties(tool: ComposioTool): Record<string, Record<string, any>> {
   const schema = asRecord(tool.inputSchema);
   const properties = asRecord(schema.properties ?? asRecord(schema.schema).properties);
@@ -820,10 +893,63 @@ app.post("/api/social/media/request", async (c) => {
     }
 
     const failures: Array<{ toolSlug: string; error: string }> = [];
+    const imagePrompt = `Create a polished square social-media promotional image for: ${harvest.title}. Context: ${copy.text}. Strong central composition, premium adult visual style, no readable text or logos unless explicitly required by the source content.`;
+    const generatedImage = await executeCanvaImage(c.env, imagePrompt, {
+      onAttemptFailure: (failure) => failures.push(failure),
+    }).catch((error) => {
+      failures.push({ toolSlug: "canva-image", error: error instanceof Error ? error.message : String(error) });
+      return null;
+    });
+
+    if (generatedImage?.media?.url) {
+      return c.json({
+        status: "publishable",
+        contract: "gerard-social-media-v1",
+        harvestId,
+        seedId: harvest.seed_id,
+        title: harvest.title,
+        copy,
+        production: {
+          provider: "canva-via-composio",
+          mode: "generate-image",
+          toolSlug: generatedImage.toolSlug,
+          generated: true,
+          mediaId: generatedImage.media.mediaId,
+          outputUrl: generatedImage.media.url,
+        },
+        media: { url: generatedImage.media.url, id: generatedImage.media.mediaId, direct: true },
+        verification: { generated: true, publishable: true, reason: "real-generated-canva-image" },
+      });
+    }
+
+    if (generatedImage?.media?.mediaId) {
+      return c.json({
+        status: "generated-needs-public-url",
+        contract: "gerard-social-media-v1",
+        harvestId,
+        seedId: harvest.seed_id,
+        title: harvest.title,
+        copy,
+        production: {
+          provider: "canva-via-composio",
+          mode: "generate-image",
+          toolSlug: generatedImage.toolSlug,
+          generated: true,
+          mediaId: generatedImage.media.mediaId,
+          outputUrl: null,
+        },
+        verification: { generated: true, publishable: false, reason: "real-canva-media-id-awaiting-public-url" },
+        nextAction: "resolve-canva-media-to-public-url",
+      }, 202);
+    }
+
+    // Compatibility fallback: older Canva integrations may expose only design
+    // creation/export tools. Keep that path, but never mistake an editor link
+    // for generated media.
     const generated = await executeCanvaDesign(c.env, `${harvest.title} · ${copy.text}`, {
       onAttemptFailure: (failure) => failures.push(failure),
     }).catch((error) => {
-      failures.push({ toolSlug: "canva", error: error instanceof Error ? error.message : String(error) });
+      failures.push({ toolSlug: "canva-design-fallback", error: error instanceof Error ? error.message : String(error) });
       return null;
     });
 
