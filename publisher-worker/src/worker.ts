@@ -1997,6 +1997,78 @@ app.get("/api/diagnostics/database", async (c) => {
   return c.json(await databaseBindingDiagnostics(c.env));
 });
 
+type PublisherCapability = "content.plan" | "content.write" | "content.repurpose" | "social.publish" | "visual.generate" | "video.generate" | "analytics.read";
+
+function capabilitiesFromToolText(value: string): PublisherCapability[] {
+  const text = String(value || "").toLowerCase();
+  const rules: Array<[PublisherCapability, RegExp]> = [
+    ["content.plan", /content plan|planning|calendar/],
+    ["content.write", /writing|draft|post generator|generate.*post|content creation|text generation/],
+    ["content.repurpose", /repurpose|various formats|multiple formats/],
+    ["social.publish", /publish|publishing|multi-platform|social network|social media manager/],
+    ["visual.generate", /text.?to.?image|image generation|generate.*image|image generator|visual generation|create.*image/],
+    ["video.generate", /text.?to.?video|video generation|generate.*video|reel/],
+    ["analytics.read", /analytics|performance|insights/],
+  ];
+  return rules.filter(([, pattern]) => pattern.test(text)).map(([capability]) => capability);
+}
+
+function executableToolPack(tool: ComposioTool, connected: boolean) {
+  const capabilities = capabilitiesFromToolText(toolText(tool));
+  return {
+    contract: "publisher-tool-pack-v1",
+    id: `composio:${tool.toolkitSlug}:${tool.slug}`,
+    role: "tool-pack",
+    provider: "composio",
+    toolkit: tool.toolkitSlug,
+    toolSlug: tool.slug,
+    name: tool.name,
+    description: tool.description,
+    capabilities,
+    executable: connected && capabilities.length > 0,
+    connectionRequired: !connected,
+    inputSchema: tool.inputSchema,
+    provenance: { source: "live-composio-inventory", discoveredAt: new Date().toISOString() },
+  };
+}
+
+// Live capability registry: Publisher turns connected tool inventories into
+// reusable Tool Packs. Gérard/Poulpe Fiction can ask for a capability without
+// hard-coding a vendor. This route only discovers/qualifies; it executes nothing.
+app.get("/api/observatory/tool-packs", async (c) => {
+  try {
+    if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", contract: "publisher-tool-registry-v1", packs: [], error: "Composio not configured." }, 503);
+    const requested = String(c.req.query("capability") || "").trim();
+    const accounts = await listComposioConnectedAccounts(c.env);
+    const toolkits = [...new Set(accounts.filter((account) => isActiveComposioStatus(account.status)).map((account) => account.toolkitSlug))];
+    const packs: any[] = [];
+    for (const toolkit of toolkits) {
+      try {
+        const tools = await listComposioTools(c.env, toolkit);
+        for (const tool of tools) {
+          const pack = executableToolPack(tool, Boolean(accountFor(accounts, toolkit)));
+          if (!pack.capabilities.length) continue;
+          if (requested && !pack.capabilities.includes(requested as PublisherCapability)) continue;
+          packs.push(pack);
+        }
+      } catch (_) {
+        // One broken toolkit must not hide the rest of the registry.
+      }
+    }
+    return c.json({
+      status: "ok",
+      contract: "publisher-tool-registry-v1",
+      requestedCapability: requested || null,
+      count: packs.length,
+      packs,
+      selectionPolicy: "connected-capability-match-first",
+      executable: false,
+    });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-tool-registry-v1", packs: [], error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/observatory/discovery/schema", async (c) => {
   try {
     const payload = await composioRequest(c.env, "/tools?toolkit_slug=composio_search&limit=100&toolkit_versions=latest");
