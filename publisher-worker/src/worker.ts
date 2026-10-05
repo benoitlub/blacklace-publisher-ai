@@ -1165,6 +1165,104 @@ app.post("/api/social/media/request", async (c) => {
   }
 });
 
+// Autonomous bridge helper: collapse candidate selection + verified media production
+// into one Publisher-side request. It never schedules or publishes anything.
+app.get("/api/social/bridge/next", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
+  try {
+    const sql = await getSql(c.env);
+    const rows = await listGardenHarvests(sql, { limit: 200, reusableOnly: true });
+    const excludedCopy = new Set(
+      String(c.req.query("excludeCopy") ?? "")
+        .split("|||")
+        .map((value) => value.trim())
+        .filter(Boolean),
+    );
+    const candidates = rows
+      .map((row) => ({ row, editorial: classifyHarvestForSocial(row), copy: extractSocialCopy(row.content) }))
+      .filter(({ editorial, copy }) => editorial.eligible && copy.text.length > 0 && !excludedCopy.has(copy.text))
+      .sort((a, b) => b.editorial.score - a.editorial.score || String(b.row.created_at ?? "").localeCompare(String(a.row.created_at ?? "")));
+
+    const selected = candidates[0];
+    if (!selected) {
+      return c.json({
+        status: "empty",
+        contract: "gerard-metricool-bridge-next-v1",
+        reason: excludedCopy.size ? "no-new-eligible-copy" : "no-eligible-harvest",
+        guardrails: { draft: true, autoPublish: false, maxPostsPerDay: 2, minimumSpacingHours: 4 },
+      }, 404);
+    }
+
+    let media: Record<string, unknown> | null = null;
+    let production: Record<string, unknown> | null = null;
+    if (selected.editorial.media.direct && selected.editorial.media.url) {
+      media = { url: selected.editorial.media.url, direct: true };
+      production = { capability: "existing-media", generated: false };
+    } else {
+      const imagePrompt = `Create a polished square social-media promotional image for: ${selected.row.title}. Context: ${selected.copy.text}. Strong central composition, premium adult visual style, no readable text or logos unless explicitly required by the source content.`;
+      try {
+        const visual = await executeMistralImage(c.env, imagePrompt);
+        if (visual.fileId && visual.contentUrl) {
+          media = { url: visual.contentUrl, id: visual.fileId, direct: true };
+          production = {
+            capability: "visual.generate",
+            toolPack: "mistral:image-generation",
+            provider: visual.provider,
+            generated: true,
+            mediaId: visual.fileId,
+            outputUrl: visual.contentUrl,
+          };
+        }
+      } catch (error) {
+        return c.json({
+          status: "media-failed",
+          contract: "gerard-metricool-bridge-next-v1",
+          harvestId: selected.row.id,
+          seedId: selected.row.seed_id,
+          title: selected.row.title,
+          copy: selected.copy,
+          error: error instanceof Error ? error.message : String(error),
+          guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+        }, 502);
+      }
+    }
+
+    if (!media || typeof media.url !== "string" || !media.url) {
+      return c.json({
+        status: "media-failed",
+        contract: "gerard-metricool-bridge-next-v1",
+        harvestId: selected.row.id,
+        seedId: selected.row.seed_id,
+        title: selected.row.title,
+        copy: selected.copy,
+        guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+      }, 502);
+    }
+
+    return c.json({
+      status: "ready",
+      contract: "gerard-metricool-bridge-next-v1",
+      harvestId: selected.row.id,
+      seedId: selected.row.seed_id,
+      title: selected.row.title,
+      score: selected.editorial.score,
+      copy: selected.copy,
+      media,
+      production,
+      compatibleNetworks: ["facebook", "instagram"],
+      networkRules: {
+        instagram: { requiresMedia: true, isAiGenerated: Boolean(production?.generated) },
+        youtube: { compatible: false, reason: "image-only-media-requires-video" },
+      },
+      metricool: { draft: true, autoPublish: false },
+      guardrails: { maxPostsPerDay: 2, minimumSpacingHours: 4, duplicateProtection: "caller-supplied-excludeCopy" },
+      provenance: { source: "garden-autoselection", harvestId: selected.row.id, seedId: selected.row.seed_id },
+    });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "gerard-metricool-bridge-next-v1", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/social/publication/candidate-plans", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
