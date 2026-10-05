@@ -217,6 +217,15 @@ export async function listGardenHarvests(
   return rows as unknown as GardenHarvestRow[];
 }
 
+export async function getGardenHarvestById(
+  sql: NeonQueryFunction<false, false>,
+  harvestId: string,
+): Promise<GardenHarvestRow | null> {
+  await ensureGardenHarvestSchema(sql);
+  const rows = await sql`SELECT * FROM garden_harvests WHERE id = ${harvestId} LIMIT 1`;
+  return (rows[0] as unknown as GardenHarvestRow) ?? null;
+}
+
 export interface TentacleSeedInput {
   seedId: string;
   parcelId: string;
