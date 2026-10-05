@@ -2041,6 +2041,57 @@ function executableToolPack(tool: ComposioTool, connected: boolean) {
 // Capability-gap discovery: when Publisher has no connected executable pack,
 // it formulates a vendor-neutral search mission for the Observatory instead of
 // silently falling back to an unrelated tool.
+// Autonomous gap resolver: executes the Observatory search mission and returns
+// evidence-bearing candidates. It does not install, connect or execute a newly
+// found vendor; promotion to an executable Tool Pack remains evidence-gated.
+app.get("/api/observatory/capability-discover", async (c) => {
+  const capability = String(c.req.query("capability") || "").trim() as PublisherCapability;
+  const queries: Partial<Record<PublisherCapability, string>> = {
+    "visual.generate": "AI image generation API text to image developer API Mistral image generation",
+    "video.generate": "AI video generation API text to video developer tool",
+    "social.publish": "social media publishing scheduling API tool",
+    "analytics.read": "social media analytics API tool",
+    "content.plan": "AI content planning API tool",
+    "content.write": "AI text generation API tool",
+    "content.repurpose": "AI content repurposing API tool",
+  };
+  const query = queries[capability];
+  if (!query) return c.json({ status: "rejected", error: "Unknown capability." }, 400);
+  try {
+    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_WEB", {
+      method: "POST",
+      body: JSON.stringify({ arguments: { query }, user_id: await composioUserId(c.env), version: "latest" }),
+    });
+    const root = asRecord(preview);
+    const data = asRecord(root.data);
+    const citations = Array.isArray(data.citations) ? data.citations : [];
+    const candidates = citations.slice(0, 8).map((citation: any, index: number) => ({
+      rank: index + 1,
+      title: stringValue(citation.title ?? citation.name),
+      url: stringValue(citation.url ?? citation.link),
+      description: stringValue(citation.snippet ?? citation.description ?? citation.text),
+      evidence: {
+        engine: "COMPOSIO_SEARCH_WEB",
+        capability,
+        verifiedExecutable: false,
+        requiresEnrichment: true,
+      },
+    })).filter((candidate: any) => candidate.url || candidate.title);
+    return c.json({
+      status: candidates.length ? "candidates-found" : "no-candidates",
+      contract: "publisher-capability-discovery-v1",
+      capability,
+      query,
+      count: candidates.length,
+      candidates,
+      promotionPolicy: "enrich-and-verify-before-tool-pack",
+      executable: false,
+    });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-capability-discovery-v1", capability, error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/observatory/capability-gap", async (c) => {
   const capability = String(c.req.query("capability") || "").trim() as PublisherCapability;
   const allowed: PublisherCapability[] = ["content.plan","content.write","content.repurpose","social.publish","visual.generate","video.generate","analytics.read"];
