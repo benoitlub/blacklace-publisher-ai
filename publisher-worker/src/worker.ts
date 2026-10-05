@@ -249,12 +249,31 @@ app.get("/api/production/mistral-image/content", async (c) => {
     if (!key) return c.json({ status: "unavailable", error: "Mistral not configured" }, 503);
     const response = await fetch(`https://api.mistral.ai/v1/files/${encodeURIComponent(fileId)}/content`, { headers: { Authorization: `Bearer ${key}` } });
     if (!response.ok) return c.json({ status: "failed", error: `Mistral file download ${response.status}` }, 502);
-    const contentType = response.headers.get("content-type") || "image/png";
-    return new Response(response.body, { status: 200, headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=86400" } });
+    const upstreamType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
+    const contentType = upstreamType.startsWith("image/") ? upstreamType : "image/png";
+    const extension = contentType === "image/jpeg" ? "jpg" : contentType === "image/webp" ? "webp" : contentType === "image/gif" ? "gif" : "png";
+    return new Response(response.body, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Content-Disposition": `inline; filename="420-dice-generated.${extension}"`,
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
+
+app.get("/api/production/mistral-image/:fileId/image.png", async (c) => {
+  const fileId = String(c.req.param("fileId") || "").trim();
+  if (!fileId) return c.json({ status: "rejected", error: "fileId is required" }, 400);
+  const url = new URL(c.req.url);
+  url.pathname = "/api/production/mistral-image/content";
+  url.search = new URLSearchParams({ fileId }).toString();
+  return app.fetch(new Request(url.toString(), c.req.raw), c.env);
+});
+
 
 
 // ============================================================================
