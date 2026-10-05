@@ -1032,6 +1032,36 @@ app.post("/api/social/media/request", async (c) => {
 
     const failures: Array<{ toolSlug: string; error: string }> = [];
     const imagePrompt = `Create a polished square social-media promotional image for: ${harvest.title}. Context: ${copy.text}. Strong central composition, premium adult visual style, no readable text or logos unless explicitly required by the source content.`;
+    // Capability-first production: ask Publisher's verified visual.generate
+    // producer before any Canva compatibility path. Today the executable pack
+    // is Mistral; callers depend only on the capability contract.
+    try {
+      const visual = await executeMistralImage(c.env, imagePrompt);
+      if (visual.fileId && visual.contentUrl) {
+        return c.json({
+          status: "publishable",
+          contract: "gerard-social-media-v1",
+          harvestId,
+          seedId: harvest.seed_id,
+          title: harvest.title,
+          copy,
+          production: {
+            capability: "visual.generate",
+            toolPack: "mistral:image-generation",
+            provider: visual.provider,
+            generated: true,
+            mediaId: visual.fileId,
+            outputUrl: visual.contentUrl,
+          },
+          media: { url: visual.contentUrl, id: visual.fileId, direct: true },
+          verification: { generated: true, publishable: true, reason: "verified-capability-generated-media" },
+          downstream: { canva: "optional-composition", metricool: "draft-only" },
+        });
+      }
+    } catch (error) {
+      failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: error instanceof Error ? error.message : String(error) });
+    }
+
     const generatedImage = await executeCanvaImage(c.env, imagePrompt, {
       onAttemptFailure: (failure) => failures.push(failure),
     }).catch((error) => {
