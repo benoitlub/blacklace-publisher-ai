@@ -772,7 +772,7 @@ app.get("/api/social/publication/next-plan", async (c) => {
 
     const prepared = prepareSocialPublication({
       networks: ["facebook"],
-      text: selected.row.content ?? "",
+      text: extractSocialCopy(selected.row.content).text,
       media: [],
       publicationDate,
       source: "garden-autoselection",
@@ -789,6 +789,7 @@ app.get("/api/social/publication/next-plan", async (c) => {
       executable: false,
       autoPublish: false,
       draft: true,
+      copy: extractSocialCopy(selected.row.content),
       selected: {
         harvestId: selected.row.id,
         seedId: selected.row.seed_id,
@@ -1383,6 +1384,25 @@ app.get("/api/tentacles/diagnose-canva", async (c) => {
 });
 
 type HarvestEditorialClass = "creative-promotable" | "internal" | "research" | "commercial";
+
+function extractSocialCopy(content: string | null): { text: string; strategy: string } {
+  const source = String(content ?? "").trim();
+  if (!source) return { text: "", strategy: "empty" };
+
+  const numbered = [...source.matchAll(/^\s*1\.\s+(.+)$/gim)];
+  if (numbered[0]?.[1]?.trim()) return { text: numbered[0][1].trim(), strategy: "first-explicit-angle" };
+
+  const central = source.match(/\*{0,2}Accroche centrale\*{0,2}\s*:\s*\n?\s*\*?["“]?([^\n*"”]+)["”]?\*?/i);
+  if (central?.[1]?.trim()) return { text: central[1].trim(), strategy: "central-hook" };
+
+  const firstContent = source.match(/(?:Premier contenu exploitable|Format TikTok\/Reels[^\n]*)\s*:?\s*\n+([\s\S]{1,500}?)(?=\n\n|\n#{1,4}\s|$)/i);
+  if (firstContent?.[1]?.trim()) {
+    const cleaned = firstContent[1].replace(/^\s*[*>"“”]+|[*>"“”]+\s*$/g, "").trim();
+    if (cleaned) return { text: cleaned, strategy: "explicit-social-content" };
+  }
+
+  return { text: source, strategy: "source-fallback" };
+}
 
 function classifyHarvestForSocial(row: {
   title: string; content: string | null; seed_id: string | null; parcel_id: string;
