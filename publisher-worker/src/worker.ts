@@ -354,6 +354,57 @@ function selectMetricoolPublishTools(tools: ComposioTool[]): ComposioTool[] {
   });
 }
 
+
+type SocialNetwork = "instagram" | "facebook" | "youtube";
+const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube"]);
+
+/**
+ * Safety-first contract between Gérard/Publisher and the eventual Metricool
+ * executor. This function NEVER calls Composio/Metricool: it only validates
+ * and normalizes a publication request. Keeping preparation separate from
+ * execution lets us test the whole editorial hand-off without accidentally
+ * publishing on Benoît's accounts.
+ */
+export function prepareSocialPublication(input: Record<string, unknown>) {
+  const text = String(input.text ?? input.caption ?? "").trim();
+  const requested = Array.isArray(input.networks) ? input.networks.map((item) => String(item).toLowerCase().trim()) : [];
+  const networks = [...new Set(requested.filter((item): item is SocialNetwork => SOCIAL_NETWORKS.has(item as SocialNetwork)))];
+  const media = Array.isArray(input.media) ? input.media.map(String).map((item) => item.trim()).filter(Boolean) : [];
+  const publicationDate = String(input.publicationDate ?? "").trim() || null;
+  const errors: string[] = [];
+
+  if (!networks.length) errors.push("Au moins un réseau supporté est requis : instagram, facebook ou youtube.");
+  if (!text && !networks.every((network) => network === "instagram" || network === "facebook")) errors.push("Un texte est requis pour cette combinaison de réseaux.");
+  if (networks.includes("instagram") && media.length === 0) errors.push("Instagram exige au moins un média.");
+  if (networks.includes("youtube") && media.length === 0) errors.push("YouTube exige une vidéo.");
+  if (networks.includes("youtube") && !String(input.youtubeTitle ?? "").trim()) errors.push("YouTube exige un titre.");
+  if (networks.includes("youtube") && typeof input.madeForKids !== "boolean") errors.push("YouTube exige madeForKids=true ou false.");
+
+  return {
+    contract: "publisher-social-publication-v1",
+    status: errors.length ? "invalid" : "prepared",
+    executable: false,
+    autoPublish: false,
+    brandId: "3350145",
+    timezone: "Europe/Madrid",
+    networks,
+    text,
+    media,
+    publicationDate,
+    youtube: networks.includes("youtube") ? {
+      title: String(input.youtubeTitle ?? "").trim() || null,
+      madeForKids: typeof input.madeForKids === "boolean" ? input.madeForKids : null,
+      type: String(input.youtubeType ?? "video").toLowerCase() === "short" ? "short" : "video",
+    } : null,
+    provenance: {
+      source: String(input.source ?? "gerard").trim() || "gerard",
+      decision: String(input.decision ?? "").trim() || null,
+      seedId: String(input.seedId ?? "").trim() || null,
+    },
+    errors,
+  };
+}
+
 function scoreCanvaCreateTool(tool: ComposioTool): number {
   const text = toolText(tool);
   if (!text.includes("design")) return -100;
@@ -660,6 +711,17 @@ function isCopyExecution(tool: string, action: string, body: Record<string, unkn
   const capability = String(body.capability ?? body.type ?? "").toLowerCase();
   return tool === "mistral" || action === "generate_text" || action === "copy.generate" || capability === "copy.generate" || capability === "copy" || capability === "text-document";
 }
+
+app.post("/api/social/publication/prepare", async (c) => {
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const prepared = prepareSocialPublication(body);
+  return c.json(prepared, prepared.status === "prepared" ? 200 : 422);
+});
+
+// Intentionally no /publish endpoint yet. Execution will be enabled only
+// after this preparation contract has been exercised with real Gérard output
+// and the Metricool action schema has been verified. This prevents a test
+// request from becoming a public post.
 
 app.post("/api/production/execute", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, any>;
