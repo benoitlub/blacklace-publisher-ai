@@ -764,52 +764,63 @@ app.post("/api/social/media/request", async (c) => {
 
     const editorial = classifyHarvestForSocial(harvest);
     const copy = extractSocialCopy(harvest.content);
-    if (!editorial.eligible || !copy.text) {
-      return c.json({ status: "rejected", harvestId, editorial }, 422);
-    }
+    if (!editorial.eligible || !copy.text) return c.json({ status: "rejected", harvestId, editorial }, 422);
 
     if (editorial.media.direct && editorial.media.url) {
       return c.json({
-        status: "publishable",
-        contract: "gerard-social-media-v1",
-        harvestId,
-        seedId: harvest.seed_id,
+        status: "publishable", contract: "gerard-social-media-v1", harvestId, seedId: harvest.seed_id,
         media: { url: editorial.media.url, direct: true },
         verification: { generated: false, publishable: true, reason: "existing-direct-media" },
       });
     }
 
+    const failures: Array<{ toolSlug: string; error: string }> = [];
+    const generated = await executeCanvaDesign(c.env, `${harvest.title} · ${copy.text}`, {
+      onAttemptFailure: (failure) => failures.push(failure),
+    }).catch((error) => {
+      failures.push({ toolSlug: "canva", error: error instanceof Error ? error.message : String(error) });
+      return null;
+    });
+
+    if (generated?.artifact?.downloadUrl) {
+      return c.json({
+        status: "publishable",
+        contract: "gerard-social-media-v1",
+        harvestId,
+        seedId: harvest.seed_id,
+        title: harvest.title,
+        copy,
+        production: {
+          provider: "canva-via-composio",
+          toolSlug: generated.toolSlug,
+          generated: true,
+          outputUrl: generated.artifact.downloadUrl,
+          editUrl: generated.artifact.url,
+        },
+        media: { url: generated.artifact.downloadUrl, direct: true },
+        verification: {
+          generated: true,
+          publishable: true,
+          reason: "real-retrievable-canva-output",
+        },
+      });
+    }
+
     return c.json({
-      status: "requested",
+      status: "failed",
       contract: "gerard-social-media-v1",
       harvestId,
       seedId: harvest.seed_id,
       title: harvest.title,
       copy,
-      request: {
-        kind: "social-image",
-        purpose: "illustrate-existing-social-copy",
-        promptSource: "harvest-and-selected-copy",
-        text: copy.text,
-        project: harvest.seed_id,
-      },
-      production: {
-        provider: "unresolved",
-        generated: false,
-        outputUrl: null,
-      },
+      production: { provider: "canva-via-composio", generated: false, outputUrl: null, failures },
       verification: {
         generated: false,
         publishable: false,
-        required: [
-          "real-image-output",
-          "retrievable-url",
-          "supported-image-format",
-          "no-editor-link-as-media",
-        ],
+        required: ["real-image-output", "retrievable-url", "supported-image-format", "no-editor-link-as-media"],
       },
-      nextAction: "execute-image-producer-and-verify-output",
-    }, 202);
+      nextAction: "repair-or-enable-image-producer",
+    }, 502);
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
   }
