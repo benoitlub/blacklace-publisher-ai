@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { format, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useQueryClient } from "@tanstack/react-query";
-import { Calendar as CalendarIcon, Sparkles } from "lucide-react";
+import { Calendar as CalendarIcon, Sparkles, BrainCircuit, Gauge, Shuffle, TimerReset } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -57,10 +57,13 @@ export default function Calendar() {
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
+          <div className="mb-2 flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.22em] text-primary">
+            <BrainCircuit className="h-3.5 w-3.5" /> Gérard · planning vivant
+          </div>
           <h1 className="text-4xl font-serif font-bold text-foreground mb-2 tracking-tight">Planification</h1>
-          <p className="text-muted-foreground font-mono text-sm uppercase tracking-wider">Les 30 prochains jours</p>
+          <p className="text-muted-foreground font-mono text-sm">Les 30 prochains jours · le calendrier s'adapte aux signaux sociaux.</p>
         </div>
         <Button 
           onClick={() => generateMonth.mutate()} 
@@ -78,6 +81,17 @@ export default function Calendar() {
             </span>
           )}
         </Button>
+      </div>
+
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <Rule icon={Gauge} title="Cadence" value="2 / jour max." detail="Évite le matraquage et laisse respirer chaque publication." />
+        <Rule icon={TimerReset} title="Espacement" value="4 h minimum" detail="Deux contenus ne doivent pas se cannibaliser." />
+        <Rule icon={Shuffle} title="Rotation" value="Alterner les projets" detail="Livre, jeu et univers tournent avant de répéter le même sujet." />
+        <Rule icon={BrainCircuit} title="Décision" value="Stats → créneau" detail="Reproduire ou muter ce qui marche ; observer avant de conclure." />
+      </section>
+
+      <div className="rounded border border-primary/25 bg-primary/10 px-4 py-3 font-mono text-xs text-muted-foreground">
+        Gérard propose les dates et formats. Les créneaux restent en supervision tant que la sortie Metricool automatique n'est pas activée.
       </div>
 
       {isLoading ? (
@@ -134,6 +148,20 @@ export default function Calendar() {
         </div>
       )}
     </div>
+  );
+}
+
+function Rule({ icon: Icon, title, value, detail }: { icon: any; title: string; value: string; detail: string }) {
+  return (
+    <Card className="border-border bg-card">
+      <CardContent className="p-4">
+        <div className="mb-3 flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          <Icon className="h-4 w-4 text-primary" /> {title}
+        </div>
+        <div className="font-serif text-xl text-foreground">{value}</div>
+        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{detail}</p>
+      </CardContent>
+    </Card>
   );
 }
 
