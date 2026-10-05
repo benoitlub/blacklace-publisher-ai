@@ -10,6 +10,7 @@ import {
   databaseBindingDiagnostics,
   latestIteration,
   listGardenHarvests,
+  getGardenHarvestById,
   listDueTentacles,
   listObservatorySources,
   markObservatorySourcesProcessed,
@@ -749,6 +750,60 @@ function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialP
   }
   return { blogId: prepared.brandId, date: publicationDate, info };
 }
+
+app.post("/api/social/publication/from-harvest/plan", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const harvestId = String(body.harvestId ?? "").trim();
+  if (!harvestId) return c.json({ status: "invalid", error: "harvestId est requis." }, 422);
+
+  try {
+    const sql = await getSql(c.env);
+    const harvest = await getGardenHarvestById(sql, harvestId);
+    if (!harvest) return c.json({ status: "invalid", error: "Récolte introuvable." }, 404);
+
+    const editorial = classifyHarvestForSocial(harvest);
+    if (!editorial.eligible) {
+      return c.json({ status: "rejected", harvestId, seedId: harvest.seed_id, editorial }, 422);
+    }
+
+    const networks = Array.isArray(body.networks) ? body.networks : ["facebook"];
+    const prepared = prepareSocialPublication({
+      networks,
+      text: String(body.text ?? harvest.content ?? "").trim(),
+      media: editorial.media.direct && editorial.media.url ? [editorial.media.url] : [],
+      publicationDate: body.publicationDate,
+      source: "garden-harvest",
+      decision: String(body.decision ?? "reuse-existing-harvest").trim(),
+      seedId: harvest.seed_id,
+    });
+    if (prepared.status !== "prepared") return c.json({ ...prepared, harvestId, editorial }, 422);
+    if (!prepared.publicationDate || !Number.isFinite(Date.parse(prepared.publicationDate)) || Date.parse(prepared.publicationDate) <= Date.now()) {
+      return c.json({ ...prepared, status: "invalid", harvestId, editorial, errors: [...prepared.errors, "publicationDate future ISO requise."] }, 422);
+    }
+
+    return c.json({
+      status: "planned",
+      contract: prepared.contract,
+      execution: "dry-run",
+      executable: false,
+      autoPublish: false,
+      draft: true,
+      harvest: { harvestId: harvest.id, seedId: harvest.seed_id, title: harvest.title },
+      editorial,
+      metricool: metricoolPayloadFromPrepared(prepared),
+      provenance: { ...prepared.provenance, harvestId: harvest.id },
+      guardrails: {
+        maxPostsPerDay: 2,
+        minimumSpacingHours: 4,
+        duplicateProtection: "required-before-live-execution",
+        killSwitch: "live-execution-disabled",
+      },
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
 
 app.post("/api/social/publication/plan", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
