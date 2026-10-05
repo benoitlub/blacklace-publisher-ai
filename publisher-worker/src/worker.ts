@@ -2092,6 +2092,45 @@ app.get("/api/observatory/capability-discover", async (c) => {
   }
 });
 
+// Evidence gate for a discovered candidate. Fetches the candidate's own
+// documentation through the Observatory and only promotes capabilities that
+// are explicitly supported by the fetched evidence.
+app.get("/api/observatory/capability-verify", async (c) => {
+  const capability = String(c.req.query("capability") || "").trim() as PublisherCapability;
+  const url = String(c.req.query("url") || "").trim();
+  if (!capability || !/^https?:\/\//i.test(url)) return c.json({ status: "rejected", error: "capability and public url are required." }, 400);
+  try {
+    const fetched = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_FETCH_URL_CONTENT", {
+      method: "POST",
+      body: JSON.stringify({ arguments: { urls: [url], text: true, summary: true, max_characters: 16000 }, user_id: await composioUserId(c.env), version: "latest" }),
+    });
+    const evidenceText = JSON.stringify(fetched);
+    const detected = capabilitiesFromToolText(evidenceText);
+    const explicitCapability = detected.includes(capability);
+    const apiEvidence = /api|endpoint|request|agent|tool|connector|sdk/i.test(evidenceText);
+    const imageGenerationEvidence = capability !== "visual.generate" || /image_generation|image generation|generate(?:s|d|ing)?[^.]{0,80}image|text.?to.?image/i.test(evidenceText);
+    const verified = explicitCapability && apiEvidence && imageGenerationEvidence;
+    return c.json({
+      status: verified ? "verified" : "insufficient-evidence",
+      contract: "publisher-tool-verification-v1",
+      capability,
+      url,
+      verifiedExecutableCapability: verified,
+      evidence: { explicitCapability, apiEvidence, imageGenerationEvidence, source: url, engine: "COMPOSIO_SEARCH_FETCH_URL_CONTENT" },
+      promotion: verified ? {
+        contract: "publisher-tool-pack-v1",
+        role: "verified-candidate",
+        capabilities: [capability],
+        source: url,
+        executable: false,
+        reason: "Capability verified from documentation; runtime integration still required.",
+      } : null,
+    });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-tool-verification-v1", capability, url, error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/observatory/capability-gap", async (c) => {
   const capability = String(c.req.query("capability") || "").trim() as PublisherCapability;
   const allowed: PublisherCapability[] = ["content.plan","content.write","content.repurpose","social.publish","visual.generate","video.generate","analytics.read"];
