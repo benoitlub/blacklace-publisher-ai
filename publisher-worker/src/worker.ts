@@ -1268,6 +1268,97 @@ app.get("/api/tentacles/diagnose-canva", async (c) => {
   }
 });
 
+type HarvestEditorialClass = "creative-promotable" | "internal" | "research" | "commercial";
+
+function classifyHarvestForSocial(row: {
+  title: string; content: string | null; seed_id: string | null; parcel_id: string;
+  url: string | null; download_url: string | null; type: string | null;
+}) {
+  const text = [row.title, row.content, row.seed_id, row.parcel_id].filter(Boolean).join("\n").toLowerCase();
+  const reasons: string[] = [];
+  let editorialClass: HarvestEditorialClass = "creative-promotable";
+
+  const commercial = /(prospect|prospection|préqualification|qualification commerciale|lead|crm|décisionnaire|score sur 100|message de premier contact)/i.test(text);
+  const internal = /(journal de bord autonome|traçabilité|protocole|diagnostic|outil\/source|validation technique|workflow|publisher|observatoire)/i.test(text);
+  const research = /(hypothèse|recherche|brainstorm|à vérifier|test a\/b|prochaine étape suggérée|visuel suggéré|maquette)/i.test(text);
+
+  if (commercial) {
+    editorialClass = "commercial";
+    reasons.push("matière commerciale/prospection, pas un contenu social de marque prêt à diffuser");
+  } else if (internal) {
+    editorialClass = "internal";
+    reasons.push("document de travail ou de traçabilité interne");
+  } else if (research) {
+    editorialClass = "research";
+    reasons.push("hypothèse, recherche ou brief nécessitant encore une transformation éditoriale");
+  }
+
+  const mediaUrl = row.download_url || row.url;
+  const canvaEditLink = Boolean(mediaUrl && /canva\.com\/design\/.+\/edit(?:$|[?#])/i.test(mediaUrl));
+  const hasDirectMedia = Boolean(mediaUrl && !canvaEditLink && /\.(?:png|jpe?g|webp|gif|mp4|mov|webm)(?:$|[?#])/i.test(mediaUrl));
+  const hasContent = Boolean(row.content?.trim());
+
+  if (!hasContent) reasons.push("aucun contenu textuel exploitable");
+  if (canvaEditLink) reasons.push("le média est un lien d'édition Canva, pas un fichier publiable");
+  if (!mediaUrl) reasons.push("aucun média associé");
+
+  let score = editorialClass === "creative-promotable" ? 60 : editorialClass === "research" ? 25 : 10;
+  if (hasContent) score += 10;
+  if (hasDirectMedia) score += 25;
+  if (canvaEditLink) score -= 15;
+  score = Math.max(0, Math.min(100, score));
+
+  const eligible = editorialClass === "creative-promotable" && hasContent;
+  if (eligible && reasons.length === 0) reasons.push("matière créative existante exploitable sans nouvelle génération");
+
+  return { editorialClass, eligible, score, reasons, media: { url: mediaUrl, direct: hasDirectMedia, canvaEditLink } };
+}
+
+app.get("/api/garden/harvests/social-candidates", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, candidates: [] }, 503);
+  try {
+    const sql = await getSql(c.env);
+    const limit = Math.min(Math.max(Number(c.req.query("limit")) || 100, 1), 200);
+    const rows = await listGardenHarvests(sql, { limit, reusableOnly: true });
+    const evaluated = rows.map((row) => ({ row, evaluation: classifyHarvestForSocial(row) }));
+    const candidates = evaluated
+      .filter(({ evaluation }) => evaluation.eligible)
+      .sort((a, b) => b.evaluation.score - a.evaluation.score)
+      .map(({ row, evaluation }) => ({
+        harvestId: row.id,
+        seedId: row.seed_id,
+        parcelId: row.parcel_id,
+        title: row.title,
+        content: row.content,
+        mediaUrl: row.download_url || row.url,
+        type: row.type,
+        status: row.status,
+        createdAt: row.created_at,
+        editorial: evaluation,
+      }));
+    const rejected = evaluated
+      .filter(({ evaluation }) => !evaluation.eligible)
+      .map(({ row, evaluation }) => ({
+        harvestId: row.id,
+        seedId: row.seed_id,
+        title: row.title,
+        editorial: evaluation,
+      }));
+    return c.json({
+      configured: true,
+      contract: "garden-social-candidates-v1",
+      policy: "reuse-first-deterministic-no-ai",
+      scanned: rows.length,
+      candidateCount: candidates.length,
+      rejectedCount: rejected.length,
+      candidates,
+      rejected,
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/garden/harvests", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, harvests: [] }, 503);
   try {
