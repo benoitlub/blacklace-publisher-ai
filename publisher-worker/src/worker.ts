@@ -9,6 +9,7 @@ import {
   isDatabaseConfigured,
   databaseBindingDiagnostics,
   latestIteration,
+  listGardenHarvests,
   listDueTentacles,
   listObservatorySources,
   markObservatorySourcesProcessed,
@@ -1264,6 +1265,40 @@ app.get("/api/tentacles/diagnose-canva", async (c) => {
   } catch (error) {
     // Le message brut de Composio : précisément ce que le cycle avalait.
     return c.json({ ...base, canvaStatus: "error", canvaError: error instanceof Error ? error.message : String(error) });
+  }
+});
+
+app.get("/api/garden/harvests", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, harvests: [] }, 503);
+  try {
+    const sql = await getSql(c.env);
+    const limit = Math.min(Math.max(Number(c.req.query("limit")) || 50, 1), 200);
+    const seedId = c.req.query("seedId")?.trim() || undefined;
+    const includeAll = c.req.query("all") === "true";
+    const rows = await listGardenHarvests(sql, { limit, seedId, reusableOnly: !includeAll });
+    return c.json({
+      configured: true,
+      contract: "garden-reusable-harvests-v1",
+      selectionPolicy: includeAll ? "all" : "reusable-existing-first",
+      count: rows.length,
+      harvests: rows.map((row) => ({
+        harvestId: row.id,
+        seedId: row.seed_id,
+        parcelId: row.parcel_id,
+        operationId: row.operation_id,
+        title: row.title,
+        content: row.content,
+        mediaUrl: row.download_url || row.url,
+        sourceUrl: row.url,
+        type: row.type,
+        status: row.status,
+        source: row.source,
+        createdAt: row.created_at,
+        syncedAt: row.synced_at,
+      })),
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
 
