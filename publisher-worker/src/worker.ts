@@ -718,10 +718,74 @@ app.post("/api/social/publication/prepare", async (c) => {
   return c.json(prepared, prepared.status === "prepared" ? 200 : 422);
 });
 
-// Intentionally no /publish endpoint yet. Execution will be enabled only
-// after this preparation contract has been exercised with real Gérard output
-// and the Metricool action schema has been verified. This prevents a test
-// request from becoming a public post.
+function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialPublication>) {
+  const providers = prepared.networks.map((network) => ({ network }));
+  const publicationDate = prepared.publicationDate;
+  const info: Record<string, unknown> = {
+    autoPublish: false,
+    draft: true,
+    descendants: [],
+    firstCommentText: "",
+    hasNotReadNotes: false,
+    media: prepared.media,
+    mediaAltText: [],
+    providers,
+    publicationDate: publicationDate ? { dateTime: publicationDate, timezone: prepared.timezone } : null,
+    shortener: false,
+    smartLinkData: { ids: [] },
+    text: prepared.text,
+  };
+  if (prepared.networks.includes("facebook")) info.facebookData = { type: "POST" };
+  if (prepared.networks.includes("instagram")) info.instagramData = { type: "POST", isAiGenerated: true };
+  if (prepared.networks.includes("youtube") && prepared.youtube) {
+    info.youtubeData = {
+      title: prepared.youtube.title,
+      type: prepared.youtube.type,
+      privacy: "private",
+      madeForKids: prepared.youtube.madeForKids,
+      isAiGeneratedContent: true,
+    };
+  }
+  return { blogId: prepared.brandId, date: publicationDate, info };
+}
+
+app.post("/api/social/publication/plan", async (c) => {
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const prepared = prepareSocialPublication(body);
+  if (prepared.status !== "prepared") return c.json(prepared, 422);
+  if (!prepared.publicationDate) {
+    return c.json({ ...prepared, status: "invalid", errors: ["publicationDate est requis pour planifier."] }, 422);
+  }
+  const parsedDate = Date.parse(prepared.publicationDate);
+  if (!Number.isFinite(parsedDate)) {
+    return c.json({ ...prepared, status: "invalid", errors: ["publicationDate doit être une date ISO valide."] }, 422);
+  }
+  if (parsedDate <= Date.now()) {
+    return c.json({ ...prepared, status: "invalid", errors: ["publicationDate doit être dans le futur."] }, 422);
+  }
+
+  const metricool = metricoolPayloadFromPrepared(prepared);
+  return c.json({
+    status: "planned",
+    contract: prepared.contract,
+    execution: "dry-run",
+    executable: false,
+    autoPublish: false,
+    draft: true,
+    metricool,
+    provenance: prepared.provenance,
+    guardrails: {
+      maxPostsPerDay: 2,
+      minimumSpacingHours: 4,
+      duplicateProtection: "required-before-live-execution",
+      killSwitch: "live-execution-disabled",
+    },
+  });
+});
+
+// No live /publish endpoint yet. /plan deliberately returns the exact
+// Metricool-shaped payload without executing it. This is the boundary that
+// lets Gérard plan autonomously while public publication remains disabled.
 
 app.post("/api/production/execute", async (c) => {
   const body = (await c.req.json().catch(() => ({}))) as Record<string, any>;
