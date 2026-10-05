@@ -2038,6 +2038,54 @@ function executableToolPack(tool: ComposioTool, connected: boolean) {
 // Live capability registry: Publisher turns connected tool inventories into
 // reusable Tool Packs. Gérard/Poulpe Fiction can ask for a capability without
 // hard-coding a vendor. This route only discovers/qualifies; it executes nothing.
+// Capability-gap discovery: when Publisher has no connected executable pack,
+// it formulates a vendor-neutral search mission for the Observatory instead of
+// silently falling back to an unrelated tool.
+app.get("/api/observatory/capability-gap", async (c) => {
+  const capability = String(c.req.query("capability") || "").trim() as PublisherCapability;
+  const allowed: PublisherCapability[] = ["content.plan","content.write","content.repurpose","social.publish","visual.generate","video.generate","analytics.read"];
+  if (!allowed.includes(capability)) return c.json({ status: "rejected", error: "Unknown capability." }, 400);
+  try {
+    const accounts = await listComposioConnectedAccounts(c.env);
+    const toolkits = [...new Set(accounts.filter((account) => isActiveComposioStatus(account.status)).map((account) => account.toolkitSlug))];
+    const matches: any[] = [];
+    for (const toolkit of toolkits) {
+      try {
+        for (const tool of await listComposioTools(c.env, toolkit)) {
+          const pack = executableToolPack(tool, Boolean(accountFor(accounts, toolkit)));
+          if (pack.executable && pack.capabilities.includes(capability)) matches.push(pack);
+        }
+      } catch (_) {}
+    }
+    if (matches.length) return c.json({ status: "covered", contract: "publisher-capability-gap-v1", capability, matches, discoveryRequired: false });
+
+    const queries: Record<PublisherCapability, string> = {
+      "visual.generate": "AI image generation API text to image tool developer API Mistral image generation",
+      "video.generate": "AI video generation API text to video developer tool",
+      "social.publish": "social media publishing scheduling API tool",
+      "analytics.read": "social media analytics API tool",
+      "content.plan": "AI content planning API tool",
+      "content.write": "AI text generation API tool",
+      "content.repurpose": "AI content repurposing API tool",
+    };
+    return c.json({
+      status: "gap",
+      contract: "publisher-capability-gap-v1",
+      capability,
+      discoveryRequired: true,
+      connectedMatches: 0,
+      mission: {
+        role: "tool-discovery",
+        query: queries[capability],
+        acceptance: ["documented capability match", "developer/API access", "executable integration path", "no inferred capability from marketing nouns"],
+        nextEndpoint: "/api/observatory/discovery/preview",
+      },
+    });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-capability-gap-v1", capability, error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/observatory/tool-packs", async (c) => {
   try {
     if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", contract: "publisher-tool-registry-v1", packs: [], error: "Composio not configured." }, 503);
