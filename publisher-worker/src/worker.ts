@@ -751,6 +751,50 @@ function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialP
   return { blogId: prepared.brandId, date: publicationDate, info };
 }
 
+app.get("/api/social/publication/candidate-plans", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
+  try {
+    const sql = await getSql(c.env);
+    const rows = await listGardenHarvests(sql, { limit: 200, reusableOnly: true });
+    const requestedLimit = Number(c.req.query("limit") ?? 10);
+    const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(25, Math.trunc(requestedLimit))) : 10;
+    const candidates = rows
+      .map((row) => ({ row, editorial: classifyHarvestForSocial(row), copy: extractSocialCopy(row.content) }))
+      .filter(({ editorial, copy }) => editorial.eligible && copy.text.length > 0)
+      .sort((a, b) => b.editorial.score - a.editorial.score || String(b.row.created_at ?? "").localeCompare(String(a.row.created_at ?? "")))
+      .slice(0, limit)
+      .map(({ row, editorial, copy }) => ({
+        harvestId: row.id,
+        seedId: row.seed_id,
+        title: row.title,
+        score: editorial.score,
+        copy,
+        editorial,
+        provenance: {
+          source: "garden-autoselection",
+          decision: "highest-ranked-reusable-harvest",
+          seedId: row.seed_id,
+          harvestId: row.id,
+        },
+      }));
+    return c.json({
+      status: "ready",
+      contract: "garden-social-candidate-plans-v1",
+      selectionPolicy: "highest-editorial-score-then-newest",
+      execution: "read-only",
+      candidates,
+      guardrails: {
+        maxPostsPerDay: 2,
+        minimumSpacingHours: 4,
+        duplicateProtection: "compare-copy-before-scheduling",
+        killSwitch: "draft-only",
+      },
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/social/publication/next-plan", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
