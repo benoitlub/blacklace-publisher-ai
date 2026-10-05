@@ -770,6 +770,13 @@ app.get("/api/social/publication/candidate-plans", async (c) => {
         score: editorial.score,
         copy,
         editorial,
+        media: {
+          status: editorial.media.direct ? "publishable" : editorial.media.canvaEditLink ? "needs-export" : "missing",
+          url: editorial.media.url,
+          direct: editorial.media.direct,
+          canvaEditLink: editorial.media.canvaEditLink,
+        },
+        recommendedNetworks: editorial.media.direct ? ["facebook", "instagram"] : ["facebook"],
         provenance: {
           source: "garden-autoselection",
           decision: "highest-ranked-reusable-harvest",
