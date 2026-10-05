@@ -1,0 +1,23 @@
+name: Test Gerard Social Image
+
+on:
+  push:
+    paths:
+      - ".github/workflows/test-gerard-social-image.yml"
+
+jobs:
+  generate:
+    if: github.event.head_commit.message == 'Test Gerard image generation'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Gerard social image producer
+        run: |
+          set -euo pipefail
+          curl --fail-with-body --silent --show-error \
+            -X POST \
+            "https://blacklace-publisher-worker.benoitlubert.workers.dev/api/social/media/request" \
+            -H "Content-Type: application/json" \
+            -d '{"harvestId":"harvest_local_harvest_420-dice_1786215725387"}' \
+            | tee gerard-image-result.json
+          echo
+          cat gerard-image-result.json
