@@ -720,6 +720,26 @@ function isCopyExecution(tool: string, action: string, body: Record<string, unkn
   return tool === "mistral" || action === "generate_text" || action === "copy.generate" || capability === "copy.generate" || capability === "copy" || capability === "text-document";
 }
 
+app.get("/api/production/canva-tool-schema", async (c) => {
+  try {
+    if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", error: "Composio not configured." }, 503);
+    const tools = await listComposioTools(c.env, "canva");
+    const target = tools.find((tool) => tool.slug === "CANVA_CREATE_CANVA_DESIGN_WITH_OPTIONAL_ASSET");
+    if (!target) return c.json({ status: "not-found", discovered: tools.map((tool) => tool.slug) }, 404);
+    return c.json({
+      status: "found",
+      slug: target.slug,
+      raw: target,
+      normalized: {
+        required: schemaRequired(target),
+        properties: schemaProperties(target),
+      },
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.post("/api/social/publication/prepare", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const prepared = prepareSocialPublication(body);
