@@ -480,6 +480,12 @@ function canvaArguments(tool: ComposioTool, title: string): Record<string, unkno
   if (!("design_type" in args) && !("asset_id" in args) && /create.*canva.*design/i.test(tool.slug)) {
     args.design_type = { type: "preset", name: "instagram_post" };
   }
+  // Composio's Canva create tool currently exposes no usable schema, but the
+  // upstream Canva endpoint still requires design_type. Match this exact
+  // discovered slug as well instead of relying only on the loose slug regex.
+  if (!("design_type" in args) && !("asset_id" in args) && tool.slug === "CANVA_CREATE_CANVA_DESIGN_WITH_OPTIONAL_ASSET") {
+    args.design_type = { type: "preset", name: "instagram_post" };
+  }
   if (!("title" in args) && /create.*canva.*design/i.test(tool.slug)) args.title = `Visuel principal ${title}`;
   return Object.keys(args).length ? args : { title: `Visuel principal ${title}`, design_type: { type: "preset", name: "instagram_post" } };
 }
