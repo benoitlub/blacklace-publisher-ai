@@ -2006,8 +2006,11 @@ function capabilitiesFromToolText(value: string): PublisherCapability[] {
     ["content.write", /writing|draft|post generator|generate.*post|content creation|text generation/],
     ["content.repurpose", /repurpose|various formats|multiple formats/],
     ["social.publish", /publish|publishing|multi-platform|social network|social media manager/],
-    ["visual.generate", /text.?to.?image|image generation|generate.*image|image generator|visual generation|create.*image/],
-    ["video.generate", /text.?to.?video|video generation|generate.*video|reel/],
+    // Generation must be an action of the tool itself. Merely mentioning
+    // "image", "design" or "create documents" in a list/get description is
+    // not evidence that the tool can generate a visual.
+    ["visual.generate", /text.?to.?image|image generation|image generator|visual generation|generate(?:s|d|ing)?[^.]{0,50}(?:image|visual)|(?:create|creates|creating)[^.]{0,40}(?:image|visual)/],
+    ["video.generate", /text.?to.?video|video generation|generate(?:s|d|ing)?[^.]{0,50}video|reel generator/],
     ["analytics.read", /analytics|performance|insights/],
   ];
   return rules.filter(([, pattern]) => pattern.test(text)).map(([capability]) => capability);
