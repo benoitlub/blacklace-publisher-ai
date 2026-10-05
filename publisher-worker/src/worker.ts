@@ -192,6 +192,71 @@ app.get("/api/production/mistral-image-pack", async (c) => {
   }, configured ? 200 : 503);
 });
 
+function findMistralGeneratedFileId(payload: unknown): string {
+  const stack: unknown[] = [payload];
+  while (stack.length) {
+    const value = stack.pop();
+    if (!value || typeof value !== "object") continue;
+    const record = value as Record<string, unknown>;
+    const type = String(record.type || record.object || "").toLowerCase();
+    const fileId = String(record.file_id || record.fileId || "").trim();
+    if (fileId && (type.includes("tool_file") || type.includes("file") || "file_id" in record)) return fileId;
+    for (const child of Object.values(record)) {
+      if (Array.isArray(child)) stack.push(...child);
+      else if (child && typeof child === "object") stack.push(child);
+    }
+  }
+  return "";
+}
+
+async function executeMistralImage(env: Env, prompt: string) {
+  const key = await mistralApiKey(env);
+  if (!key) throw new Error("Mistral n'est pas configuré dans Publisher.");
+  if (!prompt.trim()) throw new Error("Image prompt is empty.");
+  const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" };
+  const agentResponse = await fetch("https://api.mistral.ai/v1/agents", {
+    method: "POST", headers,
+    body: JSON.stringify({ model: "mistral-medium-latest", name: "Gerard Visual Producer", description: "Blacklace Publisher visual.generate producer", instructions: "Generate the requested promotional image. Do not add readable text unless explicitly requested.", tools: [{ type: "image_generation" }] }),
+  });
+  const agent = await agentResponse.json().catch(() => ({})) as Record<string, any>;
+  if (!agentResponse.ok || !agent.id) throw new Error(String(agent?.message ?? agent?.error?.message ?? `Mistral agent ${agentResponse.status}`));
+  const conversationResponse = await fetch("https://api.mistral.ai/v1/conversations", {
+    method: "POST", headers,
+    body: JSON.stringify({ agent_id: agent.id, inputs: prompt }),
+  });
+  const conversation = await conversationResponse.json().catch(() => ({})) as Record<string, any>;
+  if (!conversationResponse.ok) throw new Error(String(conversation?.message ?? conversation?.error?.message ?? `Mistral conversation ${conversationResponse.status}`));
+  const fileId = findMistralGeneratedFileId(conversation);
+  if (!fileId) throw new Error("Mistral completed the conversation but returned no generated image file_id.");
+  return { provider: "mistral", capability: "visual.generate", agentId: String(agent.id), conversationId: String(conversation.id || ""), fileId, contentUrl: `${publisherPublicUrl(env)}/api/production/mistral-image/content?fileId=${encodeURIComponent(fileId)}` };
+}
+
+app.get("/api/production/mistral-image/test", async (c) => {
+  try {
+    const prompt = String(c.req.query("prompt") || "Cinematic square promotional artwork for 420 Dice mobile game: three glossy dice in motion, premium dark gaming atmosphere, neon green and amber lighting, dynamic smartphone game advertising composition, no readable text, no logos, no cannabis leaves.").trim();
+    const result = await executeMistralImage(c.env, prompt);
+    return c.json({ status: "generated", contract: "publisher-visual-generate-v1", prompt, result });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-visual-generate-v1", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+app.get("/api/production/mistral-image/content", async (c) => {
+  const fileId = String(c.req.query("fileId") || "").trim();
+  if (!fileId) return c.json({ status: "rejected", error: "fileId is required" }, 400);
+  try {
+    const key = await mistralApiKey(c.env);
+    if (!key) return c.json({ status: "unavailable", error: "Mistral not configured" }, 503);
+    const response = await fetch(`https://api.mistral.ai/v1/files/${encodeURIComponent(fileId)}/content`, { headers: { Authorization: `Bearer ${key}` } });
+    if (!response.ok) return c.json({ status: "failed", error: `Mistral file download ${response.status}` }, 502);
+    const contentType = response.headers.get("content-type") || "image/png";
+    return new Response(response.body, { status: 200, headers: { "Content-Type": contentType, "Cache-Control": "public, max-age=86400" } });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+
 // ============================================================================
 // Composio (Canva) — real generative execution, ported from
 // artifacts/api-server/src/services/composio.ts + routes/production.ts so
