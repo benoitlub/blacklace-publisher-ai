@@ -155,6 +155,43 @@ async function executeMistralText(env: Env, request: { title: string; prompt: st
   };
 }
 
+type MistralImageToolPack = {
+  contract: "publisher-tool-pack-v1";
+  id: "mistral:image-generation";
+  capability: "visual.generate";
+  provider: "mistral";
+  executable: true;
+  recipe: { createAgentEndpoint: string; conversationEndpoint: string; downloadEndpoint: string; tool: "image_generation"; model: string };
+};
+
+function mistralImageToolPack(): MistralImageToolPack {
+  return {
+    contract: "publisher-tool-pack-v1",
+    id: "mistral:image-generation",
+    capability: "visual.generate",
+    provider: "mistral",
+    executable: true,
+    recipe: {
+      createAgentEndpoint: "https://api.mistral.ai/v1/agents",
+      conversationEndpoint: "https://api.mistral.ai/v1/conversations",
+      downloadEndpoint: "https://api.mistral.ai/v1/files/{file_id}/content",
+      tool: "image_generation",
+      model: "mistral-medium-latest",
+    },
+  };
+}
+
+app.get("/api/production/mistral-image-pack", async (c) => {
+  const configured = Boolean(await mistralApiKey(c.env));
+  return c.json({
+    status: configured ? "ready" : "unavailable",
+    pack: { ...mistralImageToolPack(), executable: configured },
+    configured,
+    evidence: "https://docs.mistral.ai/studio/agents/agent-tools/image_generation",
+    executionFlow: ["create image-generation agent", "start conversation with prompt", "extract tool_file.file_id", "download generated image"],
+  }, configured ? 200 : 503);
+});
+
 // ============================================================================
 // Composio (Canva) — real generative execution, ported from
 // artifacts/api-server/src/services/composio.ts + routes/production.ts so
