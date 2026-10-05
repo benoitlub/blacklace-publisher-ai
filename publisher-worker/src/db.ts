@@ -112,6 +112,66 @@ export async function ensureSchema(sql: NeonQueryFunction<false, false>): Promis
   schemaEnsured = true;
 }
 
+export interface GardenHarvestInput {
+  id: string;
+  parcelId: string;
+  seedId?: string | null;
+  operationId?: string | null;
+  title: string;
+  content?: string | null;
+  url?: string | null;
+  downloadUrl?: string | null;
+  type?: string | null;
+  status?: string | null;
+  createdAt?: string | null;
+}
+
+export async function ensureGardenHarvestSchema(sql: NeonQueryFunction<false, false>): Promise<void> {
+  await sql`
+    CREATE TABLE IF NOT EXISTS garden_harvests (
+      id TEXT PRIMARY KEY,
+      parcel_id TEXT NOT NULL,
+      seed_id TEXT,
+      operation_id TEXT,
+      title TEXT NOT NULL,
+      content TEXT,
+      url TEXT,
+      download_url TEXT,
+      type TEXT,
+      status TEXT,
+      source TEXT NOT NULL DEFAULT 'poulpe-fiction-garden',
+      created_at TIMESTAMPTZ,
+      synced_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS garden_harvests_created_at_idx ON garden_harvests (created_at DESC)`;
+}
+
+export async function upsertGardenHarvests(sql: NeonQueryFunction<false, false>, harvests: GardenHarvestInput[]): Promise<number> {
+  await ensureGardenHarvestSchema(sql);
+  let count = 0;
+  for (const item of harvests) {
+    if (!item.id || !item.parcelId || !item.title) continue;
+    await sql`
+      INSERT INTO garden_harvests (id, parcel_id, seed_id, operation_id, title, content, url, download_url, type, status, created_at)
+      VALUES (${item.id}, ${item.parcelId}, ${item.seedId ?? null}, ${item.operationId ?? null}, ${item.title}, ${item.content ?? null}, ${item.url ?? null}, ${item.downloadUrl ?? null}, ${item.type ?? null}, ${item.status ?? null}, ${item.createdAt ?? null})
+      ON CONFLICT (id) DO UPDATE SET
+        parcel_id = EXCLUDED.parcel_id,
+        seed_id = EXCLUDED.seed_id,
+        operation_id = EXCLUDED.operation_id,
+        title = EXCLUDED.title,
+        content = EXCLUDED.content,
+        url = EXCLUDED.url,
+        download_url = EXCLUDED.download_url,
+        type = EXCLUDED.type,
+        status = EXCLUDED.status,
+        synced_at = now()
+    `;
+    count += 1;
+  }
+  return count;
+}
+
 export interface TentacleSeedInput {
   seedId: string;
   parcelId: string;
