@@ -751,6 +751,65 @@ function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialP
   return { blogId: prepared.brandId, date: publicationDate, info };
 }
 
+app.get("/api/social/publication/next-plan", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
+  try {
+    const sql = await getSql(c.env);
+    const rows = await listGardenHarvests(sql, { limit: 200, reusableOnly: true });
+    const ranked = rows
+      .map((row) => ({ row, editorial: classifyHarvestForSocial(row) }))
+      .filter(({ editorial }) => editorial.eligible)
+      .sort((a, b) => b.editorial.score - a.editorial.score || String(b.row.created_at ?? "").localeCompare(String(a.row.created_at ?? "")));
+    const selected = ranked[0];
+    if (!selected) return c.json({ status: "empty", contract: "garden-next-social-plan-v1", message: "Aucune récolte sociale éligible." }, 404);
+
+    const requestedDate = c.req.query("publicationDate")?.trim();
+    const fallbackDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    const publicationDate = requestedDate || fallbackDate;
+    if (!Number.isFinite(Date.parse(publicationDate)) || Date.parse(publicationDate) <= Date.now()) {
+      return c.json({ status: "invalid", error: "publicationDate future ISO requise." }, 422);
+    }
+
+    const prepared = prepareSocialPublication({
+      networks: ["facebook"],
+      text: selected.row.content ?? "",
+      media: [],
+      publicationDate,
+      source: "garden-autoselection",
+      decision: "highest-ranked-reusable-harvest",
+      seedId: selected.row.seed_id,
+    });
+    if (prepared.status !== "prepared") return c.json({ ...prepared, harvestId: selected.row.id, editorial: selected.editorial }, 422);
+
+    return c.json({
+      status: "planned",
+      contract: "garden-next-social-plan-v1",
+      selectionPolicy: "highest-editorial-score-then-newest",
+      execution: "dry-run",
+      executable: false,
+      autoPublish: false,
+      draft: true,
+      selected: {
+        harvestId: selected.row.id,
+        seedId: selected.row.seed_id,
+        title: selected.row.title,
+        score: selected.editorial.score,
+        editorial: selected.editorial,
+      },
+      metricool: metricoolPayloadFromPrepared(prepared),
+      provenance: { ...prepared.provenance, harvestId: selected.row.id },
+      guardrails: {
+        maxPostsPerDay: 2,
+        minimumSpacingHours: 4,
+        duplicateProtection: "required-before-live-execution",
+        killSwitch: "live-execution-disabled",
+      },
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.post("/api/social/publication/from-harvest/plan", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
