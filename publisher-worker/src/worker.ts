@@ -951,6 +951,34 @@ function isCopyExecution(tool: string, action: string, body: Record<string, unkn
   return tool === "mistral" || action === "generate_text" || action === "copy.generate" || capability === "copy.generate" || capability === "copy" || capability === "text-document";
 }
 
+app.get("/api/production/metricool-tools", async (c) => {
+  try {
+    if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", error: "Composio not configured." }, 503);
+    const accounts = await listComposioConnectedAccounts(c.env);
+    const account = accountFor(accounts, "metricool");
+    if (!account) return c.json({ status: "unavailable", error: "Metricool is not connected." }, 503);
+    const tools = await listComposioTools(c.env, "metricool");
+    const analytics = selectMetricoolAnalyticsTools(tools);
+    const publish = selectMetricoolPublishTools(tools);
+    const serialize = (tool: ComposioTool) => ({
+      slug: tool.slug,
+      name: tool.name,
+      description: tool.description,
+      required: schemaRequired(tool),
+      inputSchema: tool.inputSchema ?? null,
+    });
+    return c.json({
+      status: "ok",
+      execution: "read-only-diagnostics",
+      account: { id: account.id, toolkitSlug: account.toolkitSlug, status: account.status },
+      analytics: analytics.map(serialize),
+      publish: publish.map(serialize),
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
 app.get("/api/production/canva-tools", async (c) => {
   try {
     if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", error: "Composio not configured." }, 503);
