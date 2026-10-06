@@ -477,6 +477,10 @@ function selectMetricoolPublishTools(tools: ComposioTool[]): ComposioTool[] {
   });
 }
 
+function selectMetricoolAnalyticsTools(tools: ComposioTool[]): ComposioTool[] {
+  return tools.filter((tool) => /analytics|metric|brand.?summary|report|post/.test(toolText(tool)) && /get|list|fetch|retrieve|analytics|metric|summary|report/.test(toolText(tool)));
+}
+
 
 type SocialNetwork = "instagram" | "facebook" | "youtube";
 const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube"]);
@@ -930,7 +934,7 @@ app.get("/api/production/diagnostics", async (c) => {
       composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), metricoolConnected: Boolean(metricool), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
       canva: { status: canvaGenerativeTools.length ? "generative-candidates-found" : canvaCreationTools.length ? "design-container-tools-only" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", executable: false, discoveredToolCount: canvaTools.length, generativeCandidates: canvaGenerativeTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
-      metricool: { status: metricoolPublishTools.length ? "candidate-tools-found" : metricool ? "connected-no-publish-tool" : "not-connected", connected: Boolean(metricool), provider: "composio", executable: false, discoveredToolCount: metricoolTools.length, publishCandidates: metricoolPublishTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
+      metricool: { status: metricoolPublishTools.length ? "candidate-tools-found" : metricool ? "connected-no-publish-tool" : "not-connected", connected: Boolean(metricool), provider: "composio", executable: false, discoveredToolCount: metricoolTools.length, publishCandidates: metricoolPublishTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })), analyticsCandidates: selectMetricoolAnalyticsTools(metricoolTools).slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
       socialChannels,
       // configured/available are aliases of the same boolean, for the
       // artifacts/blacklace-publisher dashboard (local-technique.tsx),
