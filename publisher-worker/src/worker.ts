@@ -493,6 +493,27 @@ function metricoolPublicationGuardrails(extra: Record<string, unknown> = {}) {
   };
 }
 
+function metricoolNetworkUnitCost(networks: readonly string[]): number {
+  return new Set(networks.map((network) => String(network).toLowerCase().trim()).filter((network) => SOCIAL_NETWORKS.has(network as SocialNetwork))).size;
+}
+
+export function evaluateMetricoolMonthlyBudget(input: { used: number; networks: readonly string[]; limit?: number }) {
+  const limit = Number.isFinite(input.limit) ? Math.max(0, Math.trunc(input.limit as number)) : METRICOOL_MONTHLY_PUBLICATION_LIMIT;
+  const used = Number.isFinite(input.used) ? Math.max(0, Math.trunc(input.used)) : 0;
+  const requestedUnits = metricoolNetworkUnitCost(input.networks);
+  const remaining = Math.max(0, limit - used);
+  return {
+    limit,
+    used,
+    remaining,
+    requestedUnits,
+    projectedUsed: used + requestedUnits,
+    projectedRemaining: Math.max(0, remaining - requestedUnits),
+    allowed: requestedUnits > 0 && used + requestedUnits <= limit,
+    accountingUnit: "published-network-item",
+  };
+}
+
 /**
  * Safety-first contract between Gérard/Publisher and the eventual Metricool
  * executor. This function NEVER calls Composio/Metricool: it only validates
@@ -968,7 +989,12 @@ app.get("/api/production/canva-tool-schema", async (c) => {
 app.post("/api/social/publication/prepare", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const prepared = prepareSocialPublication(body);
-  return c.json(prepared, prepared.status === "prepared" ? 200 : 422);
+  const used = Number(body.metricoolMonthlyUsed ?? 0);
+  const budget = evaluateMetricoolMonthlyBudget({ used, networks: prepared.networks });
+  if (prepared.status === "prepared" && !budget.allowed) {
+    return c.json({ ...prepared, status: "quota-blocked", budget, errors: ["Metricool monthly publication budget would be exceeded."] }, 429);
+  }
+  return c.json({ ...prepared, budget }, prepared.status === "prepared" ? 200 : 422);
 });
 
 function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialPublication>) {
