@@ -1459,12 +1459,10 @@ app.post("/api/social/publication/plan", async (c) => {
     draft: true,
     metricool,
     provenance: prepared.provenance,
-    guardrails: {
-      maxPostsPerDay: 2,
-      minimumSpacingHours: 4,
+    guardrails: metricoolPublicationGuardrails({
       duplicateProtection: "required-before-live-execution",
       killSwitch: "live-execution-disabled",
-    },
+    }),
   });
 });
 
