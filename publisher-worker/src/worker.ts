@@ -990,15 +990,45 @@ app.get("/api/production/canva-tool-schema", async (c) => {
   }
 });
 
+async function readMetricoolServerBudget(env: Env, networks: readonly string[]) {
+  if (!(await isComposioConfigured(env))) throw new Error("Metricool quota unavailable: Composio is not configured.");
+  const accounts = await listComposioConnectedAccounts(env);
+  const account = accountFor(accounts, "metricool");
+  if (!account) throw new Error("Metricool quota unavailable: no active Metricool account.");
+  const tools = await listComposioTools(env, "metricool");
+  const analytics = selectMetricoolAnalyticsTools(tools);
+  if (!analytics.length) throw new Error("Metricool quota unavailable: no analytics/read tool discovered.");
+  // Fail closed until a discovered Metricool read tool has a schema we can
+  // execute deterministically to count this calendar month's published
+  // network-items. Never fall back to a caller-supplied counter.
+  return {
+    status: "unresolved" as const,
+    allowed: false,
+    requestedUnits: metricoolNetworkUnitCost(networks),
+    limit: METRICOOL_MONTHLY_PUBLICATION_LIMIT,
+    source: "metricool-via-composio",
+    discoveredReadTools: analytics.slice(0, 12).map((tool) => ({
+      slug: tool.slug,
+      required: schemaRequired(tool),
+      propertyNames: Object.keys(schemaProperties(tool)),
+    })),
+    reason: "No deterministic server-side monthly usage reader selected yet.",
+  };
+}
+
 app.post("/api/social/publication/prepare", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const prepared = prepareSocialPublication(body);
-  const used = Number(body.metricoolMonthlyUsed ?? 0);
-  const budget = evaluateMetricoolMonthlyBudget({ used, networks: prepared.networks });
-  if (prepared.status === "prepared" && !budget.allowed) {
-    return c.json({ ...prepared, status: "quota-blocked", budget, errors: ["Metricool monthly publication budget would be exceeded."] }, 429);
+  if (prepared.status !== "prepared") return c.json(prepared, 422);
+  try {
+    const budget = await readMetricoolServerBudget(c.env, prepared.networks);
+    if (!budget.allowed) {
+      return c.json({ ...prepared, status: "quota-unverified", budget, errors: ["Metricool monthly usage could not be verified server-side; publication is blocked."] }, 503);
+    }
+    return c.json({ ...prepared, budget }, 200);
+  } catch (error) {
+    return c.json({ ...prepared, status: "quota-unverified", errors: [error instanceof Error ? error.message : String(error)] }, 503);
   }
-  return c.json({ ...prepared, budget }, prepared.status === "prepared" ? 200 : 422);
 });
 
 function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialPublication>) {
