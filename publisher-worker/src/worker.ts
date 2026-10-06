@@ -480,6 +480,18 @@ function selectMetricoolPublishTools(tools: ComposioTool[]): ComposioTool[] {
 
 type SocialNetwork = "instagram" | "facebook" | "youtube";
 const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube"]);
+const METRICOOL_MONTHLY_PUBLICATION_LIMIT = 20;
+
+function metricoolPublicationGuardrails(extra: Record<string, unknown> = {}) {
+  return {
+    monthlyPublicationLimit: METRICOOL_MONTHLY_PUBLICATION_LIMIT,
+    quotaPeriod: "calendar-month",
+    quotaScope: "metricool-brand",
+    quotaPolicy: "block-before-scheduling-when-monthly-limit-is-reached",
+    minimumSpacingHours: 4,
+    ...extra,
+  };
+}
 
 /**
  * Safety-first contract between Gérard/Publisher and the eventual Metricool
@@ -1189,7 +1201,7 @@ app.get("/api/social/bridge/next", async (c) => {
         status: "empty",
         contract: "gerard-metricool-bridge-next-v1",
         reason: excludedCopy.size ? "no-new-eligible-copy" : "no-eligible-harvest",
-        guardrails: { draft: true, autoPublish: false, maxPostsPerDay: 2, minimumSpacingHours: 4 },
+        guardrails: { draft: true, autoPublish: false, ...metricoolPublicationGuardrails() },
       }, 404);
     }
 
@@ -1255,7 +1267,7 @@ app.get("/api/social/bridge/next", async (c) => {
         youtube: { compatible: false, reason: "image-only-media-requires-video" },
       },
       metricool: { draft: true, autoPublish: false },
-      guardrails: { maxPostsPerDay: 2, minimumSpacingHours: 4, duplicateProtection: "caller-supplied-excludeCopy" },
+      guardrails: metricoolPublicationGuardrails({ duplicateProtection: "caller-supplied-excludeCopy" }),
       provenance: { source: "garden-autoselection", harvestId: selected.row.id, seedId: selected.row.seed_id },
     });
   } catch (error) {
@@ -1302,12 +1314,10 @@ app.get("/api/social/publication/candidate-plans", async (c) => {
       selectionPolicy: "highest-editorial-score-then-newest",
       execution: "read-only",
       candidates,
-      guardrails: {
-        maxPostsPerDay: 2,
-        minimumSpacingHours: 4,
+      guardrails: metricoolPublicationGuardrails({
         duplicateProtection: "compare-copy-before-scheduling",
         killSwitch: "draft-only",
-      },
+      }),
     });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
@@ -1362,12 +1372,10 @@ app.get("/api/social/publication/next-plan", async (c) => {
       },
       metricool: metricoolPayloadFromPrepared(prepared),
       provenance: { ...prepared.provenance, harvestId: selected.row.id },
-      guardrails: {
-        maxPostsPerDay: 2,
-        minimumSpacingHours: 4,
+      guardrails: metricoolPublicationGuardrails({
         duplicateProtection: "required-before-live-execution",
         killSwitch: "live-execution-disabled",
-      },
+      }),
     });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
@@ -1416,12 +1424,10 @@ app.post("/api/social/publication/from-harvest/plan", async (c) => {
       editorial,
       metricool: metricoolPayloadFromPrepared(prepared),
       provenance: { ...prepared.provenance, harvestId: harvest.id },
-      guardrails: {
-        maxPostsPerDay: 2,
-        minimumSpacingHours: 4,
+      guardrails: metricoolPublicationGuardrails({
         duplicateProtection: "required-before-live-execution",
         killSwitch: "live-execution-disabled",
-      },
+      }),
     });
   } catch (error) {
     return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
