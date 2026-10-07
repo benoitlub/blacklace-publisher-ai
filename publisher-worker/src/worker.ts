@@ -286,7 +286,7 @@ app.get("/api/production/mistral-image/:fileId/image.png", async (c) => {
 // (OAuth) still needs the full api-server run once; see docs/DEPLOYMENT.md.
 // ============================================================================
 
-const COMPOSIO_BASE_URL = "https://backend.composio.dev/api/v3";
+const COMPOSIO_BASE_URL = "https://backend.composio.dev/api/v3.1";
 
 interface ComposioConnectedAccount { id: string; toolkitSlug: string; status: string; }
 interface ComposioTool { slug: string; name: string; description: string; toolkitSlug: string; inputSchema: Record<string, unknown> | null; }
@@ -479,6 +479,41 @@ function selectMetricoolPublishTools(tools: ComposioTool[]): ComposioTool[] {
 
 function selectMetricoolAnalyticsTools(tools: ComposioTool[]): ComposioTool[] {
   return tools.filter((tool) => /analytics|metric|brand.?summary|report|post/.test(toolText(tool)) && /get|list|fetch|retrieve|analytics|metric|summary|report/.test(toolText(tool)));
+}
+
+const INNOVATION_RADAR_QUERIES = [
+  { domain: "research", query: "web search research crawl scrape extract monitor trends news" },
+  { domain: "creative", query: "generate image video audio voice animation design 3d" },
+  { domain: "publishing", query: "social publish schedule newsletter cms website content" },
+  { domain: "automation", query: "workflow trigger webhook automation database spreadsheet" },
+];
+
+async function searchComposioInnovationTools(env: Env, query: string): Promise<ComposioTool[]> {
+  const payload = await composioRequest(env, `/tools?query=${encodeURIComponent(query)}&toolkit_versions=latest&include_deprecated=false&limit=40`);
+  return extractItems(payload).map((item) => {
+    const record = asRecord(item);
+    const slug = stringValue(record.slug ?? record.tool_slug ?? record.name) || "";
+    const toolkitSlug = normalize(toolkitFrom(record));
+    const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
+    return {
+      slug,
+      name: stringValue(record.name ?? record.display_name) || slug,
+      description: stringValue(record.description) || "",
+      toolkitSlug,
+      inputSchema: Object.keys(schema).length ? schema : null,
+    };
+  }).filter((tool) => Boolean(tool.slug));
+}
+
+function innovationScore(tool: ComposioTool): number {
+  const value = toolText(tool);
+  let score = 0;
+  if (/search|research|crawl|scrape|monitor|trend/.test(value)) score += 4;
+  if (/generate|image|video|audio|voice|animation|3d|design/.test(value)) score += 4;
+  if (/publish|schedule|social|newsletter|cms|content/.test(value)) score += 3;
+  if (/trigger|webhook|workflow|automation/.test(value)) score += 3;
+  if (/deprecated|delete|remove|payment|purchase/.test(value)) score -= 6;
+  return score;
 }
 
 
@@ -1368,6 +1403,53 @@ app.get("/api/social/bridge/next", async (c) => {
     });
   } catch (error) {
     return c.json({ status: "failed", contract: "gerard-metricool-bridge-next-v1", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+app.get("/api/production/innovation-radar", async (c) => {
+  if (!(await isComposioConfigured(c.env))) return c.json({ configured: false, status: "unavailable", error: "Composio is not configured." }, 503);
+  try {
+    const accounts = await listComposioConnectedAccounts(c.env);
+    const connected = new Set(accounts.filter((account) => isActiveComposioStatus(account.status)).map((account) => account.toolkitSlug));
+    const discoveries = new Map<string, Record<string, unknown>>();
+    for (const radar of INNOVATION_RADAR_QUERIES) {
+      const tools = await searchComposioInnovationTools(c.env, radar.query);
+      for (const tool of tools) {
+        const score = innovationScore(tool);
+        if (score < 3) continue;
+        const current = discoveries.get(tool.slug);
+        const domains = new Set<string>(Array.isArray(current?.domains) ? current.domains as string[] : []);
+        domains.add(radar.domain);
+        discoveries.set(tool.slug, {
+          slug: tool.slug,
+          toolkit: tool.toolkitSlug,
+          name: tool.name,
+          description: tool.description,
+          score: Math.max(score, Number(current?.score ?? 0)),
+          domains: [...domains],
+          connected: connected.has(tool.toolkitSlug),
+          stage: "discovered",
+          execution: "disabled",
+        });
+      }
+    }
+    const ranked = [...discoveries.values()]
+      .sort((a, b) => Number(b.score ?? 0) - Number(a.score ?? 0))
+      .slice(0, 40);
+    return c.json({
+      status: "ready",
+      contract: "publisher-innovation-radar-v1",
+      role: "geo-trouvetou",
+      policy: "discover-first-test-in-sandbox-before-promotion",
+      execution: "read-only",
+      source: "composio-v3.1-latest",
+      scannedAt: new Date().toISOString(),
+      connectedToolkits: [...connected].sort(),
+      discoveries: ranked,
+      nextStage: "sandbox-evaluation",
+    });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-innovation-radar-v1", error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
 
