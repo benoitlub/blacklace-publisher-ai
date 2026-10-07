@@ -607,3 +607,67 @@ export async function buildObservatoryToolPack(
     source: "publisher-observatory-neon",
   };
 }
+
+
+export interface InnovationMemoryInput {
+  toolSlug: string;
+  toolkitSlug: string;
+  name: string;
+  description?: string;
+  score: number;
+  verdict: string;
+  connected: boolean;
+}
+
+export async function rememberInnovationCandidates(
+  sql: NeonQueryFunction<false, false>,
+  items: InnovationMemoryInput[],
+): Promise<number> {
+  await sql`
+    CREATE TABLE IF NOT EXISTS innovation_memory (
+      tool_slug TEXT PRIMARY KEY,
+      toolkit_slug TEXT NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      score INTEGER NOT NULL DEFAULT 0,
+      verdict TEXT NOT NULL,
+      connected BOOLEAN NOT NULL DEFAULT false,
+      first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      observations INTEGER NOT NULL DEFAULT 1
+    )
+  `;
+  await sql`CREATE INDEX IF NOT EXISTS innovation_memory_last_seen_idx ON innovation_memory (last_seen_at DESC)`;
+  let count = 0;
+  for (const item of items) {
+    await sql`
+      INSERT INTO innovation_memory (tool_slug, toolkit_slug, name, description, score, verdict, connected)
+      VALUES (${item.toolSlug}, ${item.toolkitSlug}, ${item.name}, ${item.description ?? null}, ${item.score}, ${item.verdict}, ${item.connected})
+      ON CONFLICT (tool_slug) DO UPDATE SET
+        toolkit_slug = EXCLUDED.toolkit_slug,
+        name = EXCLUDED.name,
+        description = EXCLUDED.description,
+        score = EXCLUDED.score,
+        verdict = EXCLUDED.verdict,
+        connected = EXCLUDED.connected,
+        last_seen_at = now(),
+        observations = innovation_memory.observations + 1
+    `;
+    count += 1;
+  }
+  return count;
+}
+
+export async function listInnovationMemory(
+  sql: NeonQueryFunction<false, false>,
+  limit = 100,
+): Promise<Record<string, unknown>[]> {
+  const rows = await sql`
+    SELECT tool_slug, toolkit_slug, name, description, score, verdict, connected,
+           first_seen_at, last_seen_at, observations
+    FROM innovation_memory
+    ORDER BY last_seen_at DESC, score DESC
+    LIMIT ${Math.min(Math.max(limit, 1), 200)}
+  `;
+  return rows as unknown as Record<string, unknown>[];
+}
