@@ -505,7 +505,7 @@ async function searchComposioInnovationTools(env: Env, query: string): Promise<C
   }).filter((tool) => Boolean(tool.slug));
 }
 
-function innovationScore(tool: ComposioTool): number {
+export function innovationScore(tool: ComposioTool): number {
   const value = toolText(tool);
   let score = 0;
   if (/search|research|crawl|scrape|monitor|trend/.test(value)) score += 4;
