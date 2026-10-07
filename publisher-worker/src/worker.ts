@@ -477,6 +477,10 @@ function selectMetricoolPublishTools(tools: ComposioTool[]): ComposioTool[] {
   });
 }
 
+function selectMetricoolAnalyticsTools(tools: ComposioTool[]): ComposioTool[] {
+  return tools.filter((tool) => /analytics|metric|brand.?summary|report|post/.test(toolText(tool)) && /get|list|fetch|retrieve|analytics|metric|summary|report/.test(toolText(tool)));
+}
+
 
 type SocialNetwork = "instagram" | "facebook" | "youtube";
 const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube"]);
@@ -490,6 +494,27 @@ function metricoolPublicationGuardrails(extra: Record<string, unknown> = {}) {
     quotaPolicy: "block-before-scheduling-when-monthly-limit-is-reached",
     minimumSpacingHours: 4,
     ...extra,
+  };
+}
+
+function metricoolNetworkUnitCost(networks: readonly string[]): number {
+  return new Set(networks.map((network) => String(network).toLowerCase().trim()).filter((network) => SOCIAL_NETWORKS.has(network as SocialNetwork))).size;
+}
+
+export function evaluateMetricoolMonthlyBudget(input: { used: number; networks: readonly string[]; limit?: number }) {
+  const limit = Number.isFinite(input.limit) ? Math.max(0, Math.trunc(input.limit as number)) : METRICOOL_MONTHLY_PUBLICATION_LIMIT;
+  const used = Number.isFinite(input.used) ? Math.max(0, Math.trunc(input.used)) : 0;
+  const requestedUnits = metricoolNetworkUnitCost(input.networks);
+  const remaining = Math.max(0, limit - used);
+  return {
+    limit,
+    used,
+    remaining,
+    requestedUnits,
+    projectedUsed: used + requestedUnits,
+    projectedRemaining: Math.max(0, remaining - requestedUnits),
+    allowed: requestedUnits > 0 && used + requestedUnits <= limit,
+    accountingUnit: "published-network-item",
   };
 }
 
@@ -909,7 +934,7 @@ app.get("/api/production/diagnostics", async (c) => {
       composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), metricoolConnected: Boolean(metricool), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
       canva: { status: canvaGenerativeTools.length ? "generative-candidates-found" : canvaCreationTools.length ? "design-container-tools-only" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", executable: false, discoveredToolCount: canvaTools.length, generativeCandidates: canvaGenerativeTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
-      metricool: { status: metricoolPublishTools.length ? "candidate-tools-found" : metricool ? "connected-no-publish-tool" : "not-connected", connected: Boolean(metricool), provider: "composio", executable: false, discoveredToolCount: metricoolTools.length, publishCandidates: metricoolPublishTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
+      metricool: { status: metricoolPublishTools.length ? "candidate-tools-found" : metricool ? "connected-no-publish-tool" : "not-connected", connected: Boolean(metricool), provider: "composio", executable: false, discoveredToolCount: metricoolTools.length, publishCandidates: metricoolPublishTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })), analyticsCandidates: selectMetricoolAnalyticsTools(metricoolTools).slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
       socialChannels,
       // configured/available are aliases of the same boolean, for the
       // artifacts/blacklace-publisher dashboard (local-technique.tsx),
@@ -925,6 +950,34 @@ function isCopyExecution(tool: string, action: string, body: Record<string, unkn
   const capability = String(body.capability ?? body.type ?? "").toLowerCase();
   return tool === "mistral" || action === "generate_text" || action === "copy.generate" || capability === "copy.generate" || capability === "copy" || capability === "text-document";
 }
+
+app.get("/api/production/metricool-tools", async (c) => {
+  try {
+    if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", error: "Composio not configured." }, 503);
+    const accounts = await listComposioConnectedAccounts(c.env);
+    const account = accountFor(accounts, "metricool");
+    if (!account) return c.json({ status: "unavailable", error: "Metricool is not connected." }, 503);
+    const tools = await listComposioTools(c.env, "metricool");
+    const analytics = selectMetricoolAnalyticsTools(tools);
+    const publish = selectMetricoolPublishTools(tools);
+    const serialize = (tool: ComposioTool) => ({
+      slug: tool.slug,
+      name: tool.name,
+      description: tool.description,
+      required: schemaRequired(tool),
+      inputSchema: tool.inputSchema ?? null,
+    });
+    return c.json({
+      status: "ok",
+      execution: "read-only-diagnostics",
+      account: { id: account.id, toolkitSlug: account.toolkitSlug, status: account.status },
+      analytics: analytics.map(serialize),
+      publish: publish.map(serialize),
+    });
+  } catch (error) {
+    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
 
 app.get("/api/production/canva-tools", async (c) => {
   try {
@@ -965,10 +1018,45 @@ app.get("/api/production/canva-tool-schema", async (c) => {
   }
 });
 
+async function readMetricoolServerBudget(env: Env, networks: readonly string[]) {
+  if (!(await isComposioConfigured(env))) throw new Error("Metricool quota unavailable: Composio is not configured.");
+  const accounts = await listComposioConnectedAccounts(env);
+  const account = accountFor(accounts, "metricool");
+  if (!account) throw new Error("Metricool quota unavailable: no active Metricool account.");
+  const tools = await listComposioTools(env, "metricool");
+  const analytics = selectMetricoolAnalyticsTools(tools);
+  if (!analytics.length) throw new Error("Metricool quota unavailable: no analytics/read tool discovered.");
+  // Fail closed until a discovered Metricool read tool has a schema we can
+  // execute deterministically to count this calendar month's published
+  // network-items. Never fall back to a caller-supplied counter.
+  return {
+    status: "unresolved" as const,
+    allowed: false,
+    requestedUnits: metricoolNetworkUnitCost(networks),
+    limit: METRICOOL_MONTHLY_PUBLICATION_LIMIT,
+    source: "metricool-via-composio",
+    discoveredReadTools: analytics.slice(0, 12).map((tool) => ({
+      slug: tool.slug,
+      required: schemaRequired(tool),
+      propertyNames: Object.keys(schemaProperties(tool)),
+    })),
+    reason: "No deterministic server-side monthly usage reader selected yet.",
+  };
+}
+
 app.post("/api/social/publication/prepare", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const prepared = prepareSocialPublication(body);
-  return c.json(prepared, prepared.status === "prepared" ? 200 : 422);
+  if (prepared.status !== "prepared") return c.json(prepared, 422);
+  try {
+    const budget = await readMetricoolServerBudget(c.env, prepared.networks);
+    if (!budget.allowed) {
+      return c.json({ ...prepared, status: "quota-unverified", budget, errors: ["Metricool monthly usage could not be verified server-side; publication is blocked."] }, 503);
+    }
+    return c.json({ ...prepared, budget }, 200);
+  } catch (error) {
+    return c.json({ ...prepared, status: "quota-unverified", errors: [error instanceof Error ? error.message : String(error)] }, 503);
+  }
 });
 
 function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialPublication>) {
