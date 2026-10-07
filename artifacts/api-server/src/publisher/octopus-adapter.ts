@@ -6,6 +6,7 @@ import { resolveKnowledgePackage } from "../services/knowledge-package-resolver"
 import { publishGitHubPage, type GitHubPagesPublication } from "../services/github-pages-publisher";
 
 export const PUBLISHER_ADAPTER_CAPABILITIES = [
+  "content.generate",
   "copy.generate",
   "content.article.write",
   "content.social.write",
@@ -117,7 +118,7 @@ function productionPrompt(mission: OctopusAdapterMission, capability: PublisherA
 
 async function writeContent(
   mission: OctopusAdapterMission,
-  capability: "copy.generate" | "content.article.write" | "content.social.write",
+  capability: "content.generate" | "copy.generate" | "content.article.write" | "content.social.write",
 ) {
   const knowledge = await resolveKnowledgePackage(packageCandidates(mission));
   if (!knowledge.verified) return needsKnowledge(mission, knowledge.diagnostics);
@@ -278,7 +279,7 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
   if (!capability) {
     return { operationId: envelope.mission.operationId, status: "failed" as const, summary: "Publisher ne déclare aucune des capacités demandées.", output: { requestedCapabilities: envelope.mission.requiredCapabilities } };
   }
-  if (capability === "copy.generate" || capability === "content.article.write" || capability === "content.social.write") return writeContent(envelope.mission, capability);
+  if (capability === "content.generate" || capability === "copy.generate" || capability === "content.article.write" || capability === "content.social.write") return writeContent(envelope.mission, capability);
   if (capability === "knowledge.search") return searchKnowledge(envelope.mission);
   return generateLanding(envelope.mission);
 }
