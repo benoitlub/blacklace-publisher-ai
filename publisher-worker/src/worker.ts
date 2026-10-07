@@ -1278,9 +1278,17 @@ app.get("/api/social/bridge/next", async (c) => {
         .map((value) => value.trim())
         .filter(Boolean),
     );
+    const privateSeedIds = new Set(["yael-prospection"]);
+    const privateParcelIds = new Set(["project-yael-prospection"]);
     const candidates = rows
       .map((row) => ({ row, editorial: classifyHarvestForSocial(row), copy: extractSocialCopy(row.content) }))
-      .filter(({ editorial, copy }) => editorial.eligible && copy.text.length > 0 && !excludedCopy.has(copy.text))
+      .filter(({ row, editorial, copy }) =>
+        !privateSeedIds.has(String(row.seed_id ?? "")) &&
+        !privateParcelIds.has(String(row.parcel_id ?? "")) &&
+        editorial.eligible &&
+        copy.text.length > 0 &&
+        !excludedCopy.has(copy.text)
+      )
       .sort((a, b) => b.editorial.score - a.editorial.score || String(b.row.created_at ?? "").localeCompare(String(a.row.created_at ?? "")));
 
     const selected = candidates[0];
