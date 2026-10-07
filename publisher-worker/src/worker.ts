@@ -517,6 +517,38 @@ export function innovationScore(tool: ComposioTool): number {
 }
 
 
+type InnovationVerdict = "reject" | "sandbox-candidate" | "promote-candidate";
+
+export function evaluateInnovationCandidate(tool: ComposioTool, connected: boolean): {
+  verdict: InnovationVerdict;
+  score: number;
+  reasons: string[];
+  execution: "disabled";
+} {
+  const score = innovationScore(tool);
+  const value = toolText(tool);
+  const reasons: string[] = [];
+  const risky = /delete|remove|payment|purchase|send money|transfer|credential|password/.test(value);
+  const deprecated = /deprecated|legacy|obsolete/.test(value);
+
+  if (risky) reasons.push("external-or-destructive-side-effect");
+  if (deprecated) reasons.push("deprecated-capability");
+  if (score < 3) reasons.push("insufficient-innovation-score");
+  if (connected) reasons.push("toolkit-already-connected");
+  else reasons.push("toolkit-not-connected");
+
+  if (risky || deprecated || score < 3) {
+    return { verdict: "reject", score, reasons, execution: "disabled" };
+  }
+  if (connected && score >= 7) {
+    reasons.push("high-value-connected-capability");
+    return { verdict: "promote-candidate", score, reasons, execution: "disabled" };
+  }
+  reasons.push("requires-sandbox-evaluation");
+  return { verdict: "sandbox-candidate", score, reasons, execution: "disabled" };
+}
+
+
 type SocialNetwork = "instagram" | "facebook" | "youtube";
 const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube"]);
 const METRICOOL_MONTHLY_PUBLICATION_LIMIT = 20;
@@ -1403,6 +1435,38 @@ app.get("/api/social/bridge/next", async (c) => {
     });
   } catch (error) {
     return c.json({ status: "failed", contract: "gerard-metricool-bridge-next-v1", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+app.get("/api/production/innovation-atelier", async (c) => {
+  if (!(await isComposioConfigured(c.env))) return c.json({ configured: false, status: "unavailable", error: "Composio is not configured." }, 503);
+  try {
+    const accounts = await listComposioConnectedAccounts(c.env);
+    const connected = new Set(accounts.filter((account) => isActiveComposioStatus(account.status)).map((account) => account.toolkitSlug));
+    const candidates = new Map<string, ComposioTool>();
+    for (const radar of INNOVATION_RADAR_QUERIES) {
+      for (const tool of await searchComposioInnovationTools(c.env, radar.query)) candidates.set(tool.slug, tool);
+    }
+    const evaluations = [...candidates.values()]
+      .map((tool) => ({ tool: { slug: tool.slug, toolkit: tool.toolkitSlug, name: tool.name }, ...evaluateInnovationCandidate(tool, connected.has(tool.toolkitSlug)) }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 40);
+    return c.json({
+      status: "ready",
+      contract: "publisher-innovation-atelier-v1",
+      role: "geo-trouvetou-lab",
+      execution: "disabled",
+      policy: "evaluate-without-external-side-effects",
+      evaluatedAt: new Date().toISOString(),
+      summary: {
+        promoteCandidates: evaluations.filter((x) => x.verdict === "promote-candidate").length,
+        sandboxCandidates: evaluations.filter((x) => x.verdict === "sandbox-candidate").length,
+        rejected: evaluations.filter((x) => x.verdict === "reject").length,
+      },
+      evaluations,
+    });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-innovation-atelier-v1", error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
 
