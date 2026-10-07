@@ -14,6 +14,8 @@ import {
   listDueTentacles,
   listObservatorySources,
   markObservatorySourcesProcessed,
+  rememberInnovationCandidates,
+  listInnovationMemory,
   recordIteration,
   setObservatoryDecision,
   upsertObservatorySource,
@@ -1451,6 +1453,18 @@ app.get("/api/production/innovation-atelier", async (c) => {
       .map((tool) => ({ tool: { slug: tool.slug, toolkit: tool.toolkitSlug, name: tool.name }, ...evaluateInnovationCandidate(tool, connected.has(tool.toolkitSlug)) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 40);
+    let remembered = 0;
+    if (await isDatabaseConfigured(c.env)) {
+      const sql = await getSql(c.env);
+      remembered = await rememberInnovationCandidates(sql, evaluations.map((item) => ({
+        toolSlug: item.tool.slug,
+        toolkitSlug: item.tool.toolkit,
+        name: item.tool.name,
+        score: item.score,
+        verdict: item.verdict,
+        connected: connected.has(item.tool.toolkit),
+      })));
+    }
     return c.json({
       status: "ready",
       contract: "publisher-innovation-atelier-v1",
@@ -1458,6 +1472,7 @@ app.get("/api/production/innovation-atelier", async (c) => {
       execution: "disabled",
       policy: "evaluate-without-external-side-effects",
       evaluatedAt: new Date().toISOString(),
+      memory: { persisted: remembered, configured: await isDatabaseConfigured(c.env) },
       summary: {
         promoteCandidates: evaluations.filter((x) => x.verdict === "promote-candidate").length,
         sandboxCandidates: evaluations.filter((x) => x.verdict === "sandbox-candidate").length,
@@ -1467,6 +1482,17 @@ app.get("/api/production/innovation-atelier", async (c) => {
     });
   } catch (error) {
     return c.json({ status: "failed", contract: "publisher-innovation-atelier-v1", error: error instanceof Error ? error.message : String(error) }, 502);
+  }
+});
+
+app.get("/api/production/innovation-memory", async (c) => {
+  if (!(await isDatabaseConfigured(c.env))) return c.json({ status: "unavailable", error: "Publisher database is not configured." }, 503);
+  try {
+    const sql = await getSql(c.env);
+    const items = await listInnovationMemory(sql, 100);
+    return c.json({ status: "ready", contract: "publisher-innovation-memory-v1", items });
+  } catch (error) {
+    return c.json({ status: "failed", contract: "publisher-innovation-memory-v1", error: error instanceof Error ? error.message : String(error) }, 502);
   }
 });
 
