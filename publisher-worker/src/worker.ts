@@ -1533,9 +1533,21 @@ app.get("/api/social/bridge/next", async (c) => {
       media = { url: selected.editorial.media.url, direct: true };
       production = { capability: "existing-media", generated: false };
     } else {
+      // Reuse a direct media file from this seed only, before spending AI quota.
+      // Never borrow media from an unrelated project or an edit-only Canva link.
+      const related = rows
+        .filter((row) => row.id !== selected.row.id &&
+          Boolean(selected.row.seed_id) && row.seed_id === selected.row.seed_id)
+        .map((row) => ({ row, editorial: classifyHarvestForSocial(row) }))
+        .find(({ editorial }) => editorial.media.direct &&
+          Boolean(editorial.media.url) && /^https:\/\//i.test(editorial.media.url ?? ""));
+      if (related) {
+        media = { url: related.editorial.media.url, direct: true, sourceHarvestId: related.row.id };
+        production = { capability: "existing-related-media", generated: false, sourceHarvestId: related.row.id };
+      }
       const imagePrompt = `Create a polished square social-media promotional image for: ${selected.row.title}. Context: ${selected.copy.text}. Strong central composition, premium adult visual style, no readable text or logos unless explicitly required by the source content.`;
       const failures: string[] = [];
-      try {
+      if (!media) try {
         const visual = await executeMistralImage(c.env, imagePrompt);
         if (visual.fileId && visual.contentUrl) {
           media = { url: visual.contentUrl, id: visual.fileId, direct: true };
