@@ -1612,9 +1612,21 @@ app.get("/api/social/publication/next-plan", async (c) => {
       .split(",").map((value) => value.trim()).filter(Boolean)
       .filter((value) => Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now() + 4 * 60 * 60 * 1000)
       .sort((a, b) => Date.parse(a) - Date.parse(b));
+    // Metricool's heatmap uses a score per day/hour, not chronological priority.
+    // Accept scored candidate timestamps as ISO@score and select the strongest
+    // future slot; only a trusted scheduler should supply these values.
+    const scoredCandidates = (c.req.query("metricoolScoredTimes") ?? "")
+      .split(",").map((entry) => {
+        const separator = entry.lastIndexOf("@");
+        const date = entry.slice(0, separator);
+        const score = Number(entry.slice(separator + 1));
+        return { date, score };
+      })
+      .filter(({ date, score }) => Number.isFinite(score) && score >= 0 && Number.isFinite(Date.parse(date)) && Date.parse(date) > Date.now() + 4 * 60 * 60 * 1000)
+      .sort((a, b) => b.score - a.score || Date.parse(a.date) - Date.parse(b.date));
     const fallbackDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const publicationDate = requestedDate || bestTimeCandidates[0] || fallbackDate;
-    const timingSource = requestedDate ? "explicit-request" : bestTimeCandidates.length ? "metricool-best-times-supplied" : "fallback-24h-not-optimized";
+    const publicationDate = requestedDate || scoredCandidates[0]?.date || bestTimeCandidates[0] || fallbackDate;
+    const timingSource = requestedDate ? "explicit-request" : scoredCandidates.length ? "metricool-scored-times-supplied" : bestTimeCandidates.length ? "metricool-best-times-supplied" : "fallback-24h-not-optimized";
     if (!Number.isFinite(Date.parse(publicationDate)) || Date.parse(publicationDate) <= Date.now()) {
       return c.json({ status: "invalid", error: "publicationDate future ISO requise." }, 422);
     }
@@ -1634,7 +1646,7 @@ app.get("/api/social/publication/next-plan", async (c) => {
       status: "planned",
       contract: "garden-next-social-plan-v1",
       selectionPolicy: "highest-editorial-score-then-newest",
-      timing: { source: timingSource, publicationDate, candidateCount: bestTimeCandidates.length, network: "facebook", requiresMetricoolBestTimesIntegration: timingSource === "fallback-24h-not-optimized" },
+      timing: { source: timingSource, publicationDate, candidateCount: scoredCandidates.length || bestTimeCandidates.length, selectedScore: timingSource === "metricool-scored-times-supplied" ? scoredCandidates[0]?.score : null, network: "facebook", requiresMetricoolBestTimesIntegration: timingSource === "fallback-24h-not-optimized" },
       execution: "dry-run",
       executable: false,
       autoPublish: false,
