@@ -555,6 +555,24 @@ type SocialNetwork = "instagram" | "facebook" | "youtube";
 const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube"]);
 const METRICOOL_MONTHLY_PUBLICATION_LIMIT = 20;
 
+// Route every prepared publication to the existing brand until a second
+// Metricool brand is explicitly connected and configured. Never guess an ID.
+const DEFAULT_METRICOOL_BRAND_ID = "3350145";
+const DEFAULT_METRICOOL_TIMEZONE = "Europe/Madrid";
+export function resolveMetricoolDestination(input: Record<string, unknown>, brands: Record<string, string> = {}) {
+  const category = String(input.category ?? input.editorialCategory ?? "").trim().toLowerCase();
+  const configured = category && Object.prototype.hasOwnProperty.call(brands, category)
+    ? String(brands[category] ?? "").trim()
+    : "";
+  return {
+    category: category || "unspecified",
+    brandId: configured || DEFAULT_METRICOOL_BRAND_ID,
+    timezone: DEFAULT_METRICOOL_TIMEZONE,
+    routing: configured ? "configured-category" : "default-brand",
+  };
+}
+
+
 function metricoolPublicationGuardrails(extra: Record<string, unknown> = {}) {
   return {
     monthlyPublicationLimit: METRICOOL_MONTHLY_PUBLICATION_LIMIT,
@@ -609,6 +627,7 @@ export function prepareSocialPublication(input: Record<string, unknown>) {
   if (networks.includes("youtube") && !String(input.youtubeTitle ?? "").trim()) errors.push("YouTube exige un titre.");
   if (networks.includes("youtube") && typeof input.madeForKids !== "boolean") errors.push("YouTube exige madeForKids=true ou false.");
 
+  const destination = resolveMetricoolDestination(input);
   return {
     contract: "publisher-social-publication-v1",
     status: errors.length ? "invalid" : "prepared",
@@ -616,8 +635,9 @@ export function prepareSocialPublication(input: Record<string, unknown>) {
     autoPublish: false,
     // Brand is supplied by the caller only after Metricool confirms the account.
     // This prepares a draft; it does not grant access or trigger publication.
-    brandId: String(input.brandId ?? "3350145").trim() || "3350145",
-    timezone: String(input.timezone ?? "Europe/Madrid").trim() || "Europe/Madrid",
+    brandId: destination.brandId,
+    timezone: destination.timezone,
+    destination,
     networks,
     text,
     media,
@@ -1496,7 +1516,7 @@ app.get("/api/social/bridge/next", async (c) => {
         instagram: { requiresMedia: true, isAiGenerated: Boolean(production?.generated) },
         youtube: { compatible: false, reason: "image-only-media-requires-video" },
       },
-      metricool: { draft: true, autoPublish: false },
+      metricool: { draft: true, autoPublish: false, destination: resolveMetricoolDestination({ category: selected.editorial.editorialClass }) },
       guardrails: metricoolPublicationGuardrails({ duplicateProtection: "caller-supplied-excludeCopy" }),
       provenance: { source: "garden-autoselection", harvestId: selected.row.id, seedId: selected.row.seed_id },
     });
