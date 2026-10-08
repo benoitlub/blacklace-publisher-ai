@@ -1409,7 +1409,12 @@ app.get("/api/social/bridge/next", async (c) => {
       )
       .sort((a, b) => b.editorial.score - a.editorial.score || String(b.row.created_at ?? "").localeCompare(String(a.row.created_at ?? "")));
 
-    const selected = candidates[0];
+    // Editorial focus: TERRA is the current campaign, but only when eligible.
+    // A caller may explicitly select another eligible harvest without bypassing checks.
+    const requestedHarvestId = String(c.req.query("harvestId") ?? "").trim();
+    const selected = requestedHarvestId
+      ? candidates.find(({ row }) => row.id === requestedHarvestId)
+      : candidates.find(({ row }) => /(^|[^a-z])terra([^a-z]|$)/i.test(String(row.title ?? "") + " " + String(row.seed_id ?? ""))) ?? candidates[0];
     if (!selected) {
       return c.json({
         status: "empty",
@@ -1426,28 +1431,37 @@ app.get("/api/social/bridge/next", async (c) => {
       production = { capability: "existing-media", generated: false };
     } else {
       const imagePrompt = `Create a polished square social-media promotional image for: ${selected.row.title}. Context: ${selected.copy.text}. Strong central composition, premium adult visual style, no readable text or logos unless explicitly required by the source content.`;
+      const failures: string[] = [];
       try {
         const visual = await executeMistralImage(c.env, imagePrompt);
         if (visual.fileId && visual.contentUrl) {
           media = { url: visual.contentUrl, id: visual.fileId, direct: true };
-          production = {
-            capability: "visual.generate",
-            toolPack: "mistral:image-generation",
-            provider: visual.provider,
-            generated: true,
-            mediaId: visual.fileId,
-            outputUrl: visual.contentUrl,
-          };
+          production = { capability: "visual.generate", toolPack: "mistral:image-generation", provider: visual.provider, generated: true };
         }
       } catch (error) {
+        failures.push(error instanceof Error ? error.message : String(error));
+      }
+      if (!media) {
+        const discovered = await executeDiscoveredImage(c.env, imagePrompt, (failure) => failures.push(failure.toolSlug + ": " + failure.error))
+          .catch((error) => { failures.push(String(error)); return null; });
+        if (discovered) {
+          media = { url: discovered.media.url, id: discovered.media.mediaId, direct: true };
+          production = { capability: "visual.generate", toolPack: discovered.toolSlug, provider: discovered.toolkit, generated: true };
+        }
+      }
+      if (!media) {
+        const canva = await executeCanvaImage(c.env, imagePrompt, { onAttemptFailure: (failure) => failures.push(failure.toolSlug + ": " + failure.error) })
+          .catch((error) => { failures.push(String(error)); return null; });
+        if (canva?.media.url && /^https:\/\//i.test(canva.media.url)) {
+          media = { url: canva.media.url, id: canva.media.mediaId, direct: true };
+          production = { capability: "visual.generate", toolPack: canva.toolSlug, provider: "canva", generated: true };
+        }
+      }
+      if (!media) {
         return c.json({
-          status: "media-failed",
-          contract: "gerard-metricool-bridge-next-v1",
-          harvestId: selected.row.id,
-          seedId: selected.row.seed_id,
-          title: selected.row.title,
-          copy: selected.copy,
-          error: error instanceof Error ? error.message : String(error),
+          status: "media-failed", contract: "gerard-metricool-bridge-next-v1",
+          harvestId: selected.row.id, seedId: selected.row.seed_id, title: selected.row.title,
+          copy: selected.copy, errors: failures,
           guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
         }, 502);
       }
