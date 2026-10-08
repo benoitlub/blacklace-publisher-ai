@@ -1605,8 +1605,16 @@ app.get("/api/social/publication/next-plan", async (c) => {
     if (!selected) return c.json({ status: "empty", contract: "garden-next-social-plan-v1", message: "Aucune récolte sociale éligible." }, 404);
 
     const requestedDate = c.req.query("publicationDate")?.trim();
+    // Best-time candidates must come from Metricool's per-network recommendation API.
+    // The orchestration layer supplies them as ISO timestamps; never fabricate an
+    // audience-derived hour. Keep this endpoint in dry-run until scheduling is wired.
+    const bestTimeCandidates = (c.req.query("metricoolBestTimes") ?? "")
+      .split(",").map((value) => value.trim()).filter(Boolean)
+      .filter((value) => Number.isFinite(Date.parse(value)) && Date.parse(value) > Date.now() + 4 * 60 * 60 * 1000)
+      .sort((a, b) => Date.parse(a) - Date.parse(b));
     const fallbackDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-    const publicationDate = requestedDate || fallbackDate;
+    const publicationDate = requestedDate || bestTimeCandidates[0] || fallbackDate;
+    const timingSource = requestedDate ? "explicit-request" : bestTimeCandidates.length ? "metricool-best-times-supplied" : "fallback-24h-not-optimized";
     if (!Number.isFinite(Date.parse(publicationDate)) || Date.parse(publicationDate) <= Date.now()) {
       return c.json({ status: "invalid", error: "publicationDate future ISO requise." }, 422);
     }
@@ -1626,6 +1634,7 @@ app.get("/api/social/publication/next-plan", async (c) => {
       status: "planned",
       contract: "garden-next-social-plan-v1",
       selectionPolicy: "highest-editorial-score-then-newest",
+      timing: { source: timingSource, publicationDate, candidateCount: bestTimeCandidates.length, network: "facebook", requiresMetricoolBestTimesIntegration: timingSource === "fallback-24h-not-optimized" },
       execution: "dry-run",
       executable: false,
       autoPublish: false,
