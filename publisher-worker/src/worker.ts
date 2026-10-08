@@ -1610,13 +1610,21 @@ app.get("/api/social/bridge/next", async (c) => {
           production = { capability: "visual.generate", toolPack: canva.toolSlug, provider: "canva", generated: true };
         }
       }
-      if (!media) {
+      if (!media && selected.copy.text.trim()) {
+        // Facebook accepts text-only posts. Do not spend another image quota
+        // or borrow unrelated media merely to make an editorial draft ready.
         return c.json({
-          status: "media-failed", contract: "gerard-metricool-bridge-next-v1",
+          status: "ready", contract: "gerard-metricool-bridge-next-v1",
           harvestId: selected.row.id, seedId: selected.row.seed_id, title: selected.row.title,
-          copy: selected.copy, errors: failures,
-          guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
-        }, 502);
+          score: selected.editorial.score, copy: selected.copy,
+          media: null,
+          production: { capability: "text-only-fallback", generated: false, mediaFailures: failures },
+          compatibleNetworks: ["facebook"],
+          networkRules: { facebook: { mediaOptional: true }, instagram: { compatible: false, reason: "media-required" }, youtube: { compatible: false, reason: "video-required" } },
+          metricool: { draft: true, autoPublish: false, destination: resolveMetricoolDestination({ category: selected.editorial.editorialClass }) },
+          guardrails: metricoolPublicationGuardrails({ duplicateProtection: "required-before-live-execution", action: "retain-until-scheduling-verified" }),
+          provenance: { source: "garden-autoselection", harvestId: selected.row.id, seedId: selected.row.seed_id },
+        });
       }
     }
 
