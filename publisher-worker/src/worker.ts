@@ -1420,7 +1420,9 @@ app.get("/api/social/bridge/next", async (c) => {
     );
     const privateSeedIds = new Set(["yael-prospection"]);
     const privateParcelIds = new Set(["project-yael-prospection"]);
+    const excludedHarvestIds = new Set(String(c.req.query("excludeHarvestIds") ?? "").split(",").map((id) => id.trim()).filter(Boolean));
     const candidates = rows
+      .filter((row) => !excludedHarvestIds.has(row.id))
       .map((row) => ({ row, editorial: classifyHarvestForSocial(row), copy: extractSocialCopy(row.content) }))
       .filter(({ row, editorial, copy }) =>
         !privateSeedIds.has(String(row.seed_id ?? "")) &&
