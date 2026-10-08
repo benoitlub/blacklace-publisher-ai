@@ -1261,6 +1261,44 @@ app.post("/api/social/publication/handoff", async (c) => {
   return c.json(handoff, handoff.status === "invalid" ? 422 : 200);
 });
 
+// Final publication gate: no external scheduling action until a verified
+// Metricool budget and a real recommended time are available server-side.
+app.post("/api/social/publication/finalize", async (c) => {
+  const input = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const handoff = prepareMetricoolHandoff(input);
+  if (handoff.status !== "ready-for-metricool-planning") {
+    return c.json({ status: "rejected", stage: "editorial-validation", handoff }, 422);
+  }
+  if (handoff.prepared.publicationDate) {
+    return c.json({
+      status: "rejected", stage: "scheduling-ownership",
+      error: "Gérard must not choose the publication date; Metricool best-time selection is required.",
+    }, 422);
+  }
+  try {
+    const budget = await readMetricoolServerBudget(c.env, handoff.prepared.networks);
+    if (!budget.allowed) {
+      return c.json({
+        status: "waiting-for-metricool", stage: "verified-budget",
+        action: "retain-ready-content", harvestId: handoff.harvestId,
+        budget, scheduled: false,
+      }, 503);
+    }
+    return c.json({
+      status: "waiting-for-metricool", stage: "best-time-and-deduplication",
+      action: "retain-ready-content", harvestId: handoff.harvestId,
+      scheduled: false,
+      reason: "No verified Metricool best-time, existing-post and idempotent scheduling adapter is configured.",
+    }, 503);
+  } catch (error) {
+    return c.json({
+      status: "waiting-for-metricool", stage: "connection",
+      action: "retain-ready-content", harvestId: handoff.harvestId,
+      scheduled: false, error: error instanceof Error ? error.message : String(error),
+    }, 503);
+  }
+});
+
 function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialPublication>) {
   const providers = prepared.networks.map((network) => ({ network }));
   const publicationDate = prepared.publicationDate;
