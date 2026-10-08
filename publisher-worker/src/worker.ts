@@ -1182,6 +1182,54 @@ app.post("/api/social/publication/prepare", async (c) => {
   }
 });
 
+// Resource availability policy: quota exhaustion never triggers an immediate
+// expensive retry. Preserve finished work and let the next cycle resume.
+export function planGerardResourceUsage(input: {
+  mistralStatus?: string; metricoolRemaining?: number | null; hasReusableMedia?: boolean;
+  hasReadyContent?: boolean; retryAfterSeconds?: number | null;
+}) {
+  const mistralStatus = String(input.mistralStatus ?? "unknown").toLowerCase();
+  const mistralBlocked = ["429", "rate-limited", "quota-exceeded", "unavailable"].includes(mistralStatus);
+  const remaining = typeof input.metricoolRemaining === "number" && Number.isFinite(input.metricoolRemaining)
+    ? Math.max(0, Math.trunc(input.metricoolRemaining)) : null;
+  const metricoolBlocked = remaining === null || remaining === 0;
+  const retryAfterSeconds = typeof input.retryAfterSeconds === "number" && Number.isFinite(input.retryAfterSeconds)
+    ? Math.max(0, Math.ceil(input.retryAfterSeconds)) : null;
+  return {
+    contract: "gerard-resource-policy-v1",
+    mistral: {
+      status: mistralStatus,
+      generateNewMedia: !mistralBlocked && mistralStatus === "available",
+      reuseExistingMedia: true,
+      retry: mistralBlocked ? "defer-until-next-cycle" : "normal",
+      retryAfterSeconds,
+    },
+    metricool: {
+      remainingUnits: remaining,
+      maySchedule: !metricoolBlocked,
+      status: remaining === null ? "unverified" : remaining === 0 ? "quota-exhausted" : "budget-available",
+    },
+    nextAction: input.hasReadyContent && !metricoolBlocked ? "prepare-metricool-handoff"
+      : input.hasReadyContent ? "queue-ready-content"
+      : input.hasReusableMedia ? "reuse-media-with-same-harvest"
+      : mistralBlocked ? "organize-harvests-without-ai" : "evaluate-production",
+    neverDiscardReadyContent: true,
+  };
+}
+
+app.post("/api/social/resources/plan", async (c) => {
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  // This endpoint advises only; an unverified caller quota cannot authorize scheduling.
+  const plan = planGerardResourceUsage({
+    mistralStatus: String(body.mistralStatus ?? "unknown"),
+    metricoolRemaining: null,
+    hasReusableMedia: body.hasReusableMedia === true,
+    hasReadyContent: body.hasReadyContent === true,
+    retryAfterSeconds: typeof body.retryAfterSeconds === "number" ? body.retryAfterSeconds : null,
+  });
+  return c.json(plan);
+});
+
 // Content handoff is separate from scheduling: Metricool owns the calendar.
 // Never fabricate a date or mark a draft as scheduled at this stage.
 export function prepareMetricoolHandoff(input: Record<string, unknown>) {
