@@ -726,6 +726,38 @@ async function executeCanvaImage(env: Env, prompt: string, options: { onAttemptF
   return null;
 }
 
+/** Discover connected image producers by their executable tool contracts.
+ * Keep a strict cap: discovery is cheap, generation may be billed.
+ */
+async function executeDiscoveredImage(env: Env, prompt: string, onFailure: (failure: { toolSlug: string; error: string }) => void) {
+  if (!(await isComposioConfigured(env))) return null;
+  const accounts = await listComposioConnectedAccounts(env);
+  const connected = accounts.filter((account) => /active|connected|success/i.test(account.status));
+  for (const account of connected.slice(0, 12)) {
+    if (account.toolkitSlug === "canva") continue; // Existing dedicated fallback.
+    let tools: ComposioTool[] = [];
+    try { tools = await listComposioTools(env, account.toolkitSlug); }
+    catch (error) { onFailure({ toolSlug: account.toolkitSlug, error: String(error) }); continue; }
+    const generators = tools.filter((tool) => capabilitiesFromToolText(toolText(tool)).includes("visual.generate")
+      && /generat|text.to.image|creat.*image/i.test(toolText(tool))
+      && !/list|search|fetch|read|get details/i.test(tool.slug));
+    for (const tool of generators.slice(0, 1)) {
+      try {
+        const result = await executeComposioTool(env, {
+          toolSlug: tool.slug, connectedAccountId: account.id,
+          arguments: canvaImageArguments(tool, prompt),
+        });
+        const media = extractCanvaMedia(result);
+        if (media?.url && /^https:\/\//i.test(media.url)) {
+          return { toolSlug: tool.slug, toolkit: account.toolkitSlug, media };
+        }
+        onFailure({ toolSlug: tool.slug, error: "No public image URL returned." });
+      } catch (error) { onFailure({ toolSlug: tool.slug, error: String(error) }); }
+    }
+  }
+  return null;
+}
+
 function schemaProperties(tool: ComposioTool): Record<string, Record<string, any>> {
   const schema = asRecord(tool.inputSchema);
   const properties = asRecord(schema.properties ?? asRecord(schema.schema).properties);
@@ -1232,6 +1264,20 @@ app.post("/api/social/media/request", async (c) => {
       } catch (error) {
       failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: error instanceof Error ? `Attempt ${attempt}: ${error.message}` : `Attempt ${attempt}: ${String(error)}` });
       }
+    }
+
+    const discoveredImage = await executeDiscoveredImage(c.env, imagePrompt, (failure) => failures.push(failure)).catch((error) => {
+      failures.push({ toolSlug: "discovered-image", error: String(error) });
+      return null;
+    });
+    if (discoveredImage) {
+      return c.json({
+        status: "publishable", contract: "gerard-social-media-v1", harvestId,
+        seedId: harvest.seed_id, title: harvest.title, copy,
+        production: { capability: "visual.generate", provider: discoveredImage.toolkit, toolSlug: discoveredImage.toolSlug, generated: true },
+        media: { url: discoveredImage.media.url, id: discoveredImage.media.mediaId, direct: true },
+        verification: { generated: true, publishable: true, reason: "discovered-connected-image-producer" },
+      });
     }
 
     const generatedImage = await executeCanvaImage(c.env, imagePrompt, {
