@@ -1182,6 +1182,37 @@ app.post("/api/social/publication/prepare", async (c) => {
   }
 });
 
+// Content handoff is separate from scheduling: Metricool owns the calendar.
+// Never fabricate a date or mark a draft as scheduled at this stage.
+export function prepareMetricoolHandoff(input: Record<string, unknown>) {
+  const prepared = prepareSocialPublication(input);
+  const harvestId = String(input.harvestId ?? "").trim();
+  const mediaHarvestId = String(input.mediaHarvestId ?? harvestId).trim();
+  const errors = [...prepared.errors];
+  if (!harvestId) errors.push("A source harvestId is required for editorial provenance.");
+  if (mediaHarvestId !== harvestId) errors.push("Media belongs to a different harvest.");
+  if (prepared.media.some((url) => !/^https:\/\//i.test(url))) errors.push("Media must use publicly accessible HTTPS URLs.");
+  return {
+    contract: "gerard-metricool-handoff-v1",
+    status: errors.length ? "invalid" : "ready-for-metricool-planning",
+    executable: false,
+    scheduled: false,
+    schedulingOwner: "metricool",
+    harvestId,
+    mediaHarvestId,
+    prepared,
+    metricoolDraft: errors.length ? null : metricoolPayloadFromPrepared(prepared),
+    guardrails: metricoolPublicationGuardrails({ requiresVerifiedBudget: true, requiresBestTimeLookup: true }),
+    errors,
+  };
+}
+
+app.post("/api/social/publication/handoff", async (c) => {
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const handoff = prepareMetricoolHandoff(body);
+  return c.json(handoff, handoff.status === "invalid" ? 422 : 200);
+});
+
 function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialPublication>) {
   const providers = prepared.networks.map((network) => ({ network }));
   const publicationDate = prepared.publicationDate;
