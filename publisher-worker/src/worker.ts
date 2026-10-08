@@ -1409,12 +1409,12 @@ app.get("/api/social/bridge/next", async (c) => {
       )
       .sort((a, b) => b.editorial.score - a.editorial.score || String(b.row.created_at ?? "").localeCompare(String(a.row.created_at ?? "")));
 
-    // Editorial focus: TERRA is the current campaign, but only when eligible.
-    // A caller may explicitly select another eligible harvest without bypassing checks.
+    // An editorial decision may pin an eligible harvest by ID.
+    // Otherwise choose the highest-ranked eligible candidate without title-specific rules.
     const requestedHarvestId = String(c.req.query("harvestId") ?? "").trim();
     const selected = requestedHarvestId
       ? candidates.find(({ row }) => row.id === requestedHarvestId)
-      : candidates.find(({ row }) => /(^|[^a-z])terra([^a-z]|$)/i.test(String(row.title ?? "") + " " + String(row.seed_id ?? ""))) ?? candidates[0];
+      : candidates[0];
     if (!selected) {
       return c.json({
         status: "empty",
