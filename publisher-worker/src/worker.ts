@@ -614,8 +614,10 @@ export function prepareSocialPublication(input: Record<string, unknown>) {
     status: errors.length ? "invalid" : "prepared",
     executable: false,
     autoPublish: false,
-    brandId: "3350145",
-    timezone: "Europe/Madrid",
+    // Brand is supplied by the caller only after Metricool confirms the account.
+    // This prepares a draft; it does not grant access or trigger publication.
+    brandId: String(input.brandId ?? "3350145").trim() || "3350145",
+    timezone: String(input.timezone ?? "Europe/Madrid").trim() || "Europe/Madrid",
     networks,
     text,
     media,
