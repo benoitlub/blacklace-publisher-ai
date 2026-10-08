@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { officialMediaBySeed } from "./official-media";
 import {
   OBSERVATORY_DECISIONS,
   attachObservatoryOctopus,
@@ -1567,7 +1568,11 @@ app.get("/api/social/bridge/next", async (c) => {
 
     let media: Record<string, unknown> | null = null;
     let production: Record<string, unknown> | null = null;
-    if (selected.editorial.media.direct && selected.editorial.media.url) {
+    const officialUrl = officialMediaBySeed[String(selected.row.seed_id ?? "").trim().toLowerCase()];
+    if (officialUrl) {
+      media = { url: officialUrl, direct: true, official: true };
+      production = { capability: "official-media", generated: false };
+    } else if (selected.editorial.media.direct && selected.editorial.media.url) {
       media = { url: selected.editorial.media.url, direct: true };
       production = { capability: "existing-media", generated: false };
     } else {
