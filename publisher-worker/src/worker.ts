@@ -1204,7 +1204,8 @@ app.post("/api/social/media/request", async (c) => {
     // Capability-first production: ask Publisher's verified visual.generate
     // producer before any Canva compatibility path. Today the executable pack
     // is Mistral; callers depend only on the capability contract.
-    try {
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
       const visual = await executeMistralImage(c.env, imagePrompt);
       if (visual.fileId && visual.contentUrl) {
         return c.json({
@@ -1227,8 +1228,10 @@ app.post("/api/social/media/request", async (c) => {
           downstream: { canva: "optional-composition", metricool: "draft-only" },
         });
       }
-    } catch (error) {
-      failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: error instanceof Error ? error.message : String(error) });
+      failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: `Attempt ${attempt}: missing public media URL or file ID` });
+      } catch (error) {
+      failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: error instanceof Error ? `Attempt ${attempt}: ${error.message}` : `Attempt ${attempt}: ${String(error)}` });
+      }
     }
 
     const generatedImage = await executeCanvaImage(c.env, imagePrompt, {
