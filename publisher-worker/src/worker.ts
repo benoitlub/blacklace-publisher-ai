@@ -1430,7 +1430,19 @@ app.get("/api/social/bridge/next", async (c) => {
       media = { url: selected.editorial.media.url, direct: true };
       production = { capability: "existing-media", generated: false };
     } else {
-      const imagePrompt = `Create a polished square social-media promotional image for: ${selected.row.title}. Context: ${selected.copy.text}. Strong central composition, premium adult visual style, no readable text or logos unless explicitly required by the source content.`;
+      // Do not invent imagery from an unstructured article or generic fallback copy.
+      // A validated visual brief or source asset is required before generation.
+      const source = String(selected.row.content ?? "");
+      const visualBrief = source.match(/(?:visual brief|brief visuel|direction artistique|description du visuel)\\s*:\\s*([^\\n]{25,600})/i)?.[1]?.trim();
+      if (!visualBrief) {
+        return c.json({
+          status: "visual-brief-required", contract: "gerard-metricool-bridge-next-v1",
+          harvestId: selected.row.id, seedId: selected.row.seed_id, title: selected.row.title,
+          reason: "No source-grounded visual brief; automatic image invention prohibited.",
+          guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+        }, 422);
+      }
+      const imagePrompt = `Create a social-media image strictly based on this approved visual brief: ${visualBrief}. Source title: ${selected.row.title}. Context: ${selected.copy.text}. Do not introduce subjects, people, settings, symbols or claims absent from the brief. No readable text or logos unless explicitly required.`;
       const failures: string[] = [];
       try {
         const visual = await executeMistralImage(c.env, imagePrompt);
