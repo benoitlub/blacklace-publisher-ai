@@ -1624,6 +1624,14 @@ app.get("/api/social/publication/next-plan", async (c) => {
       })
       .filter(({ date, score }) => Number.isFinite(score) && score >= 0 && Number.isFinite(Date.parse(date)) && Date.parse(date) > Date.now() + 4 * 60 * 60 * 1000)
       .sort((a, b) => b.score - a.score || Date.parse(a.date) - Date.parse(b.date));
+    // Never trust arbitrary caller-provided "Metricool" scores as verified data.
+    // The scheduler must attach a verified source marker; otherwise retain a
+    // safe non-optimized fallback and report that the integration is pending.
+    const verifiedMetricoolSource = c.req.query("metricoolSource") === "verified-scheduler";
+    if (!verifiedMetricoolSource) {
+      scoredCandidates.length = 0;
+      bestTimeCandidates.length = 0;
+    }
     const fallbackDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     const publicationDate = requestedDate || scoredCandidates[0]?.date || bestTimeCandidates[0] || fallbackDate;
     const timingSource = requestedDate ? "explicit-request" : scoredCandidates.length ? "metricool-scored-times-supplied" : bestTimeCandidates.length ? "metricool-best-times-supplied" : "fallback-24h-not-optimized";
