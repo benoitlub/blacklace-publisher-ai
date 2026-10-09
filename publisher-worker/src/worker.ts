@@ -1610,6 +1610,23 @@ app.get("/api/social/bridge/next", async (c) => {
         (bookTitleKey && normalizeBookKey(entry.title ?? "").length > 0 && (" " + bookTitleKey + " ").includes(" " + normalizeBookKey(entry.title ?? "") + " "))
       )
     );
+    // Reject ambiguous titles instead of arbitrarily picking the first book.
+    const catalogMatches = bookDestinationsCatalog.references.filter((entry) =>
+      entry.verifiedMapping && (
+        (entry.seedId && mediaKeys.includes(entry.seedId.toLowerCase())) ||
+        (bookTitleKey && normalizeBookKey(entry.title ?? "").length > 0 &&
+          (" " + bookTitleKey + " ").includes(" " + normalizeBookKey(entry.title ?? "") + " "))
+      )
+    );
+    if (catalogMatches.length > 1) {
+      return c.json({
+        status: "blocked", contract: "gerard-metricool-bridge-next-v1",
+        reason: "ambiguous-book-identity",
+        harvestId: selected.row.id,
+        matchedAsins: catalogMatches.map((entry) => entry.asin),
+        guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+      });
+    }
     const catalogDestination = catalogMatch?.url;
     const officialDestination = catalogDestination ?? mediaKeys.map((key) => officialDestinationBySeed[key]).find(Boolean);
     const isBookPromotion = Boolean(catalogMatch) || mediaKeys.some((key) => key === "terra" || key.includes("book") || key.includes("livre"));
@@ -1626,6 +1643,18 @@ app.get("/api/social/bridge/next", async (c) => {
           ? selected.copy.text : selected.copy.text.trim() + "\n\nDécouvrir le livre : " + officialDestination }
       : selected.copy;
     const officialUrl = (catalogMatch?.seedId ? officialMediaBySeed[catalogMatch.seedId.toLowerCase()] : undefined) ?? mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
+    // Never synthesize or borrow a generic image as an official book cover.
+    // Book promotions are eligible only with an explicitly registered cover.
+    if (isBookPromotion && !officialUrl) {
+      return c.json({
+        status: "blocked", contract: "gerard-metricool-bridge-next-v1",
+        reason: "book-promotion-requires-official-cover",
+        harvestId: selected.row.id, seedId: selected.row.seed_id,
+        title: selected.row.title, copy: selectedCopy,
+        media: null, compatibleNetworks: [],
+        guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+      });
+    }
     if (officialUrl) {
       media = { url: officialUrl, direct: true, official: true };
       production = { capability: "official-media", generated: false };
