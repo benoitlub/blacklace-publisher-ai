@@ -1669,7 +1669,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
   if (!bufferKey) return c.json({status:"unavailable",reason:"buffer-key-missing"},503);
   const query = `query BufferDraftSchemaCheck {
-    __schema { mutationType { fields { name } } }
+    __schema { mutationType { fields { name } } }\n    __type(name:"PostAssetInput") { name inputFields { name type { kind name ofType { kind name ofType { kind name } } } } }
     __type(name:"CreatePostInput") { name inputFields { name type { kind name ofType { kind name enumValues { name } ofType { kind name enumValues { name } } } } } }
   }`;
   try {
