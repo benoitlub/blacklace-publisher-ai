@@ -1548,6 +1548,47 @@ app.post("/api/social/editorial/route", async (c) => {
   });
 });
 
+// Read-only Buffer GraphQL probe. Never expose the bearer token or send a mutation.
+app.get("/api/social/transports/buffer/channels", async (c) => {
+  const key = await resolveSecret(c.env.BUFFER_API_KEY);
+  if (!key) return c.json({
+    contract: "publisher-buffer-channels-v1", status: "not-configured",
+    channels: [], publishingEnabled: false,
+  });
+  try {
+    const response = await fetch("https://api.buffer.com", {
+      method: "POST",
+      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "{ channels { id name service } }" }),
+      signal: AbortSignal.timeout(8000),
+    });
+    const payload: unknown = await response.json().catch(() => null);
+    const data = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+    const raw = data.data && typeof data.data === "object"
+      ? (data.data as Record<string, unknown>).channels : null;
+    const channels = Array.isArray(raw) ? raw.map((item) => {
+      const v = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      return { id: String(v.id ?? ""), name: String(v.name ?? ""), service: String(v.service ?? "") };
+    }) : [];
+    return c.json({
+      contract: "publisher-buffer-channels-v1",
+      status: response.ok && !data.errors ? "connected" : "api-error",
+      httpStatus: response.status, channels,
+      errorTypes: Array.isArray(data.errors) ? data.errors.map((e) => {
+        const err = e && typeof e === "object" ? e as Record<string, unknown> : {};
+        return String(err.extensions && typeof err.extensions === "object"
+          ? (err.extensions as Record<string, unknown>).code ?? "graphql-error" : "graphql-error");
+      }) : [],
+      publishingEnabled: false,
+    });
+  } catch (_) {
+    return c.json({
+      contract: "publisher-buffer-channels-v1", status: "unreachable",
+      channels: [], publishingEnabled: false,
+    });
+  }
+});
+
 app.get("/api/social/transports", async (c) => {
   // Credential-presence diagnostic only: never expose the key or imply
   // that a Buffer API request has been authenticated.
