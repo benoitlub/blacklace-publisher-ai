@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "updatedAt": "2026-10-09",
+  "source": "author-supplied",
+  "status": "awaiting-title-mapping",
+  "note": "Do not auto-associate unknown ASINs with seeds, parcels, books or posts until titles are verified.",
+  "references": [
+    {
+      "asin": "B0H4CN5MSH",
+      "url": "https://www.amazon.fr/dp/B0H4CN5MSH",
+      "title": "TERRA",
+      "seedId": "terra",
+      "verifiedMapping": true
+    },
+    {
+      "asin": "B0H68811RL",
+      "url": "https://www.amazon.fr/dp/B0H68811RL",
+      "title": null,
+      "seedId": null,
+      "verifiedMapping": false
+    },
+    {
+      "asin": "B0HCDXP266",
+      "url": "https://www.amazon.fr/dp/B0HCDXP266",
+      "title": null,
+      "seedId": null,
+      "verifiedMapping": false
+    },
+    {
+      "asin": "B0HJNC4GQK",
+      "url": "https://www.amazon.fr/dp/B0HJNC4GQK",
+      "title": null,
+      "seedId": null,
+      "verifiedMapping": false
+    },
+    {
+      "asin": "B0GWHDTG6N",
+      "url": "https://www.amazon.fr/dp/B0GWHDTG6N",
+      "title": null,
+      "seedId": null,
+      "verifiedMapping": false
+    },
+    {
+      "asin": "B0H4RP6T4V",
+      "url": "https://www.amazon.fr/dp/B0H4RP6T4V",
+      "title": null,
+      "seedId": null,
+      "verifiedMapping": false
+    },
+    {
+      "asin": "B0GYSSLZX4",
+      "url": "https://www.amazon.fr/dp/B0GYSSLZX4",
+      "title": null,
+      "seedId": null,
+      "verifiedMapping": false
+    }
+  ]
+}
