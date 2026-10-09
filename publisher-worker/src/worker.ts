@@ -1642,7 +1642,11 @@ app.get("/api/social/bridge/next", async (c) => {
       ? { ...selected.copy, text: selected.copy.text.includes(officialDestination)
           ? selected.copy.text : selected.copy.text.trim() + "\n\nDécouvrir le livre : " + officialDestination }
       : selected.copy;
-    const officialUrl = (catalogMatch?.seedId ? officialMediaBySeed[catalogMatch.seedId.toLowerCase()] : undefined) ?? mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
+    // Once a book is identified, use artwork registered for that exact book only.
+    // Never fall back to another project's cover through a broad parcel/seed.
+    const officialUrl = catalogMatch
+      ? (catalogMatch.seedId ? officialMediaBySeed[catalogMatch.seedId.toLowerCase()] : undefined)
+      : mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
     // Never synthesize or borrow a generic image as an official book cover.
     // Book promotions are eligible only with an explicitly registered cover.
     if (isBookPromotion && !officialUrl) {
