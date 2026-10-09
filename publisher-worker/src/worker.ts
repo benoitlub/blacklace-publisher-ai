@@ -1664,7 +1664,7 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   if (!harvestId || !text.trim() || !/^https:\/\//.test(mediaUrl) || classifyEditorialTopic({seedId,title,text}) !== "book") {
     return c.json({status:"rejected",draftCreated:false,reason:"invalid-book-package"},422);
   }
-  const officialMedia = officialMediaBySeed(seedId);
+  const officialMedia = officialMediaBySeed[seedId.toLowerCase()];
   if (!officialMedia || mediaUrl !== officialMedia) return c.json({status:"rejected",draftCreated:false,reason:"unverified-official-media"},422);
   const configuredChannel = await resolveSecret(c.env.BUFFER_BOOK_CHANNEL_ID);
   const channelId = "6ac8c8226a5c39ccb65fdbf6";
