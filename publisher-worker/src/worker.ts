@@ -1526,6 +1526,31 @@ app.post("/api/social/media/request", async (c) => {
 
 // Autonomous bridge helper: collapse candidate selection + verified media production
 // into one Publisher-side request. It never schedules or publishes anything.
+// Public, read-only diagnostics: which verified book links already have artwork?
+// Does not contact Mistral, Metricool, or publish anything.
+app.get("/api/social/books/catalog", (c) => {
+  const references = bookDestinationsCatalog.references.map((entry) => {
+    const key = String(entry.seedId ?? "").trim().toLowerCase();
+    const mediaUrl = key ? officialMediaBySeed[key] ?? null : null;
+    return {
+      title: entry.title,
+      asin: entry.asin,
+      destination: entry.url,
+      destinationVerified: entry.verifiedMapping,
+      mediaUrl,
+      mediaReady: Boolean(mediaUrl),
+      readiness: mediaUrl && entry.verifiedMapping ? "ready-for-editorial-review" : "awaiting-official-cover",
+    };
+  });
+  return c.json({
+    contract: "publisher-books-catalog-v1",
+    status: "read-only",
+    count: references.length,
+    readyWithOfficialMedia: references.filter((entry) => entry.mediaReady).length,
+    references,
+  });
+});
+
 app.get("/api/social/bridge/next", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
