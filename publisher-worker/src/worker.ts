@@ -58,6 +58,7 @@ type Env = {
   AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
+  BUFFER_API_KEY?: string | SecretsStoreSecret;
   COMPOSIO_USER_ID?: string | SecretsStoreSecret;
   DATABASE_URL?: string | SecretsStoreSecret;
   GITHUB_TOKEN?: string | SecretsStoreSecret;
@@ -1530,7 +1531,10 @@ app.post("/api/social/media/request", async (c) => {
 // Public, read-only diagnostics: which verified book links already have artwork?
 // Does not contact Mistral, Metricool, or publish anything.
 // Safe transport diagnostics: no external API calls, tokens, or publishing.
-app.get("/api/social/transports", (c) => {
+app.get("/api/social/transports", async (c) => {
+  // Credential-presence diagnostic only: never expose the key or imply
+  // that a Buffer API request has been authenticated.
+  const bufferKeyConfigured = Boolean(await resolveSecret(c.env.BUFFER_API_KEY));
   const requested = c.req.query("provider") === "buffer" ? "buffer" : undefined;
   const decision = chooseSocialTransport({
     requested,
@@ -1541,7 +1545,14 @@ app.get("/api/social/transports", (c) => {
     contract: "publisher-social-transports-v1",
     status: "read-only",
     metricool: { mode: "existing-production", integration: "unchanged" },
-    buffer: { mode: "dry-run", connected: false, publishingEnabled: false },
+    buffer: {
+      mode: "dry-run",
+      keyConfigured: bufferKeyConfigured,
+      authenticated: false,
+      connected: false,
+      publishingEnabled: false,
+      nextStep: bufferKeyConfigured ? "verify-buffer-api-read-only" : "configure-buffer-api-key",
+    },
     decision,
   });
 });
