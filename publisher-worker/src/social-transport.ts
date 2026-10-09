@@ -1,12 +1,13 @@
 /**
- * Optional Buffer transport for Publisher.
- * Deliberately dry-run only: no credentials, API calls or publication side effects.
- * Metricool remains the existing production route.
+ * Safe transport routing. Buffer remains a dry-run until its publishing
+ * integration is authenticated and verified. Never auto-retry an uncertain
+ * delivery: that could duplicate a live post.
  */
 export type SocialTransport = "metricool" | "buffer";
+export type DeliveryState = "not-attempted" | "confirmed-failed" | "unknown" | "confirmed-sent";
 export type TransportDecision = {
-  transport: SocialTransport;
-  mode: "production" | "dry-run";
+  transport: SocialTransport | null;
+  mode: "production" | "dry-run" | "hold";
   reason: string;
 };
 export type TransportContext = {
@@ -14,8 +15,15 @@ export type TransportContext = {
   metricoolAvailable: boolean;
   bufferConnected: boolean;
   allowBufferProduction?: boolean;
+  previousDelivery?: DeliveryState;
 };
 export function chooseSocialTransport(ctx: TransportContext): TransportDecision {
+  if (ctx.previousDelivery === "confirmed-sent") {
+    return { transport: null, mode: "hold", reason: "already-published" };
+  }
+  if (ctx.previousDelivery === "unknown") {
+    return { transport: null, mode: "hold", reason: "delivery-unconfirmed-reconcile-before-retry" };
+  }
   if (ctx.requested === "buffer") {
     return {
       transport: "buffer",
@@ -29,8 +37,8 @@ export function chooseSocialTransport(ctx: TransportContext): TransportDecision 
     return { transport: "metricool", mode: "production", reason: "existing-working-route" };
   }
   return {
-    transport: "buffer",
-    mode: "dry-run",
+    transport: ctx.bufferConnected ? "buffer" : null,
+    mode: ctx.bufferConnected ? "dry-run" : "hold",
     reason: ctx.bufferConnected
       ? "metricool-unavailable-buffer-dry-run"
       : "no-publishing-transport-connected",
