@@ -1650,6 +1650,18 @@ app.post("/api/social/transports/buffer/book-preflight", async (c) => {
 // Only a caller possessing the independent write token may create Buffer drafts.
 // A DB reservation is committed before the external API call: uncertain outcomes
 // remain blocked instead of being retried and potentially duplicated.
+// Read-only inspection of pending draft reservations; never triggers Buffer.
+app.get("/api/social/transports/buffer/book-draft/reservations", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret) return c.json({status:"unauthorized"},401);
+  if (!(await isDatabaseConfigured(c.env))) return c.json({status:"unavailable"},503);
+  const harvestId = c.req.query("harvestId")?.slice(0,250);
+  if (!harvestId) return c.json({status:"invalid",reason:"harvestId-required"},400);
+  const sql = await getSql(c.env);
+  const rows = await sql`SELECT status, post_id, created_at FROM buffer_draft_reservations WHERE harvest_id = ${harvestId} ORDER BY created_at DESC LIMIT 5`;
+  return c.json({status:"ok",harvestId,reservations:rows,publishingEnabled:false});
+});
+
 app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
   const bearer = c.req.header("Authorization") || "";
