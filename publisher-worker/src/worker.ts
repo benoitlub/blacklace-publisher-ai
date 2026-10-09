@@ -1576,7 +1576,7 @@ app.get("/api/social/bridge/next", async (c) => {
     // Match exact book titles only: a vague campaign seed must never attach
     // another book's Amazon link. Prefer an explicit seed mapping when present.
     const normalizeBookKey = (value: string) => value.normalize("NFD")
-      .replace(/[\\u0300-\\u036f]/g, "").toLowerCase()
+      .replace(/[\u0300-\u036f]/g, "").toLowerCase()
       .replace(/[^a-z0-9]+/g, " ").trim();
     const bookTitleKey = normalizeBookKey(String(selected.row.title ?? ""));
     const catalogMatch = bookDestinationsCatalog.references.find((entry) =>
