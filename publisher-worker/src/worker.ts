@@ -1694,6 +1694,9 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
     postActionPayload: __type(name:"PostActionPayload") {
       name kind possibleTypes { name } fields { name type { kind name ofType { kind name } } }
     }
+    postsInput: __type(name:"PostsInput") { inputFields { name type { kind name ofType { kind name ofType { kind name } } } } }
+    postsResults: __type(name:"PostsResults") { fields { name type { kind name ofType { kind name ofType { kind name } } } } }
+    postType: __type(name:"Post") { fields { name type { kind name ofType { kind name } } } }
     postAssetInput: __type(name:"PostAssetInput") {
       name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
     }
@@ -1701,6 +1704,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   try {
     const response = await fetch("https://api.buffer.com",{method:"POST",headers:{"Authorization":"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query}),signal:AbortSignal.timeout(12000)});
     const payload = await response.json() as Record<string,any>;
+    const readOnlyLookupTypes = ["postsInput","postsResults","postType"].map((key)=>({name:key,fields:(payload?.data?.[key]?.inputFields||payload?.data?.[key]?.fields||[]).map((f:any)=>({name:f.name,type:f.type?.name||f.type?.ofType?.name||f.type?.ofType?.ofType?.name||null,kind:f.type?.kind}))}));
     const queryFields = (payload?.data?.__schema?.queryType?.fields || []).filter((f:any)=>/post|draft|channel/i.test(f.name)).map((f:any)=>({name:f.name,args:(f.args||[]).map((a:any)=>({name:a.name,type:a.type?.name||a.type?.ofType?.name||a.type?.ofType?.ofType?.name||null})),returnType:f.type?.name||f.type?.ofType?.name||null}));
     const mutationNames = payload?.data?.__schema?.mutationType?.fields?.map((f: any)=>f.name) || [];
     const createPostReturn = payload?.data?.__schema?.mutationType?.fields?.find((f:any)=>f.name==="createPost")?.type;
@@ -1723,7 +1727,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
     const postActionVariants = payload?.data?.postActionPayload?.possibleTypes?.map((t:any)=>t.name) || [];
     const postActionFields = payload?.data?.postActionPayload?.fields?.map((f:any)=>f.name) || [];
     const assetsTypePath = [assetType?.kind,assetType?.ofType?.kind,assetType?.ofType?.ofType?.kind,assetType?.ofType?.ofType?.ofType?.kind].filter(Boolean);
-    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),readOnlyPostQueries:queryFields,createPostReturnType,inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetTypeName,assetsTypePath,assetInputFields:assetFields,imageInputFields,postActionVariants,postActionFields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
+    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),readOnlyPostQueries:queryFields,readOnlyLookupTypes,createPostReturnType,inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetTypeName,assetsTypePath,assetInputFields:assetFields,imageInputFields,postActionVariants,postActionFields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
   } catch (_) {
     return c.json({status:"unavailable",reason:"schema-probe-network-error",publishingEnabled:false},502);
   }
