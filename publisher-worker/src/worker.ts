@@ -60,6 +60,7 @@ type Env = {
   MISTRAL_MODEL?: string;
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
   BUFFER_API_KEY?: string | SecretsStoreSecret;
+  BUFFER_DRAFT_WRITE_TOKEN?: string | SecretsStoreSecret;
   BUFFER_BOOK_CHANNEL_ID?: string | SecretsStoreSecret;
   COMPOSIO_USER_ID?: string | SecretsStoreSecret;
   DATABASE_URL?: string | SecretsStoreSecret;
@@ -1646,17 +1647,47 @@ app.post("/api/social/transports/buffer/book-preflight", async (c) => {
   });
 });
 
-// Buffer draft-write contract: deliberately fail closed until an authenticated
-// service-to-service caller and durable idempotency reservation are available.
-// Never expose an unauthenticated createPost mutation through this public Worker.
+// Only a caller possessing the independent write token may create Buffer drafts.
+// A DB reservation is committed before the external API call: uncertain outcomes
+// remain blocked instead of being retried and potentially duplicated.
 app.post("/api/social/transports/buffer/book-draft", async (c) => {
-  return c.json({
-    contract: "publisher-buffer-book-draft-v1",
-    status: "blocked",
-    reason: "authenticated-caller-and-durable-idempotency-required",
-    draftCreated: false,
-    publishingEnabled: false,
-  }, 503);
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  const bearer = c.req.header("Authorization") || "";
+  if (!secret || bearer !== "Bearer " + secret) return c.json({status:"unauthorized",draftCreated:false},401);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => null);
+  if (!body) return c.json({status:"invalid",draftCreated:false},400);
+  const seedId = typeof body.seedId === "string" ? body.seedId.slice(0,150) : "";
+  const title = typeof body.title === "string" ? body.title.slice(0,300) : "";
+  const text = typeof body.text === "string" ? body.text.slice(0,5000) : "";
+  const mediaUrl = typeof body.mediaUrl === "string" ? body.mediaUrl : "";
+  const harvestId = typeof body.harvestId === "string" ? body.harvestId.slice(0,250) : "";
+  if (!harvestId || !text.trim() || !/^https:\/\//.test(mediaUrl) || classifyEditorialTopic({seedId,title,text}) !== "book") {
+    return c.json({status:"rejected",draftCreated:false,reason:"invalid-book-package"},422);
+  }
+  const officialMedia = officialMediaBySeed(seedId);
+  if (!officialMedia || mediaUrl !== officialMedia) return c.json({status:"rejected",draftCreated:false,reason:"unverified-official-media"},422);
+  const configuredChannel = await resolveSecret(c.env.BUFFER_BOOK_CHANNEL_ID);
+  const channelId = "6ac8c8226a5c39ccb65fdbf6";
+  if (configuredChannel && configuredChannel !== channelId) return c.json({status:"blocked",draftCreated:false,reason:"channel-mismatch"},409);
+  const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
+  if (!bufferKey || !(await isDatabaseConfigured(c.env))) return c.json({status:"blocked",draftCreated:false,reason:"missing-buffer-or-database"},503);
+  const digest = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify({channelId,harvestId,text,mediaUrl})));
+  const fingerprint = Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,"0")).join("");
+  const sql = await getSql(c.env);
+  await sql`CREATE TABLE IF NOT EXISTS buffer_draft_reservations (fingerprint TEXT PRIMARY KEY, harvest_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+  const inserted = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT DO NOTHING RETURNING fingerprint`;
+  if (!inserted.length) return c.json({status:"already-reserved",draftCreated:false,reason:"duplicate-or-uncertain-write"},409);
+  try {
+    const mutation = "mutation { createPost(input: { text: " + JSON.stringify(text) + ", channelId: " + JSON.stringify(channelId) + ", schedulingType: automatic, mode: addToQueue, saveToDraft: true, assets: [{ image: { url: " + JSON.stringify(mediaUrl) + " } }] }) { ... on PostActionSuccess { post { id } } ... on MutationError { message } } }";
+    const response = await fetch("https://api.buffer.com",{method:"POST",headers:{Authorization:"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query:mutation}),signal:AbortSignal.timeout(12000)});
+    const payload = await response.json() as Record<string,any>;
+    const postId = payload?.data?.createPost?.post?.id;
+    if (!response.ok || payload.errors || typeof postId !== "string") return c.json({status:"unknown",draftCreated:false,reason:"buffer-result-unconfirmed"},502);
+    await sql`UPDATE buffer_draft_reservations SET status='draft-created',post_id=${postId} WHERE fingerprint=${fingerprint}`;
+    return c.json({contract:"publisher-buffer-book-draft-v1",status:"draft-created",draftCreated:true,postId,publishingEnabled:false});
+  } catch (_) {
+    return c.json({status:"unknown",draftCreated:false,reason:"buffer-request-uncertain"},502);
+  }
 });
 
 app.get("/api/social/transports/buffer/book-target", async (c) => {
