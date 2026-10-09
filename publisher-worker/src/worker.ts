@@ -1671,7 +1671,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   const query = `query BufferDraftSchemaCheck {
     __schema { mutationType { fields { name } } }
     createPostInput: __type(name:"CreatePostInput") {
-      name inputFields { name type { kind name enumValues { name } ofType { kind name enumValues { name } ofType { kind name } } } }
+      name inputFields { name type { kind name enumValues { name } ofType { kind name enumValues { name } ofType { kind name ofType { kind name ofType { kind name } } } } } }
     }
     postAssetInput: __type(name:"PostAssetInput") {
       name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
@@ -1684,7 +1684,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
     const fields = payload?.data?.createPostInput?.inputFields?.map((f: any)=>f.name) || [];
     const fieldTypes = payload?.data?.createPostInput?.inputFields?.filter((f:any)=>["mode","schedulingType","assets","saveToDraft"].includes(f.name)).map((f:any)=>({field:f.name,type:f.type?.name||f.type?.ofType?.name||null,kind:f.type?.kind,values:f.type?.enumValues?.map((v:any)=>v.name)||f.type?.ofType?.enumValues?.map((v:any)=>v.name)||[]})) || [];
     const assetType = payload?.data?.createPostInput?.inputFields?.find((f:any)=>f.name==="assets")?.type;
-    const assetTypeName = assetType?.name || assetType?.ofType?.name || assetType?.ofType?.ofType?.name || null;
+    const assetTypeName = assetType?.name || assetType?.ofType?.name || assetType?.ofType?.ofType?.name || assetType?.ofType?.ofType?.ofType?.name || assetType?.ofType?.ofType?.ofType?.ofType?.name || null;
     const assetInput = payload?.data?.postAssetInput;
     const assetFields = assetInput?.inputFields?.map((f:any)=>({name:f.name,type:f.type?.name||f.type?.ofType?.name||f.type?.ofType?.ofType?.name||null,kind:f.type?.kind})) || [];
     return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetTypeName,assetInputFields:assetFields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
