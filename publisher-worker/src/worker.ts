@@ -1620,6 +1620,32 @@ app.get("/api/social/transports/buffer/channels", async (c) => {
 });
 
 // Explicit channel binding is required when Buffer returns duplicate handles.
+// Safe final preflight: checks the selected book destination and editorial classification.
+// No Buffer mutation is performed here.
+app.post("/api/social/transports/buffer/book-preflight", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body !== "object") return c.json({ status: "invalid", reason: "json-object-required" }, 400);
+  const v = body as Record<string, unknown>;
+  const title = typeof v.title === "string" ? v.title.slice(0, 300) : "";
+  const seedId = typeof v.seedId === "string" ? v.seedId.slice(0, 200) : "";
+  const text = typeof v.text === "string" ? v.text.slice(0, 5000) : "";
+  const topic = classifyEditorialTopic({ title, seedId, text });
+  const destination = chooseEditorialDestination(topic);
+  const channelId = "6ac8c8226a5c39ccb65fdbf6";
+  const configured = await resolveSecret(c.env.BUFFER_BOOK_CHANNEL_ID);
+  const targetValid = !configured || configured === channelId;
+  const keyConfigured = Boolean(await resolveSecret(c.env.BUFFER_API_KEY));
+  const ready = topic === "book" && targetValid && keyConfigured && Boolean(text.trim());
+  return c.json({
+    contract: "publisher-buffer-book-preflight-v1",
+    status: ready ? "ready-for-controlled-test" : "blocked",
+    topic, destination, channelId: targetValid ? channelId : null,
+    keyConfigured, textPresent: Boolean(text.trim()),
+    reason: !targetValid ? "channel-configuration-mismatch" : !keyConfigured ? "missing-buffer-key" : topic !== "book" ? "not-book-content" : !text.trim() ? "empty-copy" : null,
+    publishingEnabled: false,
+  });
+});
+
 app.get("/api/social/transports/buffer/book-target", async (c) => {
   // Explicitly verified against the user's live Buffer channel list.
   // Never publish automatically from this diagnostic endpoint.
