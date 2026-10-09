@@ -1694,6 +1694,9 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
     postActionPayload: __type(name:"PostActionPayload") {
       name kind possibleTypes { name } fields { name type { kind name ofType { kind name } } }
     }
+    postsFilters: __type(name:"PostsFiltersInput") { inputFields { name type { kind name ofType { kind name ofType { kind name } } } } }
+    postsEdge: __type(name:"PostsEdge") { fields { name type { kind name ofType { kind name } } } }
+    organizationsQuery: __type(name:"Query") { fields { name args { name type { kind name ofType { kind name } } } } }
     postsInput: __type(name:"PostsInput") { inputFields { name type { kind name ofType { kind name ofType { kind name } } } } }
     postsResults: __type(name:"PostsResults") { fields { name type { kind name ofType { kind name ofType { kind name } } } } }
     postType: __type(name:"Post") { fields { name type { kind name ofType { kind name } } } }
@@ -1704,7 +1707,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   try {
     const response = await fetch("https://api.buffer.com",{method:"POST",headers:{"Authorization":"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query}),signal:AbortSignal.timeout(12000)});
     const payload = await response.json() as Record<string,any>;
-    const readOnlyLookupTypes = ["postsInput","postsResults","postType"].map((key)=>({name:key,fields:(payload?.data?.[key]?.inputFields||payload?.data?.[key]?.fields||[]).map((f:any)=>({name:f.name,type:f.type?.name||f.type?.ofType?.name||f.type?.ofType?.ofType?.name||null,kind:f.type?.kind}))}));
+    const readOnlyLookupTypes = ["postsInput","postsFilters","postsEdge","postsResults","postType"].map((key)=>({name:key,fields:(payload?.data?.[key]?.inputFields||payload?.data?.[key]?.fields||[]).map((f:any)=>({name:f.name,type:f.type?.name||f.type?.ofType?.name||f.type?.ofType?.ofType?.name||null,kind:f.type?.kind}))}));
     const queryFields = (payload?.data?.__schema?.queryType?.fields || []).filter((f:any)=>/post|draft|channel/i.test(f.name)).map((f:any)=>({name:f.name,args:(f.args||[]).map((a:any)=>({name:a.name,type:a.type?.name||a.type?.ofType?.name||a.type?.ofType?.ofType?.name||null})),returnType:f.type?.name||f.type?.ofType?.name||null}));
     const mutationNames = payload?.data?.__schema?.mutationType?.fields?.map((f: any)=>f.name) || [];
     const createPostReturn = payload?.data?.__schema?.mutationType?.fields?.find((f:any)=>f.name==="createPost")?.type;
