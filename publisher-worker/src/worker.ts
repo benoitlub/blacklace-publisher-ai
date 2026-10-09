@@ -1373,7 +1373,7 @@ app.post("/api/social/media/request", async (c) => {
     }
 
     const failures: Array<{ toolSlug: string; error: string }> = [];
-    const imagePrompt = `Create a polished square social-media promotional image for: ${harvest.title}. Context: ${copy.text}. Strong central composition, premium adult visual style, no readable text or logos unless explicitly required by the source content.`;
+    const imagePrompt = `Create a polished square social-media promotional image for: ${harvest.title}. Context: ${copy.text}. Creative campaign illustration only, NOT an official book cover. Do not imitate book packaging or invent titles or logos. Strong central composition, premium adult visual style.`;
     // Capability-first production: ask Publisher's verified visual.generate
     // producer before any Canva compatibility path. Today the executable pack
     // is Mistral; callers depend only on the capability contract.
@@ -1658,18 +1658,7 @@ app.get("/api/social/bridge/next", async (c) => {
     const officialUrl = catalogMatch
       ? (catalogMatch.seedId ? officialMediaBySeed[catalogMatch.seedId.toLowerCase()] : undefined)
       : mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
-    // Never synthesize or borrow a generic image as an official book cover.
-    // Book promotions are eligible only with an explicitly registered cover.
-    if (isBookPromotion && !officialUrl) {
-      return c.json({
-        status: "blocked", contract: "gerard-metricool-bridge-next-v1",
-        reason: "book-promotion-requires-official-cover",
-        harvestId: selected.row.id, seedId: selected.row.seed_id,
-        title: selected.row.title, copy: selectedCopy,
-        media: null, compatibleNetworks: [],
-        guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
-      });
-    }
+    // Official covers are preferred, not mandatory for creative experiments.
     if (officialUrl) {
       media = { url: officialUrl, direct: true, official: true };
       production = { capability: "official-media", generated: false };
@@ -1718,17 +1707,6 @@ app.get("/api/social/bridge/next", async (c) => {
       }
       // Promotional book posts must not go live as unillustrated copy.
       // Return a non-ready package instead of a Facebook-only fallback.
-      if (!media && isBookPromotion) {
-        return c.json({
-          status: "blocked", contract: "gerard-metricool-bridge-next-v1",
-          reason: "book-promotion-requires-media",
-          harvestId: selected.row.id, seedId: selected.row.seed_id,
-          title: selected.row.title, copy: selectedCopy, media: null,
-          production: { capability: "media-recovery-required", generated: false, mediaFailures: failures },
-          compatibleNetworks: [],
-          guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
-        });
-      }
       if (!media && selected.copy.text.trim()) {
         // Facebook accepts text-only posts. Do not spend another image quota
         // or borrow unrelated media merely to make an editorial draft ready.
