@@ -1646,6 +1646,19 @@ app.post("/api/social/transports/buffer/book-preflight", async (c) => {
   });
 });
 
+// Buffer draft-write contract: deliberately fail closed until an authenticated
+// service-to-service caller and durable idempotency reservation are available.
+// Never expose an unauthenticated createPost mutation through this public Worker.
+app.post("/api/social/transports/buffer/book-draft", async (c) => {
+  return c.json({
+    contract: "publisher-buffer-book-draft-v1",
+    status: "blocked",
+    reason: "authenticated-caller-and-durable-idempotency-required",
+    draftCreated: false,
+    publishingEnabled: false,
+  }, 503);
+});
+
 app.get("/api/social/transports/buffer/book-target", async (c) => {
   // Explicitly verified against the user's live Buffer channel list.
   // Never publish automatically from this diagnostic endpoint.
