@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
+import bookDestinationsCatalog from "./book-destinations-catalog.json";
 import {
   OBSERVATORY_DECISIONS,
   attachObservatoryOctopus,
@@ -1572,8 +1573,21 @@ app.get("/api/social/bridge/next", async (c) => {
     // harvest seed ID is a campaign-specific alias. Never reuse across parcels.
     const mediaKeys = [selected.row.seed_id, selected.row.parcel_id, selected.row.title]
       .map((value) => String(value ?? "").trim().toLowerCase());
-    const officialDestination = mediaKeys.map((key) => officialDestinationBySeed[key]).find(Boolean);
-    const isBookPromotion = mediaKeys.some((key) => key === "terra" || key.includes("book") || key.includes("livre"));
+    // Match exact book titles only: a vague campaign seed must never attach
+    // another book's Amazon link. Prefer an explicit seed mapping when present.
+    const normalizeBookKey = (value: string) => value.normalize("NFD")
+      .replace(/[\\u0300-\\u036f]/g, "").toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ").trim();
+    const bookTitleKey = normalizeBookKey(String(selected.row.title ?? ""));
+    const catalogMatch = bookDestinationsCatalog.references.find((entry) =>
+      entry.verifiedMapping && (
+        (entry.seedId && mediaKeys.includes(entry.seedId.toLowerCase())) ||
+        (bookTitleKey && normalizeBookKey(entry.title ?? "") === bookTitleKey)
+      )
+    );
+    const catalogDestination = catalogMatch?.url;
+    const officialDestination = catalogDestination ?? mediaKeys.map((key) => officialDestinationBySeed[key]).find(Boolean);
+    const isBookPromotion = Boolean(catalogMatch) || mediaKeys.some((key) => key === "terra" || key.includes("book") || key.includes("livre"));
     if (isBookPromotion && !officialDestination) {
       return c.json({
         status: "blocked", contract: "gerard-metricool-bridge-next-v1",
