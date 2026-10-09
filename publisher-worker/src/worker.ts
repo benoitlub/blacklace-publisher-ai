@@ -1627,6 +1627,17 @@ app.get("/api/social/bridge/next", async (c) => {
         guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
       });
     }
+    // A promotional harvest explicitly naming several books needs its own
+    // editorial decision. Never promote a single destination by accident.
+    if (catalogMatches.length === 0 && /neverland/i.test(String(selected.row.title ?? "")) &&
+        !/vol(?:ume)?\\s*[12]|tome\\s*[12]/i.test(String(selected.row.title ?? ""))) {
+      return c.json({
+        status: "blocked", contract: "gerard-metricool-bridge-next-v1",
+        reason: "neverland-volume-unspecified",
+        harvestId: selected.row.id,
+        guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+      });
+    }
     const catalogDestination = catalogMatch?.url;
     const officialDestination = catalogDestination ?? mediaKeys.map((key) => officialDestinationBySeed[key]).find(Boolean);
     const isBookPromotion = Boolean(catalogMatch) || mediaKeys.some((key) => key === "terra" || key.includes("book") || key.includes("livre"));
