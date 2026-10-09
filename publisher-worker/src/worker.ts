@@ -1669,16 +1669,23 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
   if (!bufferKey) return c.json({status:"unavailable",reason:"buffer-key-missing"},503);
   const query = `query BufferDraftSchemaCheck {
-    __schema { mutationType { fields { name } } }\n    __type(name:"PostAssetInput") { name inputFields { name type { kind name ofType { kind name ofType { kind name } } } } }
-    __type(name:"CreatePostInput") { name inputFields { name type { kind name ofType { kind name enumValues { name } ofType { kind name enumValues { name } } } } } }
+    __schema { mutationType { fields { name } } }
+    createPostInput: __type(name:"CreatePostInput") {
+      name inputFields { name type { kind name enumValues { name } ofType { kind name enumValues { name } ofType { kind name } } } }
+    }
+    postAssetInput: __type(name:"PostAssetInput") {
+      name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
+    }
   }`;
   try {
     const response = await fetch("https://api.buffer.com",{method:"POST",headers:{"Authorization":"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query}),signal:AbortSignal.timeout(12000)});
     const payload = await response.json() as Record<string,any>;
     const mutationNames = payload?.data?.__schema?.mutationType?.fields?.map((f: any)=>f.name) || [];
-    const fields = payload?.data?.__type?.inputFields?.map((f: any)=>f.name) || [];
-    const fieldTypes = payload?.data?.__type?.inputFields?.filter((f:any)=>["mode","schedulingType","assets","saveToDraft"].includes(f.name)).map((f:any)=>({field:f.name,type:f.type?.name||f.type?.ofType?.name||null,kind:f.type?.kind,values:f.type?.enumValues?.map((v:any)=>v.name)||f.type?.ofType?.enumValues?.map((v:any)=>v.name)||[]})) || [];
-    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),inputTypeFound:!!payload?.data?.__type,createPostInputFields:fields,createPostFieldTypes:fieldTypes,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
+    const fields = payload?.data?.createPostInput?.inputFields?.map((f: any)=>f.name) || [];
+    const fieldTypes = payload?.data?.createPostInput?.inputFields?.filter((f:any)=>["mode","schedulingType","assets","saveToDraft"].includes(f.name)).map((f:any)=>({field:f.name,type:f.type?.name||f.type?.ofType?.name||null,kind:f.type?.kind,values:f.type?.enumValues?.map((v:any)=>v.name)||f.type?.ofType?.enumValues?.map((v:any)=>v.name)||[]})) || [];
+    const assetInput = payload?.data?.postAssetInput;
+    const assetFields = assetInput?.inputFields?.map((f:any)=>({name:f.name,type:f.type?.name||f.type?.ofType?.name||f.type?.ofType?.ofType?.name||null,kind:f.type?.kind})) || [];
+    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetInputFields:assetFields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
   } catch (_) {
     return c.json({status:"unavailable",reason:"schema-probe-network-error",publishingEnabled:false},502);
   }
