@@ -1568,7 +1568,11 @@ app.get("/api/social/bridge/next", async (c) => {
 
     let media: Record<string, unknown> | null = null;
     let production: Record<string, unknown> | null = null;
-    const officialUrl = officialMediaBySeed[String(selected.row.seed_id ?? "").trim().toLowerCase()];
+    // Official book artwork can be keyed by project title or parcel when the
+    // harvest seed ID is a campaign-specific alias. Never reuse across parcels.
+    const mediaKeys = [selected.row.seed_id, selected.row.parcel_id, selected.row.title]
+      .map((value) => String(value ?? "").trim().toLowerCase());
+    const officialUrl = mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
     if (officialUrl) {
       media = { url: officialUrl, direct: true, official: true };
       production = { capability: "official-media", generated: false };
@@ -1614,6 +1618,20 @@ app.get("/api/social/bridge/next", async (c) => {
           media = { url: canva.media.url, id: canva.media.mediaId, direct: true };
           production = { capability: "visual.generate", toolPack: canva.toolSlug, provider: "canva", generated: true };
         }
+      }
+      // Promotional book posts must not go live as unillustrated copy.
+      // Return a non-ready package instead of a Facebook-only fallback.
+      const isBookPromotion = mediaKeys.some((key) => key === "terra" || key.includes("book") || key.includes("livre"));
+      if (!media && isBookPromotion) {
+        return c.json({
+          status: "blocked", contract: "gerard-metricool-bridge-next-v1",
+          reason: "book-promotion-requires-media",
+          harvestId: selected.row.id, seedId: selected.row.seed_id,
+          title: selected.row.title, copy: selected.copy, media: null,
+          production: { capability: "media-recovery-required", generated: false, mediaFailures: failures },
+          compatibleNetworks: [],
+          guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+        });
       }
       if (!media && selected.copy.text.trim()) {
         // Facebook accepts text-only posts. Do not spend another image quota
