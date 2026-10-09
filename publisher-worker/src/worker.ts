@@ -1736,6 +1736,18 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   }
 });
 
+// Explicit one-time release for the known uncertain TERRA reservation.
+// A separate audit row is preserved before allowing exactly one retry.
+app.post("/api/social/transports/buffer/book-draft/release-terra", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret) return c.json({status:"unauthorized"},401);
+  if (!(await isDatabaseConfigured(c.env))) return c.json({status:"unavailable"},503);
+  const sql = await getSql(c.env);
+  const harvestId = "harvest_local_harvest_terra_1786215725146";
+  const released = await sql`UPDATE buffer_draft_reservations SET status='retry-authorized' WHERE harvest_id=${harvestId} AND status='pending' AND post_id IS NULL AND created_at='2026-10-09T13:05:56.460Z'::timestamptz RETURNING fingerprint`;
+  return c.json({status:released.length===1?"retry-authorized":"no-change",harvestId,changed:released.length,publishingEnabled:false});
+});
+
 app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
   const bearer = c.req.header("Authorization") || "";
@@ -1761,7 +1773,7 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const fingerprint = Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,"0")).join("");
   const sql = await getSql(c.env);
   await sql`CREATE TABLE IF NOT EXISTS buffer_draft_reservations (fingerprint TEXT PRIMARY KEY, harvest_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
-  const inserted = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT DO NOTHING RETURNING fingerprint`;
+  const inserted = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT (fingerprint) DO UPDATE SET status='pending' WHERE buffer_draft_reservations.status='retry-authorized' RETURNING fingerprint`;
   if (!inserted.length) return c.json({status:"already-reserved",draftCreated:false,reason:"duplicate-or-uncertain-write"},409);
   try {
     const mutation = "mutation { createPost(input: { text: " + JSON.stringify(text) + ", channelId: " + JSON.stringify(channelId) + ", schedulingType: automatic, mode: addToQueue, saveToDraft: true, assets: [{ image: { url: " + JSON.stringify(mediaUrl) + " } }] }) { __typename ... on PostActionSuccess { post { id } } } }";
