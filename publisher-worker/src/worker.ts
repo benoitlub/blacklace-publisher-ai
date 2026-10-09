@@ -1741,7 +1741,7 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const inserted = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT DO NOTHING RETURNING fingerprint`;
   if (!inserted.length) return c.json({status:"already-reserved",draftCreated:false,reason:"duplicate-or-uncertain-write"},409);
   try {
-    const mutation = "mutation { createPost(input: { text: " + JSON.stringify(text) + ", channelId: " + JSON.stringify(channelId) + ", schedulingType: automatic, mode: addToQueue, saveToDraft: true, assets: [{ image: { url: " + JSON.stringify(mediaUrl) + " } }] }) { __typename ... on PostActionSuccess { post { id } } ... on MutationError { message } } }";
+    const mutation = "mutation { createPost(input: { text: " + JSON.stringify(text) + ", channelId: " + JSON.stringify(channelId) + ", schedulingType: automatic, mode: addToQueue, saveToDraft: true, assets: [{ image: { url: " + JSON.stringify(mediaUrl) + " } }] }) { __typename ... on PostActionSuccess { post { id } } } }";
     const response = await fetch("https://api.buffer.com",{method:"POST",headers:{Authorization:"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query:mutation}),signal:AbortSignal.timeout(12000)});
     const payload = await response.json() as Record<string,any>;
     // Accept only the documented successful union member; never infer success
