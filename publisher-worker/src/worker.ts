@@ -1625,7 +1625,7 @@ app.get("/api/social/bridge/next", async (c) => {
       ? { ...selected.copy, text: selected.copy.text.includes(officialDestination)
           ? selected.copy.text : selected.copy.text.trim() + "\n\nDécouvrir le livre : " + officialDestination }
       : selected.copy;
-    const officialUrl = mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
+    const officialUrl = (catalogMatch?.seedId ? officialMediaBySeed[catalogMatch.seedId.toLowerCase()] : undefined) ?? mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
     if (officialUrl) {
       media = { url: officialUrl, direct: true, official: true };
       production = { capability: "official-media", generated: false };
