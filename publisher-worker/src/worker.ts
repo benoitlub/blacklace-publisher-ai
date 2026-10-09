@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
 import bookDestinationsCatalog from "./book-destinations-catalog.json";
+import { chooseSocialTransport, previewBufferPost } from "./social-transport";
 import {
   OBSERVATORY_DECISIONS,
   attachObservatoryOctopus,
@@ -1528,6 +1529,40 @@ app.post("/api/social/media/request", async (c) => {
 // into one Publisher-side request. It never schedules or publishes anything.
 // Public, read-only diagnostics: which verified book links already have artwork?
 // Does not contact Mistral, Metricool, or publish anything.
+// Safe transport diagnostics: no external API calls, tokens, or publishing.
+app.get("/api/social/transports", (c) => {
+  const requested = c.req.query("provider") === "buffer" ? "buffer" : undefined;
+  const decision = chooseSocialTransport({
+    requested,
+    metricoolAvailable: true,
+    bufferConnected: false,
+  });
+  return c.json({
+    contract: "publisher-social-transports-v1",
+    status: "read-only",
+    metricool: { mode: "existing-production", integration: "unchanged" },
+    buffer: { mode: "dry-run", connected: false, publishingEnabled: false },
+    decision,
+  });
+});
+app.post("/api/social/transports/buffer/preview", async (c) => {
+  // Preview is always inert and accepts no credentials.
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body !== "object" || typeof body.text !== "string" ||
+      body.text.length > 10000) {
+    return c.json({ status: "invalid", reason: "text-required-max-10000" }, 400);
+  }
+  return c.json({
+    contract: "publisher-buffer-preview-v1",
+    status: "dry-run",
+    preview: previewBufferPost({
+      text: body.text,
+      mediaUrl: typeof body.mediaUrl === "string" ? body.mediaUrl : null,
+      destination: typeof body.destination === "string" ? body.destination : null,
+    }),
+  });
+});
+
 app.get("/api/social/books/catalog", (c) => {
   const references = bookDestinationsCatalog.references.map((entry) => {
     const key = String(entry.seedId ?? "").trim().toLowerCase();
