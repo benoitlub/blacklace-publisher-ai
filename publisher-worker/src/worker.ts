@@ -1621,18 +1621,20 @@ app.get("/api/social/transports/buffer/channels", async (c) => {
 
 // Explicit channel binding is required when Buffer returns duplicate handles.
 app.get("/api/social/transports/buffer/book-target", async (c) => {
-  const candidates = ["6ac8c8226a5c39ccb65fdbf6", "6ac8c2446a5c39ccb65fb51f"];
-  const selected = (await resolveSecret(c.env.BUFFER_BOOK_CHANNEL_ID)) || null;
-  const valid = selected !== null && candidates.includes(selected);
+  // Explicitly verified against the user's live Buffer channel list.
+  // Never publish automatically from this diagnostic endpoint.
+  const channelId = "6ac8c8226a5c39ccb65fdbf6";
+  const configured = (await resolveSecret(c.env.BUFFER_BOOK_CHANNEL_ID)) || null;
+  const selectedChannelId = configured === null || configured === channelId ? channelId : null;
   return c.json({
     contract: "publisher-buffer-book-target-v1",
-    status: valid ? "target-selected" : selected ? "invalid-selection" : "ambiguous-channel",
+    status: selectedChannelId ? "target-selected" : "invalid-selection",
     handle: "benoitlubert",
     service: "instagram",
-    candidates,
-    selectedChannelId: valid ? selected : null,
+    candidates: [channelId],
+    selectedChannelId,
     publishingEnabled: false,
-    reason: valid ? "awaiting-explicit-publication-test" : "duplicate-handle-requires-explicit-selection",
+    reason: selectedChannelId ? "awaiting-explicit-publication-test" : "configured-channel-mismatch",
   });
 });
 
