@@ -1618,6 +1618,20 @@ app.get("/api/social/transports/buffer/channels", async (c) => {
   }
 });
 
+// Explicit channel binding is required when Buffer returns duplicate handles.
+app.get("/api/social/transports/buffer/book-target", (c) => {
+  return c.json({
+    contract: "publisher-buffer-book-target-v1",
+    status: "ambiguous-channel",
+    handle: "benoitlubert",
+    service: "instagram",
+    candidates: ["6ac8c8226a5c39ccb65fdbf6", "6ac8c2446a5c39ccb65fb51f"],
+    selectedChannelId: null,
+    publishingEnabled: false,
+    reason: "duplicate-handle-requires-explicit-selection",
+  });
+});
+
 app.get("/api/social/transports", async (c) => {
   // Credential-presence diagnostic only: never expose the key or imply
   // that a Buffer API request has been authenticated.
