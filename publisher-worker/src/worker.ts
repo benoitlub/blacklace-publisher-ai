@@ -1685,7 +1685,10 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
     // from HTTP 200 alone. A failed/uncertain response stays reserved.
     const result = payload?.data?.createPost;
     const postId = result?.__typename === "PostActionSuccess" ? result?.post?.id : null;
-    if (!response.ok || payload.errors || typeof postId !== "string") return c.json({status:"unknown",draftCreated:false,reason:"buffer-result-unconfirmed"},502);
+    if (!response.ok || payload.errors || typeof postId !== "string") {
+      const codes = Array.isArray(payload.errors) ? payload.errors.slice(0,3).map((e: any) => String(e?.extensions?.code || "graphql-error").slice(0,60)) : [];
+      return c.json({status:"unknown",draftCreated:false,reason:!response.ok?"buffer-http-error":payload.errors?"buffer-graphql-error":"buffer-unconfirmed-result",bufferHttpStatus:response.status,bufferResultType:typeof result?.__typename==="string"?result.__typename:null,graphqlErrorCodes:codes,reservationStatus:"pending",publishingEnabled:false},502);
+    }
     await sql`UPDATE buffer_draft_reservations SET status='draft-created',post_id=${postId} WHERE fingerprint=${fingerprint}`;
     return c.json({contract:"publisher-buffer-book-draft-v1",status:"draft-created",draftCreated:true,postId,publishingEnabled:false});
   } catch (_) {
