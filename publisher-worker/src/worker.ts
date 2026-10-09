@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { officialMediaBySeed } from "./official-media";
+import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
 import {
   OBSERVATORY_DECISIONS,
   attachObservatoryOctopus,
@@ -1572,6 +1572,20 @@ app.get("/api/social/bridge/next", async (c) => {
     // harvest seed ID is a campaign-specific alias. Never reuse across parcels.
     const mediaKeys = [selected.row.seed_id, selected.row.parcel_id, selected.row.title]
       .map((value) => String(value ?? "").trim().toLowerCase());
+    const officialDestination = mediaKeys.map((key) => officialDestinationBySeed[key]).find(Boolean);
+    const isBookPromotion = mediaKeys.some((key) => key === "terra" || key.includes("book") || key.includes("livre"));
+    if (isBookPromotion && !officialDestination) {
+      return c.json({
+        status: "blocked", contract: "gerard-metricool-bridge-next-v1",
+        reason: "book-promotion-requires-verified-destination",
+        harvestId: selected.row.id, seedId: selected.row.seed_id,
+        guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
+      });
+    }
+    const selectedCopy = officialDestination
+      ? { ...selected.copy, text: selected.copy.text.includes(officialDestination)
+          ? selected.copy.text : selected.copy.text.trim() + "\\n\\nDécouvrir le livre : " + officialDestination }
+      : selected.copy;
     const officialUrl = mediaKeys.map((key) => officialMediaBySeed[key]).find(Boolean);
     if (officialUrl) {
       media = { url: officialUrl, direct: true, official: true };
@@ -1621,13 +1635,12 @@ app.get("/api/social/bridge/next", async (c) => {
       }
       // Promotional book posts must not go live as unillustrated copy.
       // Return a non-ready package instead of a Facebook-only fallback.
-      const isBookPromotion = mediaKeys.some((key) => key === "terra" || key.includes("book") || key.includes("livre"));
       if (!media && isBookPromotion) {
         return c.json({
           status: "blocked", contract: "gerard-metricool-bridge-next-v1",
           reason: "book-promotion-requires-media",
           harvestId: selected.row.id, seedId: selected.row.seed_id,
-          title: selected.row.title, copy: selected.copy, media: null,
+          title: selected.row.title, copy: selectedCopy, media: null,
           production: { capability: "media-recovery-required", generated: false, mediaFailures: failures },
           compatibleNetworks: [],
           guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
@@ -1639,7 +1652,7 @@ app.get("/api/social/bridge/next", async (c) => {
         return c.json({
           status: "ready", contract: "gerard-metricool-bridge-next-v1",
           harvestId: selected.row.id, seedId: selected.row.seed_id, title: selected.row.title,
-          score: selected.editorial.score, copy: selected.copy,
+          score: selected.editorial.score, copy: selectedCopy,
           media: null,
           production: { capability: "text-only-fallback", generated: false, mediaFailures: failures },
           compatibleNetworks: ["facebook"],
@@ -1658,7 +1671,7 @@ app.get("/api/social/bridge/next", async (c) => {
         harvestId: selected.row.id,
         seedId: selected.row.seed_id,
         title: selected.row.title,
-        copy: selected.copy,
+        copy: selectedCopy,
         guardrails: { draft: true, autoPublish: false, action: "do-not-schedule" },
       }, 502);
     }
@@ -1670,7 +1683,7 @@ app.get("/api/social/bridge/next", async (c) => {
       seedId: selected.row.seed_id,
       title: selected.row.title,
       score: selected.editorial.score,
-      copy: selected.copy,
+      copy: selectedCopy,
       media,
       production,
       compatibleNetworks: ["facebook", "instagram"],
