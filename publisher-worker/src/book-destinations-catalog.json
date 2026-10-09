@@ -2,8 +2,8 @@
   "version": 1,
   "updatedAt": "2026-10-09",
   "source": "author-supplied",
-  "status": "awaiting-title-mapping",
-  "note": "Do not auto-associate unknown ASINs with seeds, parcels, books or posts until titles are verified.",
+  "status": "titles-mapped",
+  "note": "Author supplied titles in the same order as the six URLs. Seed IDs not assigned until independently confirmed; do not cross-associate parcels.",
   "references": [
     {
       "asin": "B0H4CN5MSH",
@@ -15,44 +15,44 @@
     {
       "asin": "B0H68811RL",
       "url": "https://www.amazon.fr/dp/B0H68811RL",
-      "title": null,
+      "title": "Gérard et Gérard",
       "seedId": null,
-      "verifiedMapping": false
+      "verifiedMapping": true
     },
     {
       "asin": "B0HCDXP266",
       "url": "https://www.amazon.fr/dp/B0HCDXP266",
-      "title": null,
+      "title": "Kiff et molla",
       "seedId": null,
-      "verifiedMapping": false
+      "verifiedMapping": true
     },
     {
       "asin": "B0HJNC4GQK",
       "url": "https://www.amazon.fr/dp/B0HJNC4GQK",
-      "title": null,
+      "title": "Les vacances interdites",
       "seedId": null,
-      "verifiedMapping": false
+      "verifiedMapping": true
     },
     {
       "asin": "B0GWHDTG6N",
       "url": "https://www.amazon.fr/dp/B0GWHDTG6N",
-      "title": null,
+      "title": "Neverland ltd vol1",
       "seedId": null,
-      "verifiedMapping": false
+      "verifiedMapping": true
     },
     {
       "asin": "B0H4RP6T4V",
       "url": "https://www.amazon.fr/dp/B0H4RP6T4V",
-      "title": null,
+      "title": "Neverland ltd vol2",
       "seedId": null,
-      "verifiedMapping": false
+      "verifiedMapping": true
     },
     {
       "asin": "B0GYSSLZX4",
       "url": "https://www.amazon.fr/dp/B0GYSSLZX4",
-      "title": null,
+      "title": "La feulette tachetée",
       "seedId": null,
-      "verifiedMapping": false
+      "verifiedMapping": true
     }
   ]
 }
