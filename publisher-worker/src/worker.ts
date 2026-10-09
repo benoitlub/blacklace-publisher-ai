@@ -1673,6 +1673,12 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
     createPostInput: __type(name:"CreatePostInput") {
       name inputFields { name type { kind name enumValues { name } ofType { kind name enumValues { name } ofType { kind name ofType { kind name ofType { kind name } } } } } }
     }
+    imageAssetInput: __type(name:"ImageAssetInput") {
+      name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
+    }
+    postActionPayload: __type(name:"PostActionPayload") {
+      name kind possibleTypes { name } fields { name type { kind name ofType { kind name } } }
+    }
     postAssetInput: __type(name:"PostAssetInput") {
       name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
     }
@@ -1697,8 +1703,11 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
       }
     }
     const assetFields = assetInput?.inputFields?.map((f:any)=>({name:f.name,type:f.type?.name||f.type?.ofType?.name||f.type?.ofType?.ofType?.name||null,kind:f.type?.kind})) || [];
+    const imageInputFields = payload?.data?.imageAssetInput?.inputFields?.map((f:any)=>({name:f.name,type:f.type?.name||f.type?.ofType?.name||f.type?.ofType?.ofType?.name||null,kind:f.type?.kind})) || [];
+    const postActionVariants = payload?.data?.postActionPayload?.possibleTypes?.map((t:any)=>t.name) || [];
+    const postActionFields = payload?.data?.postActionPayload?.fields?.map((f:any)=>f.name) || [];
     const assetsTypePath = [assetType?.kind,assetType?.ofType?.kind,assetType?.ofType?.ofType?.kind,assetType?.ofType?.ofType?.ofType?.kind].filter(Boolean);
-    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),createPostReturnType,inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetTypeName,assetsTypePath,assetInputFields:assetFields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
+    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),createPostReturnType,inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetTypeName,assetsTypePath,assetInputFields:assetFields,imageInputFields,postActionVariants,postActionFields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
   } catch (_) {
     return c.json({status:"unavailable",reason:"schema-probe-network-error",publishingEnabled:false},502);
   }
