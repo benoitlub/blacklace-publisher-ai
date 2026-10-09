@@ -1556,29 +1556,58 @@ app.get("/api/social/transports/buffer/channels", async (c) => {
     channels: [], publishingEnabled: false,
   });
   try {
-    const response = await fetch("https://api.buffer.com", {
-      method: "POST",
-      headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
-      body: JSON.stringify({ query: "{ channels { id name service } }" }),
-      signal: AbortSignal.timeout(8000),
-    });
-    const payload: unknown = await response.json().catch(() => null);
-    const data = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
-    const raw = data.data && typeof data.data === "object"
-      ? (data.data as Record<string, unknown>).channels : null;
-    const channels = Array.isArray(raw) ? raw.map((item) => {
-      const v = item && typeof item === "object" ? item as Record<string, unknown> : {};
-      return { id: String(v.id ?? ""), name: String(v.name ?? ""), service: String(v.service ?? "") };
-    }) : [];
+    const request = async (query: string) => {
+      const response = await fetch("https://api.buffer.com", {
+        method: "POST",
+        headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(8000),
+      });
+      const payload: unknown = await response.json().catch(() => null);
+      return { response, data: payload && typeof payload === "object" ? payload as Record<string, unknown> : {} };
+    };
+    const accountResult = await request("query { account { organizations { id name } } }");
+    const orgsRaw = accountResult.data.data && typeof accountResult.data.data === "object"
+      ? (accountResult.data.data as Record<string, unknown>).account : null;
+    const organizations = orgsRaw && typeof orgsRaw === "object"
+      ? (orgsRaw as Record<string, unknown>).organizations : null;
+    if (!accountResult.response.ok || accountResult.data.errors || !Array.isArray(organizations)) {
+      return c.json({
+        contract: "publisher-buffer-channels-v1", status: "api-error",
+        stage: "organizations", httpStatus: accountResult.response.status,
+        errorTypes: Array.isArray(accountResult.data.errors) ? accountResult.data.errors.map((e) => {
+          const v = e && typeof e === "object" ? e as Record<string, unknown> : {};
+          const ext = v.extensions && typeof v.extensions === "object" ? v.extensions as Record<string, unknown> : {};
+          return String(ext.code ?? "graphql-error");
+        }) : [], channels: [], publishingEnabled: false,
+      });
+    }
+    const channels: { id: string; name: string; service: string; organizationId: string }[] = [];
+    let error = false;
+    for (const org of organizations.slice(0, 10)) {
+      const v = org && typeof org === "object" ? org as Record<string, unknown> : {};
+      const organizationId = typeof v.id === "string" ? v.id : "";
+      if (!organizationId) continue;
+      const result = await request("query { channels(input: { organizationId: " + JSON.stringify(organizationId) + " }) { id name service } }");
+      const raw = result.data.data && typeof result.data.data === "object"
+        ? (result.data.data as Record<string, unknown>).channels : null;
+      if (!result.response.ok || result.data.errors || !Array.isArray(raw)) {
+        error = true;
+        continue;
+      }
+      for (const item of raw) {
+        const channel = item && typeof item === "object" ? item as Record<string, unknown> : {};
+        channels.push({
+          id: String(channel.id ?? ""), name: String(channel.name ?? ""),
+          service: String(channel.service ?? ""), organizationId,
+        });
+      }
+    }
     return c.json({
       contract: "publisher-buffer-channels-v1",
-      status: response.ok && !data.errors ? "connected" : "api-error",
-      httpStatus: response.status, channels,
-      errorTypes: Array.isArray(data.errors) ? data.errors.map((e) => {
-        const err = e && typeof e === "object" ? e as Record<string, unknown> : {};
-        return String(err.extensions && typeof err.extensions === "object"
-          ? (err.extensions as Record<string, unknown>).code ?? "graphql-error" : "graphql-error");
-      }) : [],
+      status: error ? "partial" : "connected",
+      httpStatus: 200, channels,
+      organizationCount: organizations.length,
       publishingEnabled: false,
     });
   } catch (_) {
