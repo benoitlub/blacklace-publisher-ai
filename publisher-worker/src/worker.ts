@@ -1662,6 +1662,27 @@ app.get("/api/social/transports/buffer/book-draft/reservations", async (c) => {
   return c.json({status:"ok",harvestId,reservations:rows,publishingEnabled:false});
 });
 
+// Authenticated read-only Buffer API schema probe. No reservation or post is created.
+app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret) return c.json({status:"unauthorized"},401);
+  const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
+  if (!bufferKey) return c.json({status:"unavailable",reason:"buffer-key-missing"},503);
+  const query = `query BufferDraftSchemaCheck {
+    __schema { mutationType { fields { name } } }
+    __type(name:"CreatePostInput") { name inputFields { name type { kind name ofType { kind name } } } }
+  }`;
+  try {
+    const response = await fetch("https://api.buffer.com",{method:"POST",headers:{"Authorization":"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query}),signal:AbortSignal.timeout(12000)});
+    const payload = await response.json() as Record<string,any>;
+    const mutationNames = payload?.data?.__schema?.mutationType?.fields?.map((f: any)=>f.name) || [];
+    const fields = payload?.data?.__type?.inputFields?.map((f: any)=>f.name) || [];
+    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),inputTypeFound:!!payload?.data?.__type,createPostInputFields:fields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
+  } catch (_) {
+    return c.json({status:"unavailable",reason:"schema-probe-network-error",publishingEnabled:false},502);
+  }
+});
+
 app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
   const bearer = c.req.header("Authorization") || "";
