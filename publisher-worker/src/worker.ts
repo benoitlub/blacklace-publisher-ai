@@ -1662,6 +1662,21 @@ app.get("/api/social/transports/buffer/book-draft/reservations", async (c) => {
   return c.json({status:"ok",harvestId,reservations:rows,publishingEnabled:false});
 });
 
+// Read-only reconciliation preflight: reports an uncertain reservation without
+// clearing it or attempting another Buffer mutation.
+app.get("/api/social/transports/buffer/book-draft/reconcile", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret) return c.json({status:"unauthorized"},401);
+  if (!(await isDatabaseConfigured(c.env))) return c.json({status:"unavailable",retryAllowed:false},503);
+  const harvestId = c.req.query("harvestId")?.slice(0,250);
+  if (!harvestId) return c.json({status:"invalid",reason:"harvestId-required",retryAllowed:false},400);
+  const sql = await getSql(c.env);
+  const rows = await sql`SELECT status,post_id,created_at FROM buffer_draft_reservations WHERE harvest_id=${harvestId} ORDER BY created_at DESC LIMIT 5`;
+  const pending = rows.some((row:any)=>row.status==="pending");
+  const created = rows.some((row:any)=>row.status==="draft-created");
+  return c.json({status:created?"draft-recorded":pending?"requires-buffer-confirmation":"no-reservation",harvestId,reservations:rows,retryAllowed:!pending&&!created,requiresManualConfirmation:pending,publishingEnabled:false});
+});
+
 // Authenticated read-only Buffer API schema probe. No reservation or post is created.
 app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
