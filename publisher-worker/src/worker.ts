@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
 import bookDestinationsCatalog from "./book-destinations-catalog.json";
 import { chooseSocialTransport, previewBufferPost } from "./social-transport";
+import { classifyEditorialTopic, chooseEditorialDestination } from "./editorial-routing";
 import {
   OBSERVATORY_DECISIONS,
   attachObservatoryOctopus,
@@ -1531,6 +1532,22 @@ app.post("/api/social/media/request", async (c) => {
 // Public, read-only diagnostics: which verified book links already have artwork?
 // Does not contact Mistral, Metricool, or publish anything.
 // Safe transport diagnostics: no external API calls, tokens, or publishing.
+// Editorial routing preview; never sends or schedules posts.
+app.post("/api/social/editorial/route", async (c) => {
+  const body = await c.req.json().catch(() => null);
+  if (!body || typeof body !== "object") return c.json({ status: "invalid" }, 400);
+  const value = body as Record<string, unknown>;
+  const asText = (v: unknown) => typeof v === "string" ? v.slice(0, 5000) : "";
+  const topic = classifyEditorialTopic({
+    seedId: asText(value.seedId), title: asText(value.title), text: asText(value.text),
+  });
+  return c.json({
+    contract: "publisher-editorial-routing-v1", status: "dry-run",
+    topic, destination: chooseEditorialDestination(topic),
+    publishingEnabled: false,
+  });
+});
+
 app.get("/api/social/transports", async (c) => {
   // Credential-presence diagnostic only: never expose the key or imply
   // that a Buffer API request has been authenticated.
