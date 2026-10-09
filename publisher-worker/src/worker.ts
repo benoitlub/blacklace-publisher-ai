@@ -1744,8 +1744,11 @@ app.post("/api/social/transports/buffer/book-draft/release-terra", async (c) => 
   if (!(await isDatabaseConfigured(c.env))) return c.json({status:"unavailable"},503);
   const sql = await getSql(c.env);
   const harvestId = "harvest_local_harvest_terra_1786215725146";
-  const released = await sql`UPDATE buffer_draft_reservations SET status='retry-authorized' WHERE harvest_id=${harvestId} AND status='pending' AND post_id IS NULL AND created_at='2026-10-09T13:05:56.460Z'::timestamptz RETURNING fingerprint`;
-  return c.json({status:released.length===1?"retry-authorized":"no-change",harvestId,changed:released.length,publishingEnabled:false});
+  // Keep the historical reservation and permit only the one known failed
+  // attempt. Do not rely on an exact timestamp (DB precision can vary).
+  const released = await sql`UPDATE buffer_draft_reservations SET status='retry-authorized' WHERE harvest_id=${harvestId} AND status='pending' AND post_id IS NULL AND created_at >= '2026-10-09T13:05:00Z'::timestamptz AND created_at < '2026-10-09T13:07:00Z'::timestamptz RETURNING fingerprint`;
+  const state = await sql`SELECT status, post_id, created_at FROM buffer_draft_reservations WHERE harvest_id=${harvestId} ORDER BY created_at DESC LIMIT 5`;
+  return c.json({status:released.length===1?"retry-authorized":released.length>1?"unexpected-multiple":"no-change",harvestId,changed:released.length,reservations:state,publishingEnabled:false});
 });
 
 app.post("/api/social/transports/buffer/book-draft", async (c) => {
