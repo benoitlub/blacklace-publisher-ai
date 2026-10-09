@@ -1622,6 +1622,28 @@ app.get("/api/social/transports/buffer/channels", async (c) => {
 // Explicit channel binding is required when Buffer returns duplicate handles.
 // Safe final preflight: checks the selected book destination and editorial classification.
 // No Buffer mutation is performed here.
+// Deterministic TERRA dry-run payload: official author media and destination only.
+// This endpoint cannot create, queue, or publish a Buffer post.
+app.get("/api/social/transports/buffer/terra-test", async (c) => {
+  const channelId = "6ac8c8226a5c39ccb65fdbf6";
+  const configured = await resolveSecret(c.env.BUFFER_BOOK_CHANNEL_ID);
+  const keyConfigured = Boolean(await resolveSecret(c.env.BUFFER_API_KEY));
+  const channelValid = !configured || configured === channelId;
+  const copy = "📖 TERRA\\n\\nUn roman de Benoît Lubert à découvrir.\\n\\nDisponible sur Amazon : " + officialDestinationBySeed.terra + "\\n\\n#TERRA #BenoitLubert #AuteurIndependant #Lecture";
+  const mediaUrl = officialMediaBySeed.terra;
+  return c.json({
+    contract: "publisher-buffer-terra-test-v1",
+    status: keyConfigured && channelValid && Boolean(mediaUrl) ? "ready-for-review" : "blocked",
+    mode: "dry-run", publishingEnabled: false,
+    destination: { provider: "buffer", service: "instagram", handle: "benoitlubert", channelId: channelValid ? channelId : null },
+    book: { seedId: "terra", title: "TERRA", amazonUrl: officialDestinationBySeed.terra },
+    media: { source: "official-author-cover", url: mediaUrl },
+    copy,
+    checks: { bufferKeyConfigured: keyConfigured, channelValid, officialMediaMapped: Boolean(mediaUrl), amazonLinkMapped: Boolean(officialDestinationBySeed.terra) },
+    nextAction: "review-and-explicitly-authorize-buffer-draft-creation",
+  });
+});
+
 app.post("/api/social/transports/buffer/book-preflight", async (c) => {
   const body = await c.req.json().catch(() => null);
   if (!body || typeof body !== "object") return c.json({ status: "invalid", reason: "json-object-required" }, 400);
