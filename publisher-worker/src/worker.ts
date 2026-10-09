@@ -1582,7 +1582,7 @@ app.get("/api/social/bridge/next", async (c) => {
     const catalogMatch = bookDestinationsCatalog.references.find((entry) =>
       entry.verifiedMapping && (
         (entry.seedId && mediaKeys.includes(entry.seedId.toLowerCase())) ||
-        (bookTitleKey && normalizeBookKey(entry.title ?? "") === bookTitleKey)
+        (bookTitleKey && normalizeBookKey(entry.title ?? "").length > 0 && (" " + bookTitleKey + " ").includes(" " + normalizeBookKey(entry.title ?? "") + " "))
       )
     );
     const catalogDestination = catalogMatch?.url;
