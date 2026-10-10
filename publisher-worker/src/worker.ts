@@ -1793,7 +1793,7 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
     const postId = result?.__typename === "PostActionSuccess" ? result?.post?.id : null;
     if (!response.ok || payload.errors || typeof postId !== "string") {
       const codes = Array.isArray(payload.errors) ? payload.errors.slice(0,3).map((e: any) => String(e?.extensions?.code || "graphql-error").slice(0,60)) : [];
-      return c.json({status:"unknown",draftCreated:false,reason:!response.ok?"buffer-http-error":payload.errors?"buffer-graphql-error":"buffer-unconfirmed-result",bufferHttpStatus:response.status,bufferResultType:typeof result?.__typename==="string"?result.__typename:null,graphqlErrorCodes:codes,reservationStatus:"pending",publishingEnabled:false},502);
+      return c.json({status:"unknown",draftCreated:false,reason:!response.ok?"buffer-http-error":payload.errors?"buffer-graphql-error":"buffer-unconfirmed-result",bufferHttpStatus:response.status,bufferResultType:typeof result?.__typename==="string"?result.__typename:null,bufferValidationMessages:[...(Array.isArray(payload.errors)?payload.errors:[]),result].filter(Boolean).flatMap((entry:any)=>[entry.message,entry.error,entry.reason,entry.errors].flat().filter((v:any)=>typeof v==="string")).slice(0,5).map((v:string)=>v.slice(0,300)),graphqlErrorCodes:codes,reservationStatus:"pending",publishingEnabled:false},502);
     }
     await sql`UPDATE buffer_draft_reservations SET status=${publish ? 'queued' : 'draft-created'},post_id=${postId} WHERE fingerprint=${fingerprint}`;
     return c.json({contract:"publisher-buffer-book-draft-v1",status:publish?"queued":"draft-created",draftCreated:!publish,postId,publishingEnabled:publish});
