@@ -3222,6 +3222,29 @@ function capabilitiesFromToolText(value: string): PublisherCapability[] {
   return rules.filter(([, pattern]) => pattern.test(text)).map(([capability]) => capability);
 }
 
+/** Match the actual mission, not just a generic capability label.
+ * ElevenLabs conversation analytics cannot satisfy social post analytics.
+ * Read-only discovery: this never authorizes tool execution.
+ */
+function toolMatchesMission(tool: ComposioTool, capability: PublisherCapability, mission: string): boolean {
+  const requested = mission.toLowerCase().trim();
+  if (!requested) return true;
+  const description = toolText(tool).toLowerCase();
+  const slug = tool.slug.toLowerCase();
+  const toolkit = tool.toolkitSlug.toLowerCase();
+  const socialMission = /social|facebook|instagram|metricool|post.?performance|engagement|reach|impression/.test(requested);
+  if (capability === "analytics.read" && socialMission) {
+    if (/elevenlabs|convai|conversation|voice|speech|audio|dashboard.settings/.test(toolkit + " " + slug)) return false;
+    if (!/social|facebook|instagram|metricool|post|engagement|reach|impression|insight/.test(description + " " + toolkit)) return false;
+    if (!/get|list|fetch|read|retrieve|analytics|insight|report/.test(slug)) return false;
+  }
+  if (capability === "social.publish" && socialMission) {
+    if (!/publish|schedule|create.post|queue.post/.test(slug + " " + description)) return false;
+    if (/delete|remove|list|read|fetch/.test(slug)) return false;
+  }
+  return true;
+}
+
 function executableToolPack(tool: ComposioTool, connected: boolean) {
   const capabilities = capabilitiesFromToolText(toolText(tool));
   return {
@@ -3339,6 +3362,7 @@ app.get("/api/observatory/capability-verify", async (c) => {
 
 app.get("/api/observatory/capability-gap", async (c) => {
   const capability = String(c.req.query("capability") || "").trim() as PublisherCapability;
+  const mission = String(c.req.query("mission") || "").slice(0, 250);
   const allowed: PublisherCapability[] = ["content.plan","content.write","content.repurpose","social.publish","visual.generate","video.generate","analytics.read"];
   if (!allowed.includes(capability)) return c.json({ status: "rejected", error: "Unknown capability." }, 400);
   try {
@@ -3349,11 +3373,11 @@ app.get("/api/observatory/capability-gap", async (c) => {
       try {
         for (const tool of await listComposioTools(c.env, toolkit)) {
           const pack = executableToolPack(tool, Boolean(accountFor(accounts, toolkit)));
-          if (pack.executable && pack.capabilities.includes(capability)) matches.push(pack);
+          if (pack.executable && pack.capabilities.includes(capability) && toolMatchesMission(tool, capability, mission)) matches.push(pack);
         }
       } catch (_) {}
     }
-    if (matches.length) return c.json({ status: "covered", contract: "publisher-capability-gap-v1", capability, matches, discoveryRequired: false });
+    if (matches.length) return c.json({ status: "covered", contract: "publisher-capability-gap-v1", capability, mission: mission || null, matches, discoveryRequired: false });
 
     const queries: Record<PublisherCapability, string> = {
       "visual.generate": "AI image generation API text to image tool developer API Mistral image generation",
@@ -3368,6 +3392,7 @@ app.get("/api/observatory/capability-gap", async (c) => {
       status: "gap",
       contract: "publisher-capability-gap-v1",
       capability,
+      mission: mission || null,
       discoveryRequired: true,
       connectedMatches: 0,
       mission: {
@@ -3386,6 +3411,7 @@ app.get("/api/observatory/tool-packs", async (c) => {
   try {
     if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", contract: "publisher-tool-registry-v1", packs: [], error: "Composio not configured." }, 503);
     const requested = String(c.req.query("capability") || "").trim();
+    const mission = String(c.req.query("mission") || "").slice(0, 250);
     const accounts = await listComposioConnectedAccounts(c.env);
     const toolkits = [...new Set(accounts.filter((account) => isActiveComposioStatus(account.status)).map((account) => account.toolkitSlug))];
     const packs: any[] = [];
@@ -3396,6 +3422,7 @@ app.get("/api/observatory/tool-packs", async (c) => {
           const pack = executableToolPack(tool, Boolean(accountFor(accounts, toolkit)));
           if (!pack.capabilities.length) continue;
           if (requested && !pack.capabilities.includes(requested as PublisherCapability)) continue;
+          if (requested && !toolMatchesMission(tool, requested as PublisherCapability, mission)) continue;
           packs.push(pack);
         }
       } catch (_) {
