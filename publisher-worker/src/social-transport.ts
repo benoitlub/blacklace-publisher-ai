@@ -1,7 +1,7 @@
 /**
- * Safe transport routing. Buffer remains a dry-run until its publishing
- * integration is authenticated and verified. Never auto-retry an uncertain
- * delivery: that could duplicate a live post.
+ * Safe transport routing. Buffer can enter production only when a verified
+ * connection and an explicit production permission are both present.
+ * Never auto-retry an uncertain delivery: that could duplicate a live post.
  */
 export type SocialTransport = "metricool" | "buffer";
 export type DeliveryState = "not-attempted" | "confirmed-failed" | "unknown" | "confirmed-sent";
@@ -25,6 +25,9 @@ export function chooseSocialTransport(ctx: TransportContext): TransportDecision 
     return { transport: null, mode: "hold", reason: "delivery-unconfirmed-reconcile-before-retry" };
   }
   if (ctx.requested === "buffer") {
+    if (ctx.bufferConnected && ctx.allowBufferProduction) {
+      return { transport: "buffer", mode: "production", reason: "buffer-verified-and-explicitly-enabled" };
+    }
     return {
       transport: "buffer",
       mode: "dry-run",
@@ -38,8 +41,10 @@ export function chooseSocialTransport(ctx: TransportContext): TransportDecision 
   }
   return {
     transport: ctx.bufferConnected ? "buffer" : null,
-    mode: ctx.bufferConnected ? "dry-run" : "hold",
-    reason: ctx.bufferConnected
+    mode: ctx.bufferConnected && ctx.allowBufferProduction ? "production" : ctx.bufferConnected ? "dry-run" : "hold",
+    reason: ctx.bufferConnected && ctx.allowBufferProduction
+      ? "metricool-unavailable-buffer-verified-fallback"
+      : ctx.bufferConnected
       ? "metricool-unavailable-buffer-dry-run"
       : "no-publishing-transport-connected",
   };
