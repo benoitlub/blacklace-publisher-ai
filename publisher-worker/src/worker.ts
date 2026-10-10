@@ -1695,6 +1695,9 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
     imageAssetInput: __type(name:"ImageAssetInput") {
       name inputFields { name type { kind name ofType { kind name ofType { kind name } } } }
     }
+    invalidInputError: __type(name:"InvalidInputError") { fields { name type { kind name ofType { kind name } } } }
+    channelInput: __type(name:"ChannelInput") { inputFields { name type { kind name ofType { kind name } } } }
+    channelType: __type(name:"Channel") { fields { name type { kind name ofType { kind name } } } }
     postActionPayload: __type(name:"PostActionPayload") {
       name kind possibleTypes { name } fields { name type { kind name ofType { kind name } } }
     }
@@ -1734,7 +1737,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
     const postActionVariants = payload?.data?.postActionPayload?.possibleTypes?.map((t:any)=>t.name) || [];
     const postActionFields = payload?.data?.postActionPayload?.fields?.map((f:any)=>f.name) || [];
     const assetsTypePath = [assetType?.kind,assetType?.ofType?.kind,assetType?.ofType?.ofType?.kind,assetType?.ofType?.ofType?.ofType?.kind].filter(Boolean);
-    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),readOnlyPostQueries:queryFields,readOnlyLookupTypes,createPostReturnType,inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetTypeName,assetsTypePath,assetInputFields:assetFields,imageInputFields,postActionVariants,postActionFields,graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
+    return c.json({status:response.ok&&!payload.errors?"ok":"schema-query-failed",bufferHttpStatus:response.status,createPostAvailable:mutationNames.includes("createPost"),readOnlyPostQueries:queryFields,readOnlyLookupTypes,createPostReturnType,inputTypeFound:!!payload?.data?.createPostInput,createPostInputFields:fields,createPostFieldTypes:fieldTypes,assetInputFound:!!assetInput,assetTypeName,assetsTypePath,assetInputFields:assetFields,imageInputFields,postActionVariants,postActionFields,invalidInputErrorFields:(payload?.data?.invalidInputError?.fields||[]).map((f:any)=>f.name),channelInputFields:(payload?.data?.channelInput?.inputFields||[]).map((f:any)=>f.name),channelFields:(payload?.data?.channelType?.fields||[]).map((f:any)=>f.name),graphqlErrorCodes:Array.isArray(payload.errors)?payload.errors.slice(0,3).map((e:any)=>String(e?.extensions?.code||"graphql-error").slice(0,60)):[],publishingEnabled:false},response.ok?200:502);
   } catch (_) {
     return c.json({status:"unavailable",reason:"schema-probe-network-error",publishingEnabled:false},502);
   }
