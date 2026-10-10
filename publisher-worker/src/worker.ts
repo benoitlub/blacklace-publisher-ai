@@ -1284,7 +1284,11 @@ app.post("/api/social/publication/finalize", async (c) => {
   }
   try {
     const budget = await readMetricoolServerBudget(c.env, handoff.prepared.networks);
-    if (!budget.allowed) {
+    // Experimental editorial policy: an unknown usage count is a warning, not
+    // grounds to reject Gerard's creative content. A VERIFIED exhausted quota
+    // remains a hard stop. Actual scheduling still requires a working adapter
+    // and provider confirmation; never report an unperformed write as success.
+    if (!budget.allowed && budget.status !== "unresolved") {
       return c.json({
         status: "waiting-for-metricool", stage: "verified-budget",
         action: "retain-ready-content", harvestId: handoff.harvestId,
