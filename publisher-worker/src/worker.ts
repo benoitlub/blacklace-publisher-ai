@@ -1681,6 +1681,28 @@ app.get("/api/social/transports/buffer/book-draft/reconcile", async (c) => {
   return c.json({status:created?"draft-recorded":pending?"requires-buffer-confirmation":"no-reservation",harvestId,reservations:rows,retryAllowed:!pending&&!created,requiresManualConfirmation:pending,publishingEnabled:false});
 });
 
+// Read-only Buffer reconciliation: inspect channel and recent posts, never mutate Buffer.
+app.get("/api/social/transports/buffer/book-draft/buffer-lookup", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret) return c.json({status:"unauthorized"},401);
+  const key = await resolveSecret(c.env.BUFFER_API_KEY);
+  if (!key) return c.json({status:"unavailable",reason:"buffer-key-missing"},503);
+  const channelId = "6ac8c8226a5c39ccb65fdbf6";
+  const request = async (query:string) => {
+    const response = await fetch("https://api.buffer.com", {method:"POST",headers:{Authorization:"Bearer "+key,"Content-Type":"application/json"},body:JSON.stringify({query}),signal:AbortSignal.timeout(12000)});
+    return {httpStatus:response.status,payload:await response.json() as Record<string,any>};
+  };
+  try {
+    const channel = await request("query { channel(input:{id:"+JSON.stringify(channelId)+"}) { id name service organizationId isDisconnected isLocked isQueuePaused } }");
+    const info = channel.payload?.data?.channel;
+    if (!channel.httpStatus || channel.payload.errors || !info?.organizationId) return c.json({status:"channel-query-failed",httpStatus:channel.httpStatus,errorMessages:(channel.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
+    const posts = await request("query { posts(first:100,input:{organizationId:"+JSON.stringify(info.organizationId)+",filter:{channelIds:["+JSON.stringify(channelId)+"]}}) { edges { node { id text status channelId createdAt } } pageInfo { hasNextPage } } }");
+    const edges = posts.payload?.data?.posts?.edges;
+    const matches = Array.isArray(edges) ? edges.map((e:any)=>e.node).filter((p:any)=>/terra/i.test(String(p?.text||""))).map((p:any)=>({id:p.id,status:p.status,createdAt:p.createdAt,textExcerpt:String(p.text||"").slice(0,180)})) : [];
+    return c.json({status:posts.payload.errors?"posts-query-failed":"ok",channel:{id:info.id,name:info.name,service:info.service,isDisconnected:info.isDisconnected,isLocked:info.isLocked,isQueuePaused:info.isQueuePaused},postsHttpStatus:posts.httpStatus,postsInspected:Array.isArray(edges)?edges.length:0,hasNextPage:posts.payload?.data?.posts?.pageInfo?.hasNextPage??null,terraMatches:matches,errorMessages:(posts.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
+  } catch (_) { return c.json({status:"unavailable",reason:"buffer-lookup-network-error",publishingEnabled:false},502); }
+});
+
 // Authenticated read-only Buffer API schema probe. No reservation or post is created.
 app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
