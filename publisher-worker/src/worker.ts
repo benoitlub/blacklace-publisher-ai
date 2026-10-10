@@ -1762,6 +1762,7 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const text = typeof body.text === "string" ? body.text.slice(0,5000) : "";
   const mediaUrl = typeof body.mediaUrl === "string" ? body.mediaUrl : "";
   const harvestId = typeof body.harvestId === "string" ? body.harvestId.slice(0,250) : "";
+  const publish = body.publish === true;
   if (!harvestId || !text.trim() || !/^https:\/\//.test(mediaUrl) || classifyEditorialTopic({seedId,title,text}) !== "book") {
     return c.json({status:"rejected",draftCreated:false,reason:"invalid-book-package"},422);
   }
@@ -1772,14 +1773,14 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   if (configuredChannel && configuredChannel !== channelId) return c.json({status:"blocked",draftCreated:false,reason:"channel-mismatch"},409);
   const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
   if (!bufferKey || !(await isDatabaseConfigured(c.env))) return c.json({status:"blocked",draftCreated:false,reason:"missing-buffer-or-database"},503);
-  const digest = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify({channelId,harvestId,text,mediaUrl})));
+  const digest = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify({channelId,harvestId,text,mediaUrl,publish})));
   const fingerprint = Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,"0")).join("");
   const sql = await getSql(c.env);
   await sql`CREATE TABLE IF NOT EXISTS buffer_draft_reservations (fingerprint TEXT PRIMARY KEY, harvest_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
   const inserted = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT (fingerprint) DO UPDATE SET status='pending' WHERE buffer_draft_reservations.status='retry-authorized' RETURNING fingerprint`;
   if (!inserted.length) return c.json({status:"already-reserved",draftCreated:false,reason:"duplicate-or-uncertain-write"},409);
   try {
-    const mutation = "mutation { createPost(input: { text: " + JSON.stringify(text) + ", channelId: " + JSON.stringify(channelId) + ", schedulingType: automatic, mode: addToQueue, saveToDraft: true, assets: [{ image: { url: " + JSON.stringify(mediaUrl) + " } }] }) { __typename ... on PostActionSuccess { post { id } } } }";
+    const mutation = "mutation { createPost(input: { text: " + JSON.stringify(text) + ", channelId: " + JSON.stringify(channelId) + ", schedulingType: automatic, mode: addToQueue, saveToDraft: " + (publish ? "false" : "true") + ", assets: [{ image: { url: " + JSON.stringify(mediaUrl) + " } }] }) { __typename ... on PostActionSuccess { post { id } } } }";
     const response = await fetch("https://api.buffer.com",{method:"POST",headers:{Authorization:"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query:mutation}),signal:AbortSignal.timeout(12000)});
     const payload = await response.json() as Record<string,any>;
     // Accept only the documented successful union member; never infer success
@@ -1790,8 +1791,8 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
       const codes = Array.isArray(payload.errors) ? payload.errors.slice(0,3).map((e: any) => String(e?.extensions?.code || "graphql-error").slice(0,60)) : [];
       return c.json({status:"unknown",draftCreated:false,reason:!response.ok?"buffer-http-error":payload.errors?"buffer-graphql-error":"buffer-unconfirmed-result",bufferHttpStatus:response.status,bufferResultType:typeof result?.__typename==="string"?result.__typename:null,graphqlErrorCodes:codes,reservationStatus:"pending",publishingEnabled:false},502);
     }
-    await sql`UPDATE buffer_draft_reservations SET status='draft-created',post_id=${postId} WHERE fingerprint=${fingerprint}`;
-    return c.json({contract:"publisher-buffer-book-draft-v1",status:"draft-created",draftCreated:true,postId,publishingEnabled:false});
+    await sql`UPDATE buffer_draft_reservations SET status=${publish ? 'queued' : 'draft-created'},post_id=${postId} WHERE fingerprint=${fingerprint}`;
+    return c.json({contract:"publisher-buffer-book-draft-v1",status:publish?"queued":"draft-created",draftCreated:!publish,postId,publishingEnabled:publish});
   } catch (_) {
     return c.json({status:"unknown",draftCreated:false,reason:"buffer-request-uncertain"},502);
   }
