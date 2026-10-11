@@ -128,33 +128,41 @@ async function executeMistralText(env: Env, request: { title: string; prompt: st
   const key = await mistralApiKey(env);
   if (!key) throw new Error("Mistral n'est pas configuré dans Publisher.");
   if (!request.prompt.trim()) throw new Error("Le prompt Mistral est vide.");
-  const model = (env.MISTRAL_MODEL || "mistral-small-latest").trim();
-
-  const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
-    body: JSON.stringify({
-      model,
-      temperature: Number.isFinite(request.temperature) ? request.temperature : 0.25,
-      max_tokens: Number.isFinite(request.maxTokens) ? request.maxTokens : 5000,
-      messages: [
-        { role: "system", content: request.systemPrompt?.trim() || "Tu es le producteur textuel de Blacklace Publisher. Produis le livrable demandé, complet, factuel et directement exploitable. N'invente aucune donnée réelle manquante." },
-        { role: "user", content: request.prompt },
-      ],
-    }),
-  });
-
-  const payload = await response.json().catch(() => ({})) as Record<string, any>;
-  if (!response.ok) {
+  const primaryModel = (env.MISTRAL_MODEL || "mistral-small-latest").trim();
+  // Fallback is limited to existing Mistral credentials, with no new provider or billing.
+  // Try a different model only on 429; never hide authentication or other failures.
+  const models = [...new Set([primaryModel, "ministral-8b-2512", "ministral-3b-2512"])];
+  let payload: Record<string, any> = {};
+  let model = primaryModel;
+  for (let index = 0; index < models.length; index++) {
+    model = models[index];
+    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        model,
+        temperature: Number.isFinite(request.temperature) ? request.temperature : 0.25,
+        max_tokens: Number.isFinite(request.maxTokens) ? request.maxTokens : 5000,
+        messages: [
+          { role: "system", content: request.systemPrompt?.trim() || "Tu es le producteur textuel de Blacklace Publisher. Produis le livrable demandé, complet, factuel et directement exploitable. N'invente aucune donnée réelle manquante." },
+          { role: "user", content: request.prompt },
+        ],
+      }),
+    });
+    payload = await response.json().catch(() => ({})) as Record<string, any>;
+    if (response.ok) break;
     const message = payload?.message ?? payload?.error?.message ?? `Mistral ${response.status}`;
-    // Expose only safe diagnostics: never include the API key or request body.
     const retryAfter = response.headers.get("retry-after");
     const limitHeaders = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"].map((name) => {
       const value = response.headers.get(name);
       return value ? `${name}=${value.slice(0, 100)}` : null;
     }).filter(Boolean);
     const diagnostic = [`model=${model}`, `status=${response.status}`, retryAfter ? `retry-after=${retryAfter.slice(0, 100)}` : null, ...limitHeaders].filter(Boolean).join(" ");
-    throw new Error(`Mistral API error ${response.status} (${diagnostic}): ${String(message).slice(0, 300)}`);
+    const error = `Mistral API error ${response.status} (${diagnostic}): ${String(message).slice(0, 300)}`;
+    // A long Retry-After signals a broader quota window: avoid wasteful attempts.
+    const retrySeconds = retryAfter && /^\\d+$/.test(retryAfter) ? Number(retryAfter) : 0;
+    if (response.status !== 429 || retrySeconds > 60 || index === models.length - 1) throw new Error(error);
+    console.warn("Mistral model rate-limited; trying configured fallback", { model, nextModel: models[index + 1], status: response.status });
   }
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
   const content = safeContent(choice?.message?.content);
