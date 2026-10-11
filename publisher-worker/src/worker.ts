@@ -1930,7 +1930,7 @@ app.get("/api/social/bridge/next", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
     const sql = await getSql(c.env);
-    const rows = await listGardenHarvests(sql, { limit: 200, reusableOnly: true });
+    const rows = await listGardenHarvests(sql, { limit: 1000, reusableOnly: true });
     const excludedCopy = new Set(
       String(c.req.query("excludeCopy") ?? "")
         .split("|||")
@@ -2243,7 +2243,7 @@ app.get("/api/social/publication/candidate-plans", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
     const sql = await getSql(c.env);
-    const rows = await listGardenHarvests(sql, { limit: 200, reusableOnly: true });
+    const rows = await listGardenHarvests(sql, { limit: 1000, reusableOnly: true });
     const requestedLimit = Number(c.req.query("limit") ?? 10);
     const limit = Number.isFinite(requestedLimit) ? Math.max(1, Math.min(25, Math.trunc(requestedLimit))) : 10;
     const candidates = rows
@@ -2292,7 +2292,7 @@ app.get("/api/social/publication/next-plan", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
     const sql = await getSql(c.env);
-    const rows = await listGardenHarvests(sql, { limit: 200, reusableOnly: true });
+    const rows = await listGardenHarvests(sql, { limit: 1000, reusableOnly: true });
     const ranked = rows
       .map((row) => ({ row, editorial: classifyHarvestForSocial(row) }))
       .filter(({ editorial }) => editorial.eligible)
