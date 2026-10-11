@@ -147,7 +147,14 @@ async function executeMistralText(env: Env, request: { title: string; prompt: st
   const payload = await response.json().catch(() => ({})) as Record<string, any>;
   if (!response.ok) {
     const message = payload?.message ?? payload?.error?.message ?? `Mistral ${response.status}`;
-    throw new Error(String(message));
+    // Expose only safe diagnostics: never include the API key or request body.
+    const retryAfter = response.headers.get("retry-after");
+    const limitHeaders = ["x-ratelimit-limit", "x-ratelimit-remaining", "x-ratelimit-reset"].map((name) => {
+      const value = response.headers.get(name);
+      return value ? `${name}=${value.slice(0, 100)}` : null;
+    }).filter(Boolean);
+    const diagnostic = [`model=${model}`, `status=${response.status}`, retryAfter ? `retry-after=${retryAfter.slice(0, 100)}` : null, ...limitHeaders].filter(Boolean).join(" ");
+    throw new Error(`Mistral API error ${response.status} (${diagnostic}): ${String(message).slice(0, 300)}`);
   }
   const choice = Array.isArray(payload.choices) ? payload.choices[0] : null;
   const content = safeContent(choice?.message?.content);
