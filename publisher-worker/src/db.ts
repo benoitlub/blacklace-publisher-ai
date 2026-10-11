@@ -193,7 +193,7 @@ export async function listGardenHarvests(
   options: { limit?: number; seedId?: string; reusableOnly?: boolean } = {},
 ): Promise<GardenHarvestRow[]> {
   await ensureGardenHarvestSchema(sql);
-  const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+  const limit = Math.min(Math.max(options.limit ?? 50, 1), 1000);
   const seedId = options.seedId?.trim() || null;
   const reusableOnly = options.reusableOnly !== false;
   const rows = await sql`
