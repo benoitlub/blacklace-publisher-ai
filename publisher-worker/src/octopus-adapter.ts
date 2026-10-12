@@ -346,7 +346,9 @@ export async function registerWithOctopus(options: {
         id: PUBLISHER_ADAPTER_ID,
         name: "Blacklace Publisher",
         version: options.version ?? "worker",
-        capabilities: [...PUBLISHER_ADAPTER_CAPABILITIES],
+        // Reserve copy.generate for the native Octopus Mistral resource.
+        // Publisher remains the executor for content.generate and knowledge.search.
+        capabilities: PUBLISHER_ADAPTER_CAPABILITIES.filter((capability) => capability !== "copy.generate"),
         executeUrl: `${publicBaseUrl}/api/octopus-adapter/execute`,
         // Deliberately not /api/octopus-adapter/health: that path already
         // serves the octopus-witness view (GitHub Actions history of
