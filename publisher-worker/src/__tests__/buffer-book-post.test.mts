@@ -57,7 +57,9 @@ test("a verified draft is edited in place, never recreated", () => {
   assert.match(mutation, /saveToDraft: false/);
   assert.match(mutation, /mode: addToQueue/);
   assert.ok(mutation.includes("metadata: { instagram: { type: post, shouldShareToFeed: true"));
-  assert.doesNotMatch(mutation, /assets:/);
+  assert.ok(mutation.includes("assets: [{ image: { url: "));
+  assert.ok(mutation.includes("Gerard_et_Gerard_couverture_retouchee.jpg"));
+  assert.equal((mutation.match(/assets:/g) || []).length, 1);
   assert.match(mutation, /on PostActionSuccess/);
   assert.ok(mutation.includes(JSON.stringify(GERARD_BOOK_INSTAGRAM_CAPTION)));
   assert.ok(GERARD_BOOK_INSTAGRAM_CAPTION.includes("B0H68811RL"));
