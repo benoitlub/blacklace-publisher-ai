@@ -1714,8 +1714,44 @@ app.get("/api/social/transports/buffer/book-draft/buffer-lookup", async (c) => {
     if (!channel.httpStatus || channel.payload.errors || !info?.organizationId) return c.json({status:"channel-query-failed",httpStatus:channel.httpStatus,errorMessages:(channel.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
     const posts = await request("query { posts(first:100,input:{organizationId:"+JSON.stringify(info.organizationId)+",filter:{channelIds:["+JSON.stringify(channelId)+"]}}) { edges { node { id text status channelId createdAt } } pageInfo { hasNextPage } } }");
     const edges = posts.payload?.data?.posts?.edges;
+    // Optional exact-harvest check: never guess from a loose keyword match.
+    // This endpoint is read-only and does not clear retry reservations.
+    let target: Record<string, unknown> | null = null;
+    const targetHarvestId = String(c.req.query("harvestId") ?? "").trim().slice(0,250);
+    if (targetHarvestId) {
+      if (!(await isDatabaseConfigured(c.env))) {
+        target = {harvestId:targetHarvestId,status:"database-unavailable",complete:false};
+      } else {
+        const sql = await getSql(c.env);
+        const harvest = await getGardenHarvestById(sql,targetHarvestId);
+        const seedId = String(harvest?.seed_id ?? "");
+        const catalog = bookDestinationsCatalog.references.find((entry) =>
+          entry.verifiedMapping && entry.seedId === seedId);
+        const destination = catalog?.url || officialDestinationBySeed[seedId] || null;
+        const copy = harvest ? extractSocialCopy(harvest.content).text.trim() : "";
+        const expectedText = copy && destination
+          ? copy.includes(destination) ? copy : copy + "\\n\\nDécouvrir le livre : " + destination
+          : null;
+        const normalize = (value:unknown) => String(value ?? "").trim().replace(/\\s+/g," ");
+        const matches = expectedText && Array.isArray(edges) ? edges
+          .map((item:any) => item?.node)
+          .filter((post:any) => normalize(post?.text) === normalize(expectedText))
+          .map((post:any) => ({id:String(post?.id ?? ""),status:String(post?.status ?? ""),createdAt:post?.createdAt ?? null}))
+          : [];
+        const complete = !posts.payload.errors && Array.isArray(edges) &&
+          posts.payload?.data?.posts?.pageInfo?.hasNextPage === false;
+        target = {
+          harvestId:targetHarvestId, seedId:seedId || null,
+          status:!harvest ? "not-in-publisher-garden" : !expectedText ? "copy-unverifiable" :
+            complete ? (matches.length ? "matching-post-found" : "no-matching-post-in-complete-result") : "provider-result-incomplete",
+          copyVerified:Boolean(expectedText), exactMatches:matches, inspectedPostCount:Array.isArray(edges)?edges.length:0,
+          complete, safeToAssumeNoPost:false,
+          note:"No exact match in an API listing is evidence, not proof that no draft exists. Reservation stays locked until provider rejection and ownership are independently established.",
+        };
+      }
+    }
     const matches = Array.isArray(edges) ? edges.map((e:any)=>e.node).filter((p:any)=>/terra/i.test(String(p?.text||""))).map((p:any)=>({id:p.id,status:p.status,createdAt:p.createdAt,textExcerpt:String(p.text||"").slice(0,180)})) : [];
-    return c.json({status:posts.payload.errors?"posts-query-failed":"ok",channel:{id:info.id,name:info.name,service:info.service,isDisconnected:info.isDisconnected,isLocked:info.isLocked,isQueuePaused:info.isQueuePaused},postsHttpStatus:posts.httpStatus,postsInspected:Array.isArray(edges)?edges.length:0,hasNextPage:posts.payload?.data?.posts?.pageInfo?.hasNextPage??null,terraMatches:matches,errorMessages:(posts.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
+    return c.json({status:posts.payload.errors?"posts-query-failed":"ok",channel:{id:info.id,name:info.name,service:info.service,isDisconnected:info.isDisconnected,isLocked:info.isLocked,isQueuePaused:info.isQueuePaused},postsHttpStatus:posts.httpStatus,postsInspected:Array.isArray(edges)?edges.length:0,hasNextPage:posts.payload?.data?.posts?.pageInfo?.hasNextPage??null,terraMatches:matches,target,errorMessages:(posts.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
   } catch (_) { return c.json({status:"unavailable",reason:"buffer-lookup-network-error",publishingEnabled:false},502); }
 });
 
