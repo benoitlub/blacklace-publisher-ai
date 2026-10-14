@@ -3,7 +3,7 @@ import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
 import bookDestinationsCatalog from "./book-destinations-catalog.json";
 import { chooseSocialTransport, previewBufferPost } from "./social-transport";
-import { buildBufferBookPostMutation } from "./buffer-book-post";
+import { buildBufferBookPostMutation, buildGerardExistingDraftQueueMutation, inspectGerardExistingDraft, GERARD_BUFFER_HARVEST_ID, GERARD_BUFFER_POST_ID, GERARD_BOOK_CHANNEL_ID } from "./buffer-book-post";
 import { classifyEditorialTopic, chooseEditorialDestination } from "./editorial-routing";
 import {
   OBSERVATORY_DECISIONS,
@@ -1943,6 +1943,119 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
     return c.json({contract:"publisher-buffer-book-draft-v1",status:publish?"queued":"draft-created",draftCreated:!publish,postId,publishingEnabled:publish});
   } catch (_) {
     return c.json({status:"unknown",draftCreated:false,reason:"buffer-request-uncertain"},502);
+  }
+});
+
+
+/**
+ * Promote the ONE already created Gérard & Gérard Buffer draft to the channel's
+ * existing queue. No createPost call; no media replacement; no guessed time.
+ * The dry-run performs a fresh provider read and never changes state.
+ */
+app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret)
+    return c.json({status:"unauthorized",scheduled:false},401);
+  const body = await c.req.json<Record<string,unknown>>().catch(() => ({}));
+  const dryRun = body.dryRun === true;
+  if (body.harvestId !== GERARD_BUFFER_HARVEST_ID || body.postId !== GERARD_BUFFER_POST_ID ||
+      (!dryRun && body.intent !== "schedule-existing-verified-gerard-draft"))
+    return c.json({status:"invalid-target-or-intent",scheduled:false},422);
+  const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
+  if (!bufferKey || !(await isDatabaseConfigured(c.env)))
+    return c.json({status:"credentials-or-database-unavailable",scheduled:false},503);
+  const sql = await getSql(c.env);
+  const reservations = await sql`SELECT fingerprint,status,post_id FROM buffer_draft_reservations
+      WHERE harvest_id=${GERARD_BUFFER_HARVEST_ID} AND post_id=${GERARD_BUFFER_POST_ID}
+      ORDER BY created_at DESC LIMIT 2`;
+  if (reservations.length !== 1 || reservations[0].post_id !== GERARD_BUFFER_POST_ID)
+    return c.json({status:"reservation-not-matched",scheduled:false},409);
+  const currentState = String(reservations[0].status ?? "");
+  if (!["draft-created","promotion-pending","promotion-unknown","queued"].includes(currentState))
+    return c.json({status:"not-draft-reservation",reservationStatus:currentState,scheduled:false},409);
+
+  const readQuery = "query { post(input:{id:" + JSON.stringify(GERARD_BUFFER_POST_ID) +
+    "}) { id channelId status text dueAt assets { id mimeType } } channel(input:{id:" +
+    JSON.stringify(GERARD_BOOK_CHANNEL_ID) +
+    "}) { id name service isDisconnected isLocked isQueuePaused } }";
+  const bufferRequest = async (query:string) => {
+    const response = await fetch("https://api.buffer.com",{
+      method:"POST",headers:{Authorization:"Bearer "+bufferKey,"Content-Type":"application/json"},
+      body:JSON.stringify({query}),signal:AbortSignal.timeout(12000),
+    });
+    return {response,payload:await response.json() as Record<string,any>};
+  };
+  let current:Record<string,any>;
+  try {
+    const checked = await bufferRequest(readQuery);
+    if (!checked.response.ok || checked.payload.errors || !checked.payload?.data?.post)
+      return c.json({status:"provider-read-unavailable",scheduled:false,reason:"read-failed"},503);
+    current = checked.payload.data;
+  } catch (_) { return c.json({status:"provider-read-unavailable",scheduled:false},503); }
+  const post = current.post;
+  const channel = current.channel;
+  if (channel?.id !== GERARD_BOOK_CHANNEL_ID || channel?.service !== "instagram" ||
+      channel.isDisconnected === true || channel.isLocked === true || channel.isQueuePaused === true)
+    return c.json({status:"channel-unavailable-or-paused",scheduled:false},409);
+  if (post.id !== GERARD_BUFFER_POST_ID || post.channelId !== GERARD_BOOK_CHANNEL_ID)
+    return c.json({status:"post-channel-mismatch",scheduled:false},409);
+
+  // The provider is the authority when the network response was uncertain.
+  if (["scheduled","buffer","sent"].includes(String(post.status).toLowerCase())) {
+    const dueAt = typeof post.dueAt === "string" ? post.dueAt : null;
+    if (currentState !== "queued") {
+      await sql`UPDATE buffer_draft_reservations SET status='queued'
+        WHERE fingerprint=${String(reservations[0].fingerprint)}
+          AND status IN ('promotion-pending','promotion-unknown','draft-created')`;
+    }
+    return c.json({status:"already-queued-or-sent",scheduled:true,postId:GERARD_BUFFER_POST_ID,
+      providerStatus:post.status,dueAt,changed:false},200);
+  }
+  if (currentState !== "draft-created")
+    return c.json({status:"promotion-state-needs-review",reservationStatus:currentState,scheduled:false},409);
+  const inspection = inspectGerardExistingDraft(post);
+  if (!inspection.eligible)
+    return c.json({status:"draft-not-eligible",reason:inspection.status,scheduled:false},409);
+  if (dryRun)
+    return c.json({status:"ready-to-queue-existing-draft",scheduled:false,postId:GERARD_BUFFER_POST_ID,
+      imageCount:inspection.imageCount,channelId:GERARD_BOOK_CHANNEL_ID},200);
+
+  // One atomic claim. A repeat caller can neither create a new post nor queue
+  // the same draft a second time. Uncertain mutations remain locked for review.
+  const fingerprint = String(reservations[0].fingerprint);
+  const lock = await sql`UPDATE buffer_draft_reservations SET status='promotion-pending'
+    WHERE fingerprint=${fingerprint} AND status='draft-created' AND post_id=${GERARD_BUFFER_POST_ID}
+    RETURNING fingerprint`;
+  if (lock.length !== 1) return c.json({status:"promotion-already-claimed",scheduled:false},409);
+  try {
+    const mutation = buildGerardExistingDraftQueueMutation(GERARD_BUFFER_POST_ID);
+    const result = await bufferRequest(mutation);
+    const payload = result.payload?.data?.editPost;
+    const bufferPost = payload?.__typename === "PostActionSuccess" ? payload.post : null;
+    const success = result.response.ok && !result.payload.errors &&
+      bufferPost?.id === GERARD_BUFFER_POST_ID &&
+      bufferPost?.channelId === GERARD_BOOK_CHANNEL_ID &&
+      ["scheduled","buffer"].includes(String(bufferPost?.status ?? "").toLowerCase()) &&
+      typeof bufferPost?.dueAt === "string" &&
+      Number.isFinite(Date.parse(bufferPost.dueAt)) && Date.parse(bufferPost.dueAt) > Date.now();
+    if (success) {
+      await sql`UPDATE buffer_draft_reservations SET status='queued'
+        WHERE fingerprint=${fingerprint} AND status='promotion-pending'`;
+      return c.json({status:"confirmed-queued",scheduled:true,postId:GERARD_BUFFER_POST_ID,
+        channelId:GERARD_BOOK_CHANNEL_ID,dueAt:bufferPost.dueAt,
+        providerStatus:bufferPost.status,text:bufferPost.text},200);
+    }
+    const validationRejected = result.response.ok && !result.payload.errors &&
+      payload?.__typename === "InvalidInputError";
+    await sql`UPDATE buffer_draft_reservations SET status=${validationRejected?"promotion-rejected":"promotion-unknown"}
+      WHERE fingerprint=${fingerprint} AND status='promotion-pending'`;
+    return c.json({status:validationRejected?"provider-validation-rejected":"provider-confirmation-uncertain",
+      scheduled:false,providerError:validationRejected?String(payload.message??"Invalid input").slice(0,260):null,
+      providerResultType:payload?.__typename ?? null},validationRejected?422:502);
+  } catch (_) {
+    await sql`UPDATE buffer_draft_reservations SET status='promotion-unknown'
+      WHERE fingerprint=${fingerprint} AND status='promotion-pending'`;
+    return c.json({status:"provider-confirmation-uncertain",scheduled:false},502);
   }
 });
 
