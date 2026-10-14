@@ -183,9 +183,12 @@ export async function searchNotionWorkspaceKnowledge(
     items.push({
       id: page.id,
       title,
-      universe: metadata.universe || normalizedUniverse,
+      // Never label every Notion search hit as belonging to the REQUESTED
+      // parcel. That falsely gave a 420 Dice Reel "Yaébali" provenance.
+      // Only preserve universe/tags that Notion actually supplies.
+      universe: metadata.universe,
       content,
-      tags: [...new Set([...metadata.tags, normalizedUniverse, normalizedQuery, "notion-workspace"].filter(Boolean))],
+      tags: [...new Set([...metadata.tags, "notion-workspace"].filter(Boolean))],
       isMock: false,
     });
   }
