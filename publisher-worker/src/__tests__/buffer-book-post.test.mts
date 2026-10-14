@@ -1,0 +1,36 @@
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { buildBufferBookPostMutation } from "../buffer-book-post";
+
+const base = {
+  text: "Deux Gérard. Un seul livre. Découvrir : https://www.amazon.fr/dp/B0H68811RL",
+  channelId: "verified-instagram-channel-id",
+  mediaUrl: "https://example.org/official-cover.jpg",
+};
+
+test("Instagram book post declares Buffer-required channel post type", () => {
+  const mutation = buildBufferBookPostMutation({ ...base, publish: false });
+  assert.match(mutation, /metadata: \{ instagram: \{ type: post, shouldShareToFeed: true \} \}/);
+  assert.match(mutation, /assets: \[\{ image: \{ url: "https:\/\/example.org\/official-cover.jpg" \} \}\]/);
+  assert.match(mutation, /saveToDraft: true/);
+  assert.match(mutation, /on PostActionSuccess \{ post \{ id \} \}/);
+  assert.match(mutation, /on InvalidInputError \{ message \}/);
+});
+
+test("existing queue flag is preserved, never inferred from the document text", () => {
+  const safe = buildBufferBookPostMutation({ ...base, publish: false });
+  const queued = buildBufferBookPostMutation({ ...base, publish: true });
+  assert.match(safe, /saveToDraft: true/);
+  assert.match(queued, /saveToDraft: false/);
+  assert.match(safe, /mode: addToQueue/);
+});
+
+test("quote-like copy remains escaped and cannot modify the GraphQL fields", () => {
+  const mutation = buildBufferBookPostMutation({
+    ...base,
+    text: 'A book "with quotes" and a newline\nRead now',
+    publish: false,
+  });
+  assert.ok(mutation.includes(JSON.stringify('A book "with quotes" and a newline\nRead now')));
+  assert.match(mutation, /metadata: \{ instagram: \{ type: post, shouldShareToFeed: true \} \}/);
+});
