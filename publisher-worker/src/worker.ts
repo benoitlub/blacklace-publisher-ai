@@ -1868,6 +1868,18 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
     // from HTTP 200 alone. A failed/uncertain response stays reserved.
     const result = payload?.data?.createPost;
     const postId = result?.__typename === "PostActionSuccess" ? result?.post?.id : null;
+    // A typed InvalidInputError means Buffer rejected input before creating a
+    // post. Keep the audit record but do not leave it as an ambiguous write.
+    if (response.ok && !payload.errors && result?.__typename === "InvalidInputError") {
+      const message = String(result?.message ?? "Buffer rejected invalid input").slice(0,300);
+      await sql`UPDATE buffer_draft_reservations SET status='validation-rejected' WHERE fingerprint=${fingerprint} AND status='pending' AND post_id IS NULL`;
+      return c.json({
+        status:"validation-rejected",draftCreated:false,publishingEnabled:false,
+        reason:"buffer-invalid-input",bufferResultType:"InvalidInputError",
+        bufferValidationMessages:[message],reservationStatus:"validation-rejected",
+        retryAllowed:false,
+      },422);
+    }
     if (!response.ok || payload.errors || typeof postId !== "string") {
       const codes = Array.isArray(payload.errors) ? payload.errors.slice(0,3).map((e: any) => String(e?.extensions?.code || "graphql-error").slice(0,60)) : [];
       return c.json({status:"unknown",draftCreated:false,reason:!response.ok?"buffer-http-error":payload.errors?"buffer-graphql-error":"buffer-unconfirmed-result",bufferHttpStatus:response.status,bufferResultType:typeof result?.__typename==="string"?result.__typename:null,bufferValidationMessages:[...(Array.isArray(payload.errors)?payload.errors:[]),result].filter(Boolean).flatMap((entry:any)=>[entry.message,entry.error,entry.reason,entry.errors].flat().filter((v:any)=>typeof v==="string")).slice(0,5).map((v:string)=>v.slice(0,300)),graphqlErrorCodes:codes,reservationStatus:"pending",publishingEnabled:false},502);
