@@ -1730,9 +1730,9 @@ app.get("/api/social/transports/buffer/book-draft/buffer-lookup", async (c) => {
         const destination = catalog?.url || officialDestinationBySeed[seedId] || null;
         const copy = harvest ? extractSocialCopy(harvest.content).text.trim() : "";
         const expectedText = copy && destination
-          ? copy.includes(destination) ? copy : copy + "\\n\\nDécouvrir le livre : " + destination
+          ? copy.includes(destination) ? copy : copy + "\n\nDécouvrir le livre : " + destination
           : null;
-        const normalize = (value:unknown) => String(value ?? "").trim().replace(/\\s+/g," ");
+        const normalize = (value:unknown) => String(value ?? "").trim().replace(/\s+/g," ");
         const matches = expectedText && Array.isArray(edges) ? edges
           .map((item:any) => item?.node)
           .filter((post:any) => normalize(post?.text) === normalize(expectedText))
