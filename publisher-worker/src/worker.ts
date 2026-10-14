@@ -1958,8 +1958,10 @@ app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async
     return c.json({status:"unauthorized",scheduled:false},401);
   const body = await c.req.json<Record<string,unknown>>().catch(() => ({}));
   const dryRun = body.dryRun === true;
+  const missingImageRecovery = body.intent === "retry-once-with-confirmed-official-cover" &&
+    body.priorRunId === 38646496703;
   if (body.harvestId !== GERARD_BUFFER_HARVEST_ID || body.postId !== GERARD_BUFFER_POST_ID ||
-      (!dryRun && body.intent !== "schedule-existing-verified-gerard-draft"))
+      (!dryRun && body.intent !== "schedule-existing-verified-gerard-draft" && !missingImageRecovery))
     return c.json({status:"invalid-target-or-intent",scheduled:false},422);
   const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
   if (!bufferKey || !(await isDatabaseConfigured(c.env)))
@@ -1971,7 +1973,7 @@ app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async
   if (reservations.length !== 1 || reservations[0].post_id !== GERARD_BUFFER_POST_ID)
     return c.json({status:"reservation-not-matched",scheduled:false},409);
   const currentState = String(reservations[0].status ?? "");
-  if (!["draft-created","promotion-pending","promotion-unknown","queued"].includes(currentState))
+  if (!["draft-created","promotion-rejected","promotion-pending","promotion-unknown","queued"].includes(currentState))
     return c.json({status:"not-draft-reservation",reservationStatus:currentState,scheduled:false},409);
 
   const readQuery = "query { post(input:{id:" + JSON.stringify(GERARD_BUFFER_POST_ID) +
@@ -2011,20 +2013,25 @@ app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async
     return c.json({status:"already-queued-or-sent",scheduled:true,postId:GERARD_BUFFER_POST_ID,
       providerStatus:post.status,dueAt,changed:false},200);
   }
-  if (currentState !== "draft-created")
+  // A single recovery is allowed only for the fully logged typed Buffer error:
+  // 38646496703: "Instagram posts require at least one image or video".
+  // If this recovery fails definitively it becomes "promotion-final-rejected".
+  if (currentState !== "draft-created" && currentState !== "promotion-rejected")
     return c.json({status:"promotion-state-needs-review",reservationStatus:currentState,scheduled:false},409);
+  if (currentState === "promotion-rejected" && !dryRun && !missingImageRecovery)
+    return c.json({status:"recovery-intent-required",scheduled:false},409);
   const inspection = inspectGerardExistingDraft(post);
   if (!inspection.eligible)
     return c.json({status:"draft-not-eligible",reason:inspection.status,scheduled:false},409);
   if (dryRun)
     return c.json({status:"ready-to-queue-existing-draft",scheduled:false,postId:GERARD_BUFFER_POST_ID,
-      imageCount:inspection.imageCount,channelId:GERARD_BOOK_CHANNEL_ID},200);
+      imageCount:inspection.imageCount,channelId:GERARD_BOOK_CHANNEL_ID,recoveryEligible:currentState==="promotion-rejected"},200);
 
   // One atomic claim. A repeat caller can neither create a new post nor queue
   // the same draft a second time. Uncertain mutations remain locked for review.
   const fingerprint = String(reservations[0].fingerprint);
   const lock = await sql`UPDATE buffer_draft_reservations SET status='promotion-pending'
-    WHERE fingerprint=${fingerprint} AND status='draft-created' AND post_id=${GERARD_BUFFER_POST_ID}
+    WHERE fingerprint=${fingerprint} AND status=${currentState} AND post_id=${GERARD_BUFFER_POST_ID}
     RETURNING fingerprint`;
   if (lock.length !== 1) return c.json({status:"promotion-already-claimed",scheduled:false},409);
   try {
@@ -2047,7 +2054,7 @@ app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async
     }
     const validationRejected = result.response.ok && !result.payload.errors &&
       payload?.__typename === "InvalidInputError";
-    await sql`UPDATE buffer_draft_reservations SET status=${validationRejected?"promotion-rejected":"promotion-unknown"}
+    await sql`UPDATE buffer_draft_reservations SET status=${validationRejected?(missingImageRecovery?"promotion-final-rejected":"promotion-rejected"):"promotion-unknown"}
       WHERE fingerprint=${fingerprint} AND status='promotion-pending'`;
     return c.json({status:validationRejected?"provider-validation-rejected":"provider-confirmation-uncertain",
       scheduled:false,providerError:validationRejected?String(payload.message??"Invalid input").slice(0,260):null,
