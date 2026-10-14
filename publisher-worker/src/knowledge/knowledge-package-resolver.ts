@@ -4,7 +4,7 @@ import { searchNotionWorkspaceKnowledge } from "./notion-workspace-search";
 export interface ResolvedKnowledgePackage {
   slug: string;
   verified: boolean;
-  source: "notion" | "mock";
+  source: "notion" | "mock" | "verified-brief";
   items: BlacklaceKnowledgeItem[];
   prompt: string;
   diagnostics: {
@@ -171,10 +171,10 @@ function buildPrompt(slug: string, items: BlacklaceKnowledgeItem[]): string {
   return [
     "KNOWLEDGE PACKAGE PUBLISHER VÉRIFIÉ — SOURCE DE VÉRITÉ FERMÉE",
     `Parcelle / produit : ${slug}`,
-    "PÉRIMÈTRE STRICT : les seules connaissances autorisées sont les sources Notion ci-dessous.",
+    "PÉRIMÈTRE STRICT : les seules connaissances autorisées sont les sources explicitement vérifiées ci-dessous.",
     "Ignore toute connaissance mémorisée, digérée ou provenant d'une autre parcelle, même si elle appartient au même écosystème Blacklace.",
     ...items.map((item, index) => [
-      `SOURCE NOTION AUTORISÉE ${index + 1}: ${item.title}`,
+      `SOURCE VÉRIFIÉE ${index + 1}: ${item.title}`,
       `Univers: ${item.universe}`,
       item.tags.length ? `Tags: ${item.tags.join(" | ")}` : "",
       item.content,
@@ -255,7 +255,7 @@ export async function resolveKnowledgePackage(
       return {
         slug,
         verified: true,
-        source: "notion",
+        source: slug === "yael-prequalification-de-prospects" ? "verified-brief" : "notion",
         items,
         prompt: buildPrompt(slug, items),
         diagnostics: { connected: true, error: null, totalItems: committedItems.length, matchedItems: items.length, discoveredItems: committedItems.length, committedPack: committed.diagnostics },
