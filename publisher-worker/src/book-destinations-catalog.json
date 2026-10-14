@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "updatedAt": "2026-10-09",
+  "updatedAt": "2026-10-14",
   "source": "author-supplied",
   "status": "titles-mapped",
-  "note": "Author supplied titles in the same order as the six URLs. Seed IDs not assigned until independently confirmed; do not cross-associate parcels.",
+  "note": "Author-supplied title/URL mappings. Only independently confirmed seed IDs are assigned; unrelated parcels remain unmapped.",
   "references": [
     {
       "asin": "B0H4CN5MSH",
@@ -16,7 +16,7 @@
       "asin": "B0H68811RL",
       "url": "https://www.amazon.fr/dp/B0H68811RL",
       "title": "Gérard et Gérard",
-      "seedId": null,
+      "seedId": "gerard-et-gerard",
       "verifiedMapping": true
     },
     {
