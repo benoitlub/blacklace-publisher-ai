@@ -1,3 +1,5 @@
+import { officialMediaBySeed } from "./official-media";
+
 /**
  * GraphQL request for the verified Instagram book channel in Buffer.
  * A static image is an Instagram "post", not a reel or story.
@@ -59,10 +61,15 @@ export function inspectGerardExistingDraft(post: BufferExistingPost | null) {
 
 export function buildGerardExistingDraftQueueMutation(postId: string) {
   if (postId !== GERARD_BUFFER_POST_ID) throw new Error("Only the verified existing Gérard Buffer draft can be promoted.");
-  // No assets replacement: Buffer preserves the verified cover already attached.
+  // Buffer's 2026-10-14 response confirmed an image is required again on
+  // editPost, despite the generic API documentation's omission semantics.
+  // Re-send only the SAME author-provided official cover, not a new image.
+  const verifiedCover = officialMediaBySeed["gerard-et-gerard"];
+  if (!verifiedCover || !verifiedCover.startsWith("https://")) throw new Error("Official Gérard cover required");
   return "mutation { editPost(input: { id: " + JSON.stringify(postId) +
     ", text: " + JSON.stringify(GERARD_BOOK_INSTAGRAM_CAPTION) +
     ", metadata: { instagram: { type: post, shouldShareToFeed: true } }" +
+    ", assets: [{ image: { url: " + JSON.stringify(verifiedCover) + " } }]" +
     ", schedulingType: automatic, mode: addToQueue, saveToDraft: false" +
     " }) { __typename ... on PostActionSuccess { post { id status dueAt text channelId } } ... on InvalidInputError { message } } }";
 }
