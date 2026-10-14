@@ -1697,6 +1697,61 @@ app.get("/api/social/transports/buffer/book-draft/reconcile", async (c) => {
   return c.json({status:created?"draft-recorded":pending?"requires-buffer-confirmation":"no-reservation",harvestId,reservations:rows,retryAllowed:!pending&&!created,requiresManualConfirmation:pending,publishingEnabled:false});
 });
 
+// Recover ONLY the documented 2026-10-14 InvalidInputError for Gerard & Gerard.
+// Historical proof: GitHub runtime 38619406815 returned InvalidInputError,
+// "Instagram posts require a type"; Buffer reported no post ID.
+// Requires a complete fresh read-only provider check before updating the old
+// reservation. This endpoint never creates or publishes a Buffer post.
+app.post("/api/social/transports/buffer/book-draft/recover-gerard-invalid-input", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret)
+    return c.json({status:"unauthorized",changed:0},401);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const knownId = "neon_iter_iter_gerard-et-gerard_1786288530352";
+  if (body.harvestId !== knownId || body.intent !== "recover-known-buffer-InvalidInputError")
+    return c.json({status:"rejected",reason:"not-the-documented-incident",changed:0},422);
+  if (!(await isDatabaseConfigured(c.env)))
+    return c.json({status:"unavailable",changed:0},503);
+  try {
+    const sql = await getSql(c.env);
+    const rows = await sql`SELECT fingerprint,status,post_id,created_at FROM buffer_draft_reservations
+      WHERE harvest_id=${knownId} AND created_at >= '2026-10-14T18:57:00Z'::timestamptz
+      AND created_at < '2026-10-14T18:58:00Z'::timestamptz`;
+    if (rows.length !== 1 || rows[0].status !== "pending" || rows[0].post_id !== null)
+      return c.json({status:"not-recoverable",reason:"not-one-original-pending-reservation",changed:0},409);
+    // Use Publisher's authenticated lookup; require all posts on this channel
+    // to have been inspected and no exact match for the original book copy.
+    const url = new URL(c.req.url);
+    url.pathname = "/api/social/transports/buffer/book-draft/buffer-lookup";
+    url.search = "";
+    url.searchParams.set("harvestId",knownId);
+    const check = await app.fetch(new Request(url.toString(), {
+      method:"GET", headers:{Authorization:"Bearer " + secret},
+    }), c.env);
+    if (!check.ok) return c.json({status:"verification-unavailable",changed:0},503);
+    const data = await check.json() as Record<string,any>;
+    const target = data.target;
+    if (data.status !== "ok" || data.postsHttpStatus !== 200 ||
+        data.hasNextPage !== false || data.channel?.id !== "6ac8c8226a5c39ccb65fdbf6" ||
+        data.channel?.isDisconnected === true || data.channel?.isLocked === true ||
+        target?.harvestId !== knownId || target?.copyVerified !== true ||
+        target?.complete !== true || target?.status !== "no-matching-post-in-complete-result" ||
+        !Array.isArray(target?.exactMatches) || target.exactMatches.length !== 0)
+      return c.json({status:"verification-inconclusive",changed:0},409);
+    const fingerprint = String(rows[0].fingerprint);
+    const released = await sql`UPDATE buffer_draft_reservations
+      SET status='validation-rejected'
+      WHERE fingerprint=${fingerprint} AND harvest_id=${knownId}
+        AND status='pending' AND post_id IS NULL
+      RETURNING fingerprint`;
+    return c.json({
+      status:released.length===1?"reconciled-known-invalid-input":"no-change",
+      harvestId:knownId, changed:released.length, postCreated:false,
+      retryScope:"draft-only", freshProviderCheck:true,
+    },released.length===1?200:409);
+  } catch (_) { return c.json({status:"recovery-unavailable",changed:0},503); }
+});
+
 // Read-only Buffer reconciliation: inspect channel and recent posts, never mutate Buffer.
 app.get("/api/social/transports/buffer/book-draft/buffer-lookup", async (c) => {
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
