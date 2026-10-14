@@ -52,11 +52,11 @@ test("existing Buffer draft is checked for exact post identity, Instagram channe
 
 test("a verified draft is edited in place, never recreated", () => {
   const mutation = buildGerardExistingDraftQueueMutation(GERARD_BUFFER_POST_ID);
-  assert.match(mutation, /editPost\\(input:/);
+  assert.ok(mutation.includes("editPost(input:"));
   assert.doesNotMatch(mutation, /createPost/);
   assert.match(mutation, /saveToDraft: false/);
   assert.match(mutation, /mode: addToQueue/);
-  assert.match(mutation, /metadata: \\{ instagram: \\{ type: post, shouldShareToFeed: true/);
+  assert.ok(mutation.includes("metadata: { instagram: { type: post, shouldShareToFeed: true"));
   assert.doesNotMatch(mutation, /assets:/);
   assert.match(mutation, /on PostActionSuccess/);
   assert.ok(mutation.includes(JSON.stringify(GERARD_BOOK_INSTAGRAM_CAPTION)));
