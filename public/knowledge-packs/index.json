@@ -1,78 +1,78 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-14T10:17:47.312Z",
+  "generatedAt": "2026-10-15T10:01:07.061Z",
   "packs": [
     {
       "slug": "terra",
       "status": "verified",
       "sourceCount": 2,
-      "generatedAt": "2026-10-14T10:17:23.507Z"
+      "generatedAt": "2026-10-15T10:00:40.552Z"
     },
     {
       "slug": "gerard-et-gerard",
       "status": "verified",
       "sourceCount": 7,
-      "generatedAt": "2026-10-14T10:17:29.040Z"
+      "generatedAt": "2026-10-15T10:00:46.911Z"
     },
     {
       "slug": "neverland-ltd",
       "status": "verified",
       "sourceCount": 2,
-      "generatedAt": "2026-10-14T10:17:29.663Z"
+      "generatedAt": "2026-10-15T10:00:47.590Z"
     },
     {
       "slug": "la-feulette-tachetee",
       "status": "verified",
       "sourceCount": 3,
-      "generatedAt": "2026-10-14T10:17:31.655Z"
+      "generatedAt": "2026-10-15T10:00:50.793Z"
     },
     {
       "slug": "420-dice",
       "status": "verified",
-      "sourceCount": 3,
-      "generatedAt": "2026-10-14T10:17:36.142Z"
+      "sourceCount": 4,
+      "generatedAt": "2026-10-15T10:00:52.726Z"
     },
     {
       "slug": "pro-hibited-online",
       "status": "verified",
       "sourceCount": 7,
-      "generatedAt": "2026-10-14T10:17:41.568Z"
+      "generatedAt": "2026-10-15T10:00:56.354Z"
     },
     {
       "slug": "blacklace-dice",
       "status": "verified",
-      "sourceCount": 5,
-      "generatedAt": "2026-10-14T10:17:42.633Z"
+      "sourceCount": 6,
+      "generatedAt": "2026-10-15T10:00:59.432Z"
     },
     {
       "slug": "creature-sync",
       "status": "verified",
       "sourceCount": 1,
-      "generatedAt": "2026-10-14T10:17:43.090Z"
+      "generatedAt": "2026-10-15T10:01:00.190Z"
     },
     {
       "slug": "feuch-institute",
       "status": "verified",
       "sourceCount": 1,
-      "generatedAt": "2026-10-14T10:17:43.378Z"
+      "generatedAt": "2026-10-15T10:01:00.636Z"
     },
     {
       "slug": "bazar-du-feuch",
       "status": "verified",
       "sourceCount": 4,
-      "generatedAt": "2026-10-14T10:17:44.802Z"
+      "generatedAt": "2026-10-15T10:01:01.952Z"
     },
     {
       "slug": "poulpe-fiction",
       "status": "verified",
       "sourceCount": 4,
-      "generatedAt": "2026-10-14T10:17:45.704Z"
+      "generatedAt": "2026-10-15T10:01:03.039Z"
     },
     {
       "slug": "observatory-user-sources",
       "status": "empty",
       "sourceCount": 0,
-      "generatedAt": "2026-10-14T10:17:47.311Z"
+      "generatedAt": "2026-10-15T10:01:07.060Z"
     }
   ]
 }
