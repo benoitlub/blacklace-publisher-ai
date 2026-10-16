@@ -1,0 +1,27 @@
+name: Publisher 3D preflight
+
+on:
+  pull_request:
+    paths:
+      - "publisher-worker/src/**"
+      - ".github/workflows/publisher-3d-preflight.yml"
+  push:
+    branches:
+      - feature/publisher-3d-toolpack-preflight
+
+jobs:
+  check-worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: publisher-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: publisher-worker/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
