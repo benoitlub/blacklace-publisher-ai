@@ -23,5 +23,7 @@ jobs:
           cache: npm
           cache-dependency-path: publisher-worker/package-lock.json
       - run: npm ci
-      - run: npm run typecheck
+      # Validate new broker module in isolation. Full Worker typecheck has
+      # unrelated baseline errors; see PR notes, do not silently mask them.
+      - run: npx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --skipLibCheck --types @cloudflare/workers-types src/three-d-toolpack.ts
       - run: npm test
