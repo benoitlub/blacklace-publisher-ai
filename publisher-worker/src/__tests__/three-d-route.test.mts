@@ -1,6 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import worker from "../worker.ts";
+import * as workerModule from "../worker.ts";
+const imported = workerModule as unknown as Record<string, any>;
+const worker = imported.default?.fetch ? imported.default : imported.default?.default ?? imported;
+
 
 test("Publisher preflight returns a non-billable GLB plan when Composio is unconfigured", async () => {
   const response = await worker.fetch(
