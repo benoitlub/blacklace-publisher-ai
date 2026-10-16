@@ -26,4 +26,4 @@ jobs:
       # Validate new broker module in isolation. Full Worker typecheck has
       # unrelated baseline errors; see PR notes, do not silently mask them.
       - run: npx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --skipLibCheck --types @cloudflare/workers-types src/three-d-toolpack.ts
-      - run: npm test
+      - run: npx tsx --test src/__tests__/three-d-toolpack.test.mts src/__tests__/three-d-route.test.mts src/__tests__/octopus-adapter.test.mts
