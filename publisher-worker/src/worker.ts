@@ -1082,7 +1082,7 @@ app.get("/api/production/3d/preflight", async (c) => {
 });
 
 app.post("/api/production/3d/plan", async (c) => {
-  const input = await c.req.json<ThreeDPreflightInput>().catch(() => ({}));
+  const input = await c.req.json<ThreeDPreflightInput>().catch(() => ({} as ThreeDPreflightInput));
   // No image bytes, keys or billing requests are accepted by the planner.
   try {
     return c.json(await preflight3d(c.env, {
