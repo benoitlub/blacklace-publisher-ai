@@ -27,3 +27,7 @@ jobs:
       # unrelated baseline errors; see PR notes, do not silently mask them.
       - run: npx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --skipLibCheck --types @cloudflare/workers-types src/three-d-toolpack.ts
       - run: npx tsx --test src/__tests__/three-d-toolpack.test.mts src/__tests__/three-d-route.test.mts src/__tests__/octopus-adapter.test.mts
+      # One read-only GET to the deployed Publisher's existing diagnostics.
+      # Never executes a paid provider and never logs connected account IDs.
+      - name: Inspect current Publisher 3D connections (read-only)
+        run: node ../scripts/check-publisher-3d-connections.mjs
