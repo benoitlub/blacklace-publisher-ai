@@ -38,3 +38,27 @@ A real mesh requires a provider or local 3D modeling. To reuse Publisher's Compo
 
 ## Note on visual references
 The 4 concept views are still AI renderings, not guaranteed mathematically matched orthographic drawings. Before any billable generation, inspect their rear/side consistency. Do not claim the resulting mesh will replicate every detail.
+
+## Actual deployed Provider check — 2026-10-17
+
+A non-mutating GitHub Actions check (`scripts/check-publisher-3d-connections.mjs`)
+called the *deployed* Publisher Worker endpoint `GET /api/production/diagnostics`.
+
+- HTTP 200; active Composio connected-account inventory read successfully.
+- Meshy: **not connected**.
+- Tripo3D: **not connected**.
+- Provider credits: **not checked**.
+- Endpoint makes no GLB and does not change provider configuration.
+- CI validations: 16 targeted tests passed; overall repository CI passed.
+- Current work remains isolated in this draft PR, with no deployment.
+
+**Do not activate paid Meshy calls until account and credit approval.** Meshy's
+published API pricing documents 20 credits for 3D reconstruction without
+textures, generally 30 with textures for standard models, and Meshy states
+that API access requires Pro or higher. This may entail a separate purchase.
+Sources: https://www.meshy.ai/api and https://docs.meshy.ai/en/api/pricing
+
+**Next actionable gate:** inspect existing accessible free/paid 3D alternatives
+and ask the user whether to connect a dedicated provider account to Publisher.
+Connecting Composio through another ChatGPT session is not automatically the
+same identity or credentials as Publisher's worker. Do not assume otherwise.
