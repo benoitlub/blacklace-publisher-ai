@@ -1,0 +1,229 @@
+{
+  "contract": "publisher-tool-packs-v1",
+  "bundle": "gerard-creative-skills-2026-10",
+  "status": "prepared",
+  "owner": "publisher",
+  "consumer": "poulpe-fiction/gerard",
+  "executor": "octopus-engine",
+  "source": {
+    "type": "user-provided-instagram-reel-screenshots",
+    "verification": "names and links are references, not installed or security-reviewed dependencies"
+  },
+  "guardrails": {
+    "autoInstall": false,
+    "autoDeploy": false,
+    "autoPublish": false,
+    "externalWrites": "explicit-approval",
+    "credentials": "never put secrets in prompts or files",
+    "budget": "zero by default",
+    "noCrossParcelLeakage": true,
+    "skillSources": "inspect official source and permissions before any adoption"
+  },
+  "packs": [
+    {
+      "id": "gerard-explorer-playwright",
+      "title": "Explorateur — observation et tests UI",
+      "priority": 1,
+      "capabilities": [
+        "browser.inspect",
+        "ui.test",
+        "screenshot.capture",
+        "bug.report"
+      ],
+      "candidateTools": [
+        {
+          "name": "Playwright MCP",
+          "url": "https://playwright.dev/",
+          "integration": "candidate—not yet connected"
+        }
+      ],
+      "input": {
+        "targetUrl": "public or approved local URL",
+        "scenarios": "named user journeys",
+        "baseline": "expected results"
+      },
+      "workflow": [
+        "Read-only exploration first",
+        "Capture screenshots at mobile and desktop widths",
+        "Identify console/network errors when accessible",
+        "Run deterministic interaction checks",
+        "Record reproducible bugs, expected vs actual",
+        "Produce prioritized repair proposals"
+      ],
+      "deliverables": [
+        "test-report.json",
+        "screenshots/",
+        "reproduction.md",
+        "issue-candidates.md"
+      ],
+      "acceptance": [
+        "Every failure has reproducible steps",
+        "Never assert UI working from build success only",
+        "Never log secrets",
+        "No external mutation without authorization"
+      ],
+      "targets": [
+        "blacklace-echo",
+        "metaverse-creator cockpit",
+        "feuch-game",
+        "feuchlab",
+        "publisher"
+      ]
+    },
+    {
+      "id": "gerard-art-direction",
+      "title": "Directeur artistique — cohérence visuelle Blacklace",
+      "priority": 2,
+      "capabilities": [
+        "art.direction",
+        "design.system.review",
+        "reference.compare",
+        "visual.prompt.compose"
+      ],
+      "candidateTools": [
+        {
+          "name": "Taste",
+          "url": "https://www.tasteskill.dev",
+          "integration": "external skill candidate; inspect before use"
+        },
+        {
+          "name": "Emil Kowalski",
+          "url": "https://emilkowal.ski/skill",
+          "integration": "external skill candidate; inspect before use"
+        }
+      ],
+      "input": {
+        "product": "project/parcel",
+        "artBible": "verified scoped references",
+        "screenshots": "current UI or artwork"
+      },
+      "workflow": [
+        "Locate the product-specific visual bible",
+        "Extract a bounded design token set",
+        "Compare current work to references",
+        "Propose changes with before/after descriptions",
+        "Avoid inventing missing lore or mixing clients"
+      ],
+      "deliverables": [
+        "design-brief.md",
+        "design-tokens.json",
+        "visual-review.md",
+        "prompt-assets.md"
+      ],
+      "acceptance": [
+        "References and assumptions clearly separated",
+        "No cross-parcel mixing",
+        "Legibility and accessibility preserved",
+        "No changes without creative approval"
+      ],
+      "references": {
+        "Blacklace": [
+          "turquoise domes",
+          "warm sandstone",
+          "ornate organic shapes",
+          "biopunk Institute Feuch",
+          "violet/cyan spectral light"
+        ],
+        "generic": "Do not force Blacklace aesthetic on client parcels"
+      }
+    },
+    {
+      "id": "gerard-impeccable-quality",
+      "title": "Finition impeccable — qualité visuelle et fonctionnelle",
+      "priority": 3,
+      "capabilities": [
+        "ui.polish",
+        "accessibility.audit",
+        "responsive.review",
+        "release.readiness"
+      ],
+      "candidateTools": [
+        {
+          "name": "Impeccable",
+          "url": "https://impeccable.style",
+          "integration": "external skill candidate; inspect before use"
+        },
+        {
+          "name": "Playwright MCP",
+          "url": "https://playwright.dev/",
+          "integration": "optional tester"
+        }
+      ],
+      "input": {
+        "build": "existing version",
+        "issues": "known defects",
+        "devices": "supported sizes"
+      },
+      "workflow": [
+        "Prioritize broken interaction, overflow and missing states",
+        "Audit typography, spacing and contrast",
+        "Check keyboard and mobile behavior",
+        "Run before-and-after screenshots and regression tests",
+        "Summarize unverified concerns without declaring victory"
+      ],
+      "deliverables": [
+        "polish-checklist.md",
+        "regression-results.json",
+        "before-after/",
+        "release-gate.md"
+      ],
+      "acceptance": [
+        "No broken interactions",
+        "No clipped key content at specified viewports",
+        "Contrast/focus checked",
+        "Unresolved issues explicitly recorded"
+      ]
+    },
+    {
+      "id": "gerard-media-blender",
+      "title": "Atelier média — montages 3D et teasers",
+      "priority": 4,
+      "capabilities": [
+        "3d.storyboard",
+        "camera.path.plan",
+        "video.edit.plan",
+        "sound.mix.plan"
+      ],
+      "candidateTools": [
+        {
+          "name": "Blender",
+          "url": "https://www.blender.org/",
+          "integration": "local program / remote renderer not currently confirmed"
+        },
+        {
+          "name": "Opus",
+          "url": null,
+          "integration": "name ambiguous; identify actual provider and rights before adoption"
+        }
+      ],
+      "input": {
+        "scene": "existing Blender scene or GLB",
+        "target": "social format/platform",
+        "durationSeconds": "6 to 30",
+        "rights": "licensed footage, voice and music"
+      },
+      "workflow": [
+        "Read scenes and existing assets",
+        "Select 3 to 5 shots and camera movements",
+        "Remove hesitations and pauses from source audio if authorized",
+        "Plan restrained music and SFX",
+        "Prepare an edit decision list and exports",
+        "Request approval before posting externally"
+      ],
+      "deliverables": [
+        "storyboard.md",
+        "shot-list.json",
+        "edit-decision-list.json",
+        "render-settings.json",
+        "publication-draft.md"
+      ],
+      "acceptance": [
+        "No invented finished video",
+        "Copyright and consent checked",
+        "Audio level controlled",
+        "Platform export dimensions validated",
+        "No automatic publication"
+      ]
+    }
+  ]
+}
