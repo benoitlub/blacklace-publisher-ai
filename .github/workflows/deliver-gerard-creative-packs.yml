@@ -1,0 +1,22 @@
+name: Deliver Gerard creative packs
+on:
+  push:
+    branches:
+      - feature/gerard-four-creative-skill-packs
+    paths:
+      - "scripts/deliver-gerard-creative-packs.mjs"
+      - "knowledge-packs/gerard-creative-skills-2026-10/**"
+      - ".github/workflows/deliver-gerard-creative-packs.yml"
+  workflow_dispatch:
+jobs:
+  deliver:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Deliver four independent observed Tool Packs to Publisher
+        run: node scripts/deliver-gerard-creative-packs.mjs
