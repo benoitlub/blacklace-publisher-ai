@@ -30,6 +30,7 @@ const KNOWN_ALIASES: Record<string, string[]> = {
   "feuch-institute": ["feuch institute"],
   "bazar-du-feuch": ["bazar du feuch"],
   "poulpe-fiction": ["poulpe fiction"],
+  "yael-prequalification-de-prospects": ["yaelbali", "yael bali", "yael prospection", "financement immobilier", "courtage financement"],
 };
 
 export function normalizeKnowledgeSlug(value: unknown): string {
@@ -111,9 +112,22 @@ function scoreItem(item: BlacklaceKnowledgeItem, slug: string): number {
   return score;
 }
 
+export function isVerifiedYaebaliSource(item: BlacklaceKnowledgeItem): boolean {
+  if (!isUsableKnowledgeItem(item)) return false;
+  const title = normalizedText(item.title);
+  const universe = normalizedText(item.universe);
+  const body = normalizedText(item.content);
+  const hasIdentity = /yael\\s*bali|yaelbali|yae\\s*bali|yaebali|prequalification de prospects immobiliers/.test(title + " " + universe) ||
+    /yael\\s*bali|yaelbali|yae\\s*bali|yaebali/.test(body);
+  const hasRealEstate = /immobilier|courtage|credit immobilier|financement immobilier|pret immobilier|capacite d emprunt/.test(title + " " + universe + " " + body);
+  const contaminated = /420 dice|420 dice game|pro hbtd|blacklace dice|reel 420|jeu de des|gage en 3 lancers/.test(title + " " + body);
+  return hasIdentity && hasRealEstate && !contaminated;
+}
+
 function rankItems(items: BlacklaceKnowledgeItem[], slug: string): BlacklaceKnowledgeItem[] {
   const ranked = items
     .filter(isUsableKnowledgeItem)
+    .filter(item => slug !== "yael-prequalification-de-prospects" || isVerifiedYaebaliSource(item))
     .map((item) => ({ item, score: scoreItem(item, slug) }))
     .filter(({ score }) => score > 0)
     .sort((a, b) => b.score - a.score);
