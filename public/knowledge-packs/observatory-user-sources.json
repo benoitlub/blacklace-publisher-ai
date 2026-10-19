@@ -1,10 +1,83 @@
 {
   "version": 1,
   "slug": "observatory-user-sources",
-  "status": "empty",
+  "status": "verified",
   "source": "publisher-observatory-user-sources",
   "aliases": [],
-  "sources": [],
-  "sourceCount": 0,
-  "generatedAt": "2026-10-18T09:41:08.412Z"
+  "sources": [
+    {
+      "id": "gerard-observatory-gerard-media-blender",
+      "title": "Atelier média — montages 3D et teasers",
+      "url": null,
+      "content": "3d.storyboard, camera.path.plan, video.edit.plan, sound.mix.plan — storyboard.md, shot-list.json, edit-decision-list.json, render-settings.json, publication-draft.md",
+      "capturedAt": "2026-10-18T16:38:45.379Z",
+      "kind": "github-tool-pack",
+      "decision": "watch",
+      "tags": [
+        "gerard",
+        "publisher",
+        "octopus",
+        "tool-pack",
+        "creative-workflow",
+        "gerard-media-blender"
+      ],
+      "octopus": null
+    },
+    {
+      "id": "gerard-observatory-gerard-impeccable-quality",
+      "title": "Finition impeccable — qualité visuelle et fonctionnelle",
+      "url": null,
+      "content": "ui.polish, accessibility.audit, responsive.review, release.readiness — polish-checklist.md, regression-results.json, before-after/, release-gate.md",
+      "capturedAt": "2026-10-18T16:38:45.281Z",
+      "kind": "github-tool-pack",
+      "decision": "watch",
+      "tags": [
+        "gerard",
+        "publisher",
+        "octopus",
+        "tool-pack",
+        "creative-workflow",
+        "gerard-impeccable-quality"
+      ],
+      "octopus": null
+    },
+    {
+      "id": "gerard-observatory-gerard-art-direction",
+      "title": "Directeur artistique — cohérence visuelle Blacklace",
+      "url": null,
+      "content": "art.direction, design.system.review, reference.compare, visual.prompt.compose — design-brief.md, design-tokens.json, visual-review.md, prompt-assets.md",
+      "capturedAt": "2026-10-18T16:38:45.202Z",
+      "kind": "github-tool-pack",
+      "decision": "watch",
+      "tags": [
+        "gerard",
+        "publisher",
+        "octopus",
+        "tool-pack",
+        "creative-workflow",
+        "gerard-art-direction"
+      ],
+      "octopus": null
+    },
+    {
+      "id": "gerard-observatory-gerard-explorer-playwright",
+      "title": "Explorateur — observation et tests UI",
+      "url": null,
+      "content": "browser.inspect, ui.test, screenshot.capture, bug.report — test-report.json, screenshots/, reproduction.md, issue-candidates.md",
+      "capturedAt": "2026-10-18T16:38:44.984Z",
+      "kind": "github-tool-pack",
+      "decision": "watch",
+      "tags": [
+        "gerard",
+        "publisher",
+        "octopus",
+        "tool-pack",
+        "creative-workflow",
+        "gerard-explorer-playwright"
+      ],
+      "octopus": null
+    }
+  ],
+  "sourceCount": 4,
+  "generatedAt": "2026-10-19T10:51:51.919Z"
 }
