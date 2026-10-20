@@ -6,78 +6,69 @@
   "aliases": [],
   "sources": [
     {
-      "id": "gerard-observatory-gerard-media-blender",
-      "title": "Atelier média — montages 3D et teasers",
-      "url": null,
-      "content": "3d.storyboard, camera.path.plan, video.edit.plan, sound.mix.plan — storyboard.md, shot-list.json, edit-decision-list.json, render-settings.json, publication-draft.md",
-      "capturedAt": "2026-10-18T16:38:45.379Z",
-      "kind": "github-tool-pack",
+      "id": "obs_mvftyibh_rca53l",
+      "title": "laurent%20voanh",
+      "url": "laurent voanh",
+      "content": "Pack genere depuis une depot logiciel avec 52% de confiance.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
+      "capturedAt": "2026-10-19T22:32:54.127Z",
+      "kind": "github",
       "decision": "watch",
       "tags": [
-        "gerard",
-        "publisher",
-        "octopus",
-        "tool-pack",
-        "creative-workflow",
-        "gerard-media-blender"
+        "depot logiciel",
+        "web",
+        "saas",
+        "analyse locale"
       ],
       "octopus": null
     },
     {
-      "id": "gerard-observatory-gerard-impeccable-quality",
-      "title": "Finition impeccable — qualité visuelle et fonctionnelle",
-      "url": null,
-      "content": "ui.polish, accessibility.audit, responsive.review, release.readiness — polish-checklist.md, regression-results.json, before-after/, release-gate.md",
-      "capturedAt": "2026-10-18T16:38:45.281Z",
-      "kind": "github-tool-pack",
+      "id": "obs_mvftyi7a_4dv5b6",
+      "title": "# Knowledge Package — LangChain\n\nKnowledge Package — LangGra...",
+      "url": "# Knowledge Package — LangChain\n\nKnowledge Package — LangGraph\n\nKnowledge Package — LlamaIndex\n\nKnowledge Package — Qdrant\n\nKnowledge Package — CrewAI\n\nKnowledge Package — Ragas",
+      "content": "Pack genere depuis une texte source avec 74% de confiance.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
+      "capturedAt": "2026-10-19T22:32:53.975Z",
+      "kind": "url",
       "decision": "watch",
       "tags": [
-        "gerard",
-        "publisher",
-        "octopus",
-        "tool-pack",
-        "creative-workflow",
-        "gerard-impeccable-quality"
+        "site web / saas",
+        "web",
+        "saas",
+        "analyse locale",
+        "texte source"
       ],
       "octopus": null
     },
     {
-      "id": "gerard-observatory-gerard-art-direction",
-      "title": "Directeur artistique — cohérence visuelle Blacklace",
+      "id": "obs_mvftyi3v_17zecu",
+      "title": "Ragas",
       "url": null,
-      "content": "art.direction, design.system.review, reference.compare, visual.prompt.compose — design-brief.md, design-tokens.json, visual-review.md, prompt-assets.md",
-      "capturedAt": "2026-10-18T16:38:45.202Z",
-      "kind": "github-tool-pack",
+      "content": "Pack genere depuis une texte source avec 52% de confiance.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
+      "capturedAt": "2026-10-19T22:32:53.853Z",
+      "kind": "text",
       "decision": "watch",
       "tags": [
-        "gerard",
-        "publisher",
-        "octopus",
-        "tool-pack",
-        "creative-workflow",
-        "gerard-art-direction"
+        "texte source",
+        "web",
+        "saas",
+        "analyse locale"
       ],
       "octopus": null
     },
     {
-      "id": "gerard-observatory-gerard-explorer-playwright",
-      "title": "Explorateur — observation et tests UI",
-      "url": null,
-      "content": "browser.inspect, ui.test, screenshot.capture, bug.report — test-report.json, screenshots/, reproduction.md, issue-candidates.md",
-      "capturedAt": "2026-10-18T16:38:44.984Z",
-      "kind": "github-tool-pack",
+      "id": "obs_mvftyhwy_9zrt7s",
+      "title": "app.notion.com",
+      "url": "https://app.notion.com/p/Publisher-Studio-Knowledge-Observatory-3973911972538093bd29d94734fdd24b?source=copy_link",
+      "content": "Pack genere depuis une site web / saas avec 74% de confiance.\n\nPatterns : Observer avant de generer, Extraire des capacites plutot que produire un texte final, Separer source, interpretation et recommandation, Source vers Observation, Observation vers Knowledge Pack, Export mock vers Octopus sans dependance directe\n\nRecommandations : Valider les connaissances utiles avant creation de Seeds, Relier ce pack a un HarvestDraft si l'analyse produit un resultat exploitable, Brancher un connecteur reel seulement apres validation du pipeline local",
+      "capturedAt": "2026-10-19T22:32:53.686Z",
+      "kind": "url",
       "decision": "watch",
       "tags": [
-        "gerard",
-        "publisher",
-        "octopus",
-        "tool-pack",
-        "creative-workflow",
-        "gerard-explorer-playwright"
+        "site web / saas",
+        "notion"
       ],
       "octopus": null
     }
   ],
   "sourceCount": 4,
-  "generatedAt": "2026-10-19T10:51:51.919Z"
+  "generatedAt": "2026-10-20T10:08:33.048Z"
 }
