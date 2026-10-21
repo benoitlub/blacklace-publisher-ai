@@ -1,0 +1,30 @@
+name: Publisher social seed exclusion tests
+
+on:
+  pull_request:
+    paths:
+      - "publisher-worker/src/worker.ts"
+      - "publisher-worker/src/__tests__/publisher-social-seed-exclusion.test.mts"
+      - ".github/workflows/publisher-seed-exclusion-test.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install Publisher Worker dependencies
+        working-directory: publisher-worker
+        run: npm install --no-audit --no-fund
+      - name: Run editorial seed exclusion tests
+        working-directory: publisher-worker
+        run: npx tsx --test src/__tests__/publisher-social-seed-exclusion.test.mts
+      - name: Typecheck Publisher Worker
+        working-directory: publisher-worker
+        run: npm run typecheck
