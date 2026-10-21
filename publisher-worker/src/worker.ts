@@ -2150,6 +2150,15 @@ app.get("/api/social/books/catalog", (c) => {
   });
 });
 
+/** Pure, testable editorial filter; IDs and seeds are independent exclusions. */
+export function isHarvestAllowedForSocialSelection(
+  row: { id: string; seed_id?: string | null },
+  excludedHarvestIds: ReadonlySet<string>,
+  excludedSeedIds: ReadonlySet<string>,
+): boolean {
+  return !excludedHarvestIds.has(row.id) && !excludedSeedIds.has(String(row.seed_id ?? ""));
+}
+
 app.get("/api/social/bridge/next", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
   try {
@@ -2166,7 +2175,7 @@ app.get("/api/social/bridge/next", async (c) => {
     const excludedHarvestIds = new Set(String(c.req.query("excludeHarvestIds") ?? "").split(",").map((id) => id.trim()).filter(Boolean));
     const excludedSeedIds = new Set(String(c.req.query("excludeSeedIds") ?? "").split(",").map((id) => id.trim()).filter(Boolean));
     const candidates = rows
-      .filter((row) => !excludedHarvestIds.has(row.id) && !excludedSeedIds.has(String(row.seed_id ?? "")))
+      .filter((row) => isHarvestAllowedForSocialSelection(row, excludedHarvestIds, excludedSeedIds))
       .map((row) => ({ row, editorial: classifyHarvestForSocial(row), copy: extractSocialCopy(row.content) }))
       .filter(({ row, editorial, copy }) =>
         !privateSeedIds.has(String(row.seed_id ?? "")) &&
