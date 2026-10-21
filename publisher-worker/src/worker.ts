@@ -1191,7 +1191,7 @@ async function readMetricoolServerBudget(env: Env, networks: readonly string[]) 
 }
 
 app.post("/api/social/publication/prepare", async (c) => {
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const prepared = prepareSocialPublication(body);
   if (prepared.status !== "prepared") return c.json(prepared, 422);
   try {
@@ -1241,7 +1241,7 @@ export function planGerardResourceUsage(input: {
 }
 
 app.post("/api/social/resources/plan", async (c) => {
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   // This endpoint advises only; an unverified caller quota cannot authorize scheduling.
   const plan = planGerardResourceUsage({
     mistralStatus: String(body.mistralStatus ?? "unknown"),
@@ -1279,7 +1279,7 @@ export function prepareMetricoolHandoff(input: Record<string, unknown>) {
 }
 
 app.post("/api/social/publication/handoff", async (c) => {
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const handoff = prepareMetricoolHandoff(body);
   return c.json(handoff, handoff.status === "invalid" ? 422 : 200);
 });
@@ -1287,7 +1287,7 @@ app.post("/api/social/publication/handoff", async (c) => {
 // Final publication gate: no external scheduling action until a verified
 // Metricool budget and a real recommended time are available server-side.
 app.post("/api/social/publication/finalize", async (c) => {
-  const input = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const input = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const handoff = prepareMetricoolHandoff(input);
   if (handoff.status !== "ready-for-metricool-planning") {
     return c.json({ status: "rejected", stage: "editorial-validation", handoff }, 422);
@@ -1375,7 +1375,7 @@ app.get("/api/social/media/test", async (c) => {
 });
 
 app.post("/api/social/media/request", async (c) => {
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const harvestId = String(body.harvestId ?? "").trim();
   if (!harvestId) return c.json({ status: "invalid", error: "harvestId est requis." }, 422);
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
@@ -1706,7 +1706,7 @@ app.post("/api/social/transports/buffer/book-draft/recover-gerard-invalid-input"
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
   if (!secret || c.req.header("Authorization") !== "Bearer " + secret)
     return c.json({status:"unauthorized",changed:0},401);
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const knownId = "neon_iter_iter_gerard-et-gerard_1786288530352";
   if (body.harvestId !== knownId || body.intent !== "recover-known-buffer-InvalidInputError")
     return c.json({status:"rejected",reason:"not-the-documented-incident",changed:0},422);
@@ -1956,7 +1956,7 @@ app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async
   const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
   if (!secret || c.req.header("Authorization") !== "Bearer " + secret)
     return c.json({status:"unauthorized",scheduled:false},401);
-  const body = await c.req.json<Record<string,unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const dryRun = body.dryRun === true;
   const missingImageRecovery = body.intent === "retry-once-with-confirmed-official-cover" &&
     body.priorRunId === 38646496703;
@@ -2611,7 +2611,7 @@ app.get("/api/social/publication/next-plan", async (c) => {
 
 app.post("/api/social/publication/from-harvest/plan", async (c) => {
   if (!(await isDatabaseConfigured(c.env))) return c.json({ configured: false, status: "invalid", error: "Database unavailable." }, 503);
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const harvestId = String(body.harvestId ?? "").trim();
   if (!harvestId) return c.json({ status: "invalid", error: "harvestId est requis." }, 422);
 
@@ -2662,7 +2662,7 @@ app.post("/api/social/publication/from-harvest/plan", async (c) => {
 });
 
 app.post("/api/social/publication/plan", async (c) => {
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const prepared = prepareSocialPublication(body);
   if (prepared.status !== "prepared") return c.json(prepared, 422);
   if (!prepared.publicationDate) {
@@ -3389,7 +3389,7 @@ app.post("/api/tentacles/run-cycle", async (c) => {
     // Mistral quota. AI generation is owned by Octopus; Publisher remains the
     // adapter/memory surface. Keep this endpoint read/write-safe until the
     // cultivate path is routed through an Octopus mission.
-    const source = String((await c.req.json<{ source?: string }>().catch(() => ({}))).source || "").trim();
+    const source = String((await c.req.json<{ source?: string }>().catch(() => ({ source: undefined }))).source || "").trim();
     if (source === "poulpe-fiction-gerard-cycle") {
       return c.json({
         status: "blocked",
@@ -3666,7 +3666,6 @@ app.get("/api/observatory/capability-gap", async (c) => {
       status: "gap",
       contract: "publisher-capability-gap-v1",
       capability,
-      mission: mission || null,
       discoveryRequired: true,
       connectedMatches: 0,
       mission: {
@@ -3731,7 +3730,7 @@ app.get("/api/observatory/discovery/schema", async (c) => {
         inputSchema: schema,
       };
     }).filter((tool) => {
-      const slug = tool.slug.toUpperCase();
+      const slug = (tool.slug ?? "").toUpperCase();
       const haystack = [tool.slug, tool.name, tool.description].filter(Boolean).join(" ").toLowerCase();
       return (
         slug === "COMPOSIO_SEARCH_WEB" ||
@@ -3774,7 +3773,7 @@ app.get("/api/observatory/discovery/account", async (c) => {
 
 app.post("/api/observatory/discovery/preview", async (c) => {
   try {
-    const body = await c.req.json<{ query?: string }>().catch(() => ({}));
+    const body = await c.req.json<{ query?: string }>().catch(() => ({ query: undefined }));
     const query = String(body.query || "").trim();
     if (!query) return c.json({ status: "failed", executable: false, error: "query is required" }, 400);
 
@@ -3793,7 +3792,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
     const answer = stringValue(data.answer);
     const citedDescriptions = new Map<number, string>();
     const citationPattern = /(?:^|\\s)([^[]*?)\\s*\\[(\\d+)](?=\\s|$)/g;
-    for (const match of answer.matchAll(citationPattern)) {
+    for (const match of (answer ?? "").matchAll(citationPattern)) {
       const citationNumber = Number.parseInt(match[2], 10);
       const description = String(match[1] || "").trim();
       if (Number.isFinite(citationNumber) && description) citedDescriptions.set(citationNumber, description);
@@ -3842,7 +3841,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
 
 app.post("/api/observatory/discovery/enrich", async (c) => {
   try {
-    const body = await c.req.json<{ url?: string }>().catch(() => ({}));
+    const body = await c.req.json<{ url?: string }>().catch(() => ({ url: undefined }));
     const url = String(body.url || "").trim();
     if (!url || !/^https?:\/\//i.test(url)) {
       return c.json({ status: "rejected", executable: false, persisted: false, code: "INVALID_URL", error: "A public http(s) url is required." }, 400);
@@ -3880,7 +3879,7 @@ app.post("/api/observatory/discovery/accept", async (c) => {
     candidate?: { title?: string; url?: string; description?: string; publishedDate?: string; image?: string };
     decision?: string;
     autonomous?: boolean;
-  }>().catch(() => ({}));
+  }>().catch(() => ({ candidate: undefined, decision: undefined, autonomous: undefined }));
   const candidate = body.candidate;
   const title = String(candidate?.title || "").trim();
   const url = String(candidate?.url || "").trim();

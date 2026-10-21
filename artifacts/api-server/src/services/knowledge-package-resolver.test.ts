@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { isVerifiedYaebaliSource } from "./knowledge-package-resolver";
+
+// Source classification must not initialize the production database.
+vi.mock("./knowledge-digestion", () => ({ digestObservation: vi.fn() }));
 
 const source = (title: string, content: string, universe = "yael-prequalification-de-prospects") => ({
   id: title, title, content, universe, tags: [universe], isMock: false,

@@ -97,3 +97,26 @@ test("picks capabilities in declaration order", () => {
   );
   assert.equal(requestedCapability({ operationId: "x", requiredCapabilities: [] }), undefined);
 });
+
+test("social.publish requires explicit authorization and never generates content", async t => {
+  const producer = t.mock.fn(generateText);
+  const result = await executeAdapterMission(mission({ requiredCapabilities: ["social.publish"] }), {
+    generateText: producer, knowledgeEnv,
+  });
+  assert.equal(result.status, "needs-input");
+  assert.equal(result.output.authorizationRequired, true);
+  assert.equal(result.output.requiredAuthorization, "social.publish");
+  assert.equal(result.output.executable, false);
+  assert.equal(producer.mock.callCount(), 0);
+});
+
+test("authorization alone does not invent an active publishing executor", async t => {
+  const producer = t.mock.fn(generateText);
+  const result = await executeAdapterMission(mission({
+    requiredCapabilities: ["social.publish"], authorizedResources: ["social.publish"],
+  }), { generateText: producer, knowledgeEnv });
+  assert.equal(result.status, "needs-input");
+  assert.equal(result.output.authorizationRequired, false);
+  assert.equal(result.output.executable, false);
+  assert.equal(producer.mock.callCount(), 0);
+});
