@@ -1,0 +1,24 @@
+{
+  "version": "video-package-v1",
+  "decisionOwner": "gerard",
+  "authoredBy": "user-demo",
+  "characterId": "natasha",
+  "referenceId": "natasha-fragment-03",
+  "scene": "Natasha dans son studio Blacklace existant, face caméra.",
+  "action": "Réutiliser son sourire et son geste de victoire déjà présents dans le clip ; aucune nouvelle action générée.",
+  "mood": "Studio turquoise et violet existant ; habillage sobre, journalistique et cramoisi.",
+  "durationSeconds": 10,
+  "sourceStartSeconds": 0,
+  "loopSource": false,
+  "format": "9:16",
+  "mode": "existing-media",
+  "voice": "none",
+  "maxExternalCost": 0,
+  "automaticPublication": false,
+  "destination": { "project": "blacklace-island", "platform": "instagram", "account": "@pro.hbtd" },
+  "storyboard": [
+    { "start": 0, "end": 3, "text": "LE SIGNAL PASSE." },
+    { "start": 3, "end": 7, "text": "NATASHA\nDEPUIS BLACKLACE." },
+    { "start": 7, "end": 10, "text": "ENTREZ DANS\nBLACKLACE ISLAND." }
+  ]
+}

@@ -1,4 +1,5 @@
 import { forwardMetricoolPublication } from "./metricool-forward";
+import { VIDEO_CAPABILITIES, executeVideoMission } from "./video/adapter";
 import { logger } from "../lib/logger";
 import { productionEngine, type ProductionRequest } from "./production-engine";
 import { generatePostDraft } from "../services/mistral";
@@ -14,6 +15,7 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "knowledge.search",
   "social.publish",
   "landing.generate",
+  ...VIDEO_CAPABILITIES,
 ] as const;
 
 export type PublisherAdapterCapability = (typeof PUBLISHER_ADAPTER_CAPABILITIES)[number];
@@ -277,6 +279,7 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
   if (envelope.contract !== "octopus-adapter-execution-v1") {
     return { operationId: envelope.mission?.operationId, status: "failed" as const, summary: "Contrat d’adaptateur non pris en charge.", output: {} };
   }
+  if (envelope.mission.requiredCapabilities.some(capability => VIDEO_CAPABILITIES.includes(capability as typeof VIDEO_CAPABILITIES[number]))) return executeVideoMission(envelope.mission);
   const capability = requestedCapability(envelope.mission);
   if (!capability) {
     return { operationId: envelope.mission.operationId, status: "failed" as const, summary: "Publisher ne déclare aucune des capacités demandées.", output: { requestedCapabilities: envelope.mission.requiredCapabilities } };
