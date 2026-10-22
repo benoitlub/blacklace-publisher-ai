@@ -1,5 +1,6 @@
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 import { buildObservatoryToolPack, getSql } from "./db";
+import type { ThreeDPreflightInput } from "./three-d-toolpack";
 
 /**
  * Octopus adapter surface, running on Cloudflare.
@@ -37,6 +38,7 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "social.publish",
   "knowledge.search",
   "tool.search",
+  "asset.3d.plan",
 ] as const;
 
 export type PublisherAdapterCapability = (typeof PUBLISHER_ADAPTER_CAPABILITIES)[number];
@@ -127,7 +129,7 @@ function systemPromptFor(capability: PublisherAdapterCapability): string {
  */
 export async function executeAdapterMission(
   envelope: OctopusAdapterEnvelope,
-  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike },
+  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; plan3D?: (input: ThreeDPreflightInput) => Promise<Record<string, unknown>> },
 ): Promise<AdapterExecutionResult> {
   const mission = isRecord(envelope.mission) ? (envelope.mission as OctopusAdapterMission) : undefined;
   const operationId = stringValue(mission?.operationId) ?? `unknown-${Date.now()}`;
@@ -165,6 +167,28 @@ export async function executeAdapterMission(
   }
 
   try {
+    if (capability === "asset.3d.plan") {
+      if (!deps.plan3D) return {
+        operationId,
+        status: "needs-input",
+        summary: "Publisher 3D connection broker is not installed.",
+        output: { capability, executable: false, authorizationRequired: true },
+      };
+      const rawCount = mission.context?.metadata?.["imageCount"];
+      const imageCount = rawCount === undefined ? 4 : Number(rawCount);
+      const pack = await deps.plan3D({
+        title: stringValue(mission.title) ?? "Creature-Sync Console",
+        imageCount,
+        format: "glb",
+      });
+      return {
+        operationId,
+        status: "completed",
+        summary: "Publisher has prepared a 3D Tool Pack without starting generation.",
+        output: { capability, ...pack, executable: false, authorizationRequired: true },
+      };
+    }
+
     if (capability === "tool.search") {
       const seedId = stringValue(mission.context?.metadata?.["seedId"])
         ?? stringValue(mission.context?.metadata?.["parcelId"])

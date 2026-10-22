@@ -1,0 +1,33 @@
+name: Publisher 3D preflight
+
+on:
+  pull_request:
+    paths:
+      - "publisher-worker/src/**"
+      - ".github/workflows/publisher-3d-preflight.yml"
+  push:
+    branches:
+      - feature/publisher-3d-toolpack-preflight
+
+jobs:
+  check-worker:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: publisher-worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: publisher-worker/package-lock.json
+      - run: npm ci
+      # Validate new broker module in isolation. Full Worker typecheck has
+      # unrelated baseline errors; see PR notes, do not silently mask them.
+      - run: npx tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --skipLibCheck --types @cloudflare/workers-types src/three-d-toolpack.ts
+      - run: npx tsx --test src/__tests__/three-d-toolpack.test.mts src/__tests__/three-d-route.test.mts src/__tests__/octopus-adapter.test.mts
+      # One read-only GET to the deployed Publisher's existing diagnostics.
+      # Never executes a paid provider and never logs connected account IDs.
+      - name: Inspect current Publisher 3D connections (read-only)
+        run: node ../scripts/check-publisher-3d-connections.mjs

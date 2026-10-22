@@ -97,3 +97,39 @@ test("picks capabilities in declaration order", () => {
   );
   assert.equal(requestedCapability({ operationId: "x", requiredCapabilities: [] }), undefined);
 });
+
+test("Octopus delegates 3D planning to Publisher without starting a paid generation", async () => {
+  const result = await executeAdapterMission(
+    mission({
+      title: "Creature-Sync Console",
+      requiredCapabilities: ["asset.3d.plan"],
+      context: { id: "feuch-lab", metadata: { imageCount: 4 } },
+      authorizedResources: [],
+    }),
+    {
+      generateText: async () => { throw new Error("Text generation must not run"); },
+      knowledgeEnv,
+      plan3D: async (input) => ({
+        status: "planned",
+        title: input.title,
+        imageCount: input.imageCount,
+        output: "glb",
+        selected: null,
+        executable: false,
+      }),
+    },
+  );
+  assert.equal(result.status, "completed");
+  assert.equal(result.output.capability, "asset.3d.plan");
+  assert.equal(result.output.imageCount, 4);
+  assert.equal(result.output.executable, false);
+  assert.equal(result.output.authorizationRequired, true);
+});
+
+test("Octopus reports missing 3D broker rather than pretending to generate a model", async () => {
+  const result = await executeAdapterMission(mission({requiredCapabilities:["asset.3d.plan"]}), {
+    generateText, knowledgeEnv,
+  });
+  assert.equal(result.status, "needs-input");
+  assert.equal(result.output.executable, false);
+});

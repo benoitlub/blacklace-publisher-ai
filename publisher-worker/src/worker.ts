@@ -46,6 +46,7 @@ import {
   type OctopusAdapterEnvelope,
 } from "./octopus-adapter";
 import { observeWithOctopus, type PublisherObservationInput } from "./octopus-observation";
+import { buildThreeDToolPack, type ThreeDPreflightInput } from "./three-d-toolpack";
 
 // Cloudflare has two different ways to give a Worker a secret value:
 // - classic per-Worker "Variables and Secrets" -> env.KEY is a plain string.
@@ -1043,6 +1044,53 @@ app.get("/api/octopus-adapter/health", async (c) => {
   const body = await buildOctopusHealth(c.env);
   octopusHealthCache = { body, fetchedAt: Date.now() };
   return c.json(body);
+});
+
+/**
+ * Publisher owns discovery and credit-awareness. Octopus owns execution.
+ * This route is deliberately a read-only planning contract, not an implicit
+ * paid Composio execution path.
+ */
+async function preflight3d(env: Env, input: ThreeDPreflightInput) {
+  const toolkits = ["meshy", "tripo3d"] as const;
+  const evidence = toolkits.map((slug) => ({ slug, connected: false, discoveredTools: [] as string[] }));
+  let providerInventory: "confirmed" | "unavailable" | "not-configured" = "not-configured";
+  if (await isComposioConfigured(env)) {
+    try {
+      const accounts = await listComposioConnectedAccounts(env);
+      providerInventory = "confirmed";
+      for (const record of evidence) {
+        record.connected = Boolean(accountFor(accounts, record.slug));
+        if (!record.connected) continue;
+        const tools = await listComposioTools(env, record.slug).catch(() => []);
+        record.discoveredTools = tools.map((tool) => tool.slug);
+      }
+    } catch {
+      providerInventory = "unavailable";
+    }
+  }
+  return { ...buildThreeDToolPack(input, evidence), providerInventory };
+}
+
+app.get("/api/production/3d/preflight", async (c) => {
+  try {
+    const imageCount = Number(c.req.query("imageCount") || "4");
+    return c.json(await preflight3d(c.env, { imageCount }));
+  } catch (error) {
+    return c.json({ status: "invalid", error: error instanceof Error ? error.message : String(error) }, 400);
+  }
+});
+
+app.post("/api/production/3d/plan", async (c) => {
+  const input = await c.req.json<ThreeDPreflightInput>().catch(() => ({} as ThreeDPreflightInput));
+  // No image bytes, keys or billing requests are accepted by the planner.
+  try {
+    return c.json(await preflight3d(c.env, {
+      title: input.title, imageCount: input.imageCount, format: input.format,
+    }));
+  } catch (error) {
+    return c.json({ status: "invalid", error: error instanceof Error ? error.message : String(error) }, 400);
+  }
 });
 
 app.get("/api/production/diagnostics", async (c) => {
@@ -3948,6 +3996,7 @@ app.post("/api/octopus-adapter/execute", async (c) => {
   const result = await executeAdapterMission(envelope, {
     generateText: (request) => executeMistralText(c.env, request),
     knowledgeEnv: await knowledgeEnvFor(c.env),
+    plan3D: (input) => preflight3d(c.env, input),
   });
   // Always 200: the outcome travels in `status`, which is what Octopus reads.
   // A non-2xx would be recorded as an adapter transport failure and lose the
