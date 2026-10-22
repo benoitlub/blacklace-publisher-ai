@@ -1,3 +1,7 @@
+import { createMetricoolProvider } from "./metricool-composio";
+import { executeMetricoolPublication, MetricoolBlocked, type Publication } from "./metricool-publication";
+import { metricoolStateStore } from "./metricool-state";
+import { discoverComposioAccounts, isActiveAccount, isMetricoolToolkit } from "./composio-accounts";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
@@ -64,6 +68,9 @@ type Env = {
   BUFFER_DRAFT_WRITE_TOKEN?: string | SecretsStoreSecret;
   BUFFER_BOOK_CHANNEL_ID?: string | SecretsStoreSecret;
   COMPOSIO_USER_ID?: string | SecretsStoreSecret;
+  METRICOOL_CONNECTED_ACCOUNT_ID?: string;
+  METRICOOL_EXECUTION_TOKEN?: string | SecretsStoreSecret;
+  METRICOOL_PUBLISHING_ENABLED?: string;
   DATABASE_URL?: string | SecretsStoreSecret;
   GITHUB_TOKEN?: string | SecretsStoreSecret;
   NOTION_API_KEY?: string | SecretsStoreSecret;
@@ -408,84 +415,60 @@ function extractItems(payload: unknown): unknown[] {
 }
 
 async function listComposioConnectedAccounts(env: Env): Promise<ComposioConnectedAccount[]> {
-  const userId = await composioUserId(env);
-  const paths = [
-    `/connected_accounts?user_ids=${encodeURIComponent(userId)}&limit=100`,
-    `/connected_accounts?user_id=${encodeURIComponent(userId)}&limit=100`,
-    "/connected_accounts?limit=100",
-  ];
-  const found = new Map<string, ComposioConnectedAccount>();
-  let lastError: unknown = null;
-  for (const path of paths) {
-    try {
-      const payload = await composioRequest(env, path);
-      for (const item of extractItems(payload)) {
-        const record = asRecord(item);
-        const id = stringValue(record.id ?? record.connected_account_id);
-        const toolkitSlug = toolkitFrom(record);
-        if (id && toolkitSlug) found.set(id, { id, toolkitSlug: normalize(toolkitSlug), status: String(record.status ?? record.state ?? "UNKNOWN") });
-      }
-      if (found.size > 0) break;
-    } catch (error) {
-      lastError = error;
-      // Ces trois chemins sont des variantes de forme d'API : les essayer l'un
-      // après l'autre n'a de sens que si l'erreur dit « mauvaise forme ». Un 429
-      // est une indisponibilité temporaire — il se reproduira à l'identique sur
-      // la variante suivante, et chaque essai supplémentaire ne fait qu'ajouter
-      // un appel à celui de trop.
-      if (isComposioRateLimit(error)) break;
-    }
-  }
-  if (found.size === 0 && lastError) throw lastError;
-  return [...found.values()];
+  return discoverComposioAccounts(await composioUserId(env), (path) => composioRequest(env, path));
 }
 
 function isActiveComposioStatus(status: string): boolean {
-  return ["ACTIVE", "CONNECTED", "SUCCESS", "ENABLED"].includes(String(status || "").toUpperCase());
+  return isActiveAccount(status);
 }
 
 function accountFor(accounts: ComposioConnectedAccount[], toolkitSlug: string): ComposioConnectedAccount | null {
-  return accounts.find((account) => account.toolkitSlug === toolkitSlug && isActiveComposioStatus(account.status)) ?? null;
+  return accounts.find((account) => (toolkitSlug === "metricool" ? isMetricoolToolkit(account.toolkitSlug) : account.toolkitSlug === toolkitSlug) && isActiveComposioStatus(account.status)) ?? null;
 }
 
-async function listComposioTools(env: Env, toolkitSlug: string): Promise<ComposioTool[]> {
+async function listComposioTools(env: Env, toolkitSlug: string, timeoutMs?: number): Promise<ComposioTool[]> {
   const normalizedToolkit = normalize(toolkitSlug);
-  const queries = [
-    `/tools?toolkit_slugs=${encodeURIComponent(toolkitSlug)}&limit=250`,
-    `/tools?toolkit_slug=${encodeURIComponent(toolkitSlug)}&limit=250`,
-  ];
-  const found = new Map<string, ComposioTool>();
-  let lastError: unknown = null;
-  for (const path of queries) {
+  for (const parameter of ["toolkit_slugs", "toolkit_slug"]) {
+    const found = new Map<string, ComposioTool>();
+    const cursors = new Set<string>();
+    let cursor = "";
     try {
-      const payload = await composioRequest(env, path);
-      for (const item of extractItems(payload)) {
-        const record = asRecord(item);
-        const slug = stringValue(record.slug ?? record.name ?? record.tool_slug ?? record.toolSlug);
-        if (!slug) continue;
-        const toolkit = normalize(toolkitFrom(record) || normalizedToolkit);
-        if (toolkit && toolkit !== normalizedToolkit) continue;
-        // input_parameters is the real field name (confirmed live via
-        // /tools?tool_slugs=...) — input_schema/inputSchema/parameters/schema
-        // never matched anything, so inputSchema was always null here,
-        // silently forcing canvaArguments() onto its hardcoded fallback
-        // instead of the tool's actual declared properties.
-        const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
-        found.set(slug, { slug, name: stringValue(record.name ?? record.display_name) || slug, description: stringValue(record.description) || "", toolkitSlug: toolkit || normalizedToolkit, inputSchema: Object.keys(schema).length ? schema : null });
+      for (let page = 0; page < 30; page++) {
+        const payload = await composioRequest(env, `/tools?${parameter}=${encodeURIComponent(toolkitSlug)}&limit=250${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {});
+        for (const item of extractItems(payload)) {
+          const record = asRecord(item);
+          const slug = stringValue(record.slug ?? record.name ?? record.tool_slug ?? record.toolSlug);
+          if (!slug) continue;
+          const toolkit = normalize(toolkitFrom(record) || normalizedToolkit);
+          if (toolkit !== normalizedToolkit && !(isMetricoolToolkit(toolkit) && isMetricoolToolkit(normalizedToolkit))) continue;
+          const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
+          found.set(slug, { slug, name: stringValue(record.name ?? record.display_name) || slug, description: stringValue(record.description) || "", toolkitSlug: toolkit, inputSchema: Object.keys(schema).length ? schema : null });
+        }
+        const record = asRecord(payload), data = asRecord(record.data);
+        const next = stringValue(record.next_cursor ?? record.nextCursor ?? data.next_cursor);
+        if (!next) {
+          if (record.has_more === true || data.has_more === true) throw new Error("COMPOSIO_TOOLS_INCOMPLETE");
+          return [...found.values()];
+        }
+        if (cursors.has(next)) throw new Error("COMPOSIO_TOOLS_PAGINATION_LOOP");
+        cursors.add(next); cursor = next;
       }
-      if (found.size > 0) break;
-    } catch (error) { lastError = error; }
+      throw new Error("COMPOSIO_TOOLS_PAGE_LIMIT");
+    } catch (error) {
+      if (parameter === "toolkit_slugs" && !cursor && error instanceof ComposioHttpError && [400, 404, 422].includes(error.status)) continue;
+      throw error;
+    }
   }
-  if (found.size === 0 && lastError) throw lastError;
-  return [...found.values()];
+  throw new Error("COMPOSIO_TOOLS_UNAVAILABLE");
 }
 
-async function executeComposioTool(env: Env, input: { toolSlug: string; connectedAccountId: string; arguments: Record<string, unknown> }): Promise<unknown> {
+async function executeComposioTool(env: Env, input: { toolSlug: string; connectedAccountId: string; arguments: Record<string, unknown>; timeoutMs?: number; toolVersion?: string }): Promise<unknown> {
   // Composio 400s ("ActionExecute_ConnectedAccountEntityIdRequired") without
   // entity_id alongside connected_account_id — confirmed live.
   return composioRequest(env, `/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
     method: "POST",
-    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId, entity_id: await composioUserId(env) }),
+    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId, entity_id: await composioUserId(env), ...(input.toolVersion ? { version: input.toolVersion } : {}) }),
+    ...(input.timeoutMs ? { signal: AbortSignal.timeout(input.timeoutMs) } : {}),
   });
 }
 
@@ -615,6 +598,7 @@ export function evaluateMetricoolMonthlyBudget(input: { used: number; networks: 
   const limit = Number.isFinite(input.limit) ? Math.max(0, Math.trunc(input.limit as number)) : METRICOOL_MONTHLY_PUBLICATION_LIMIT;
   const used = Number.isFinite(input.used) ? Math.max(0, Math.trunc(input.used)) : 0;
   const requestedUnits = metricoolNetworkUnitCost(input.networks);
+  const validUsage = Number.isSafeInteger(input.used) && input.used >= 0;
   const remaining = Math.max(0, limit - used);
   return {
     limit,
@@ -623,7 +607,7 @@ export function evaluateMetricoolMonthlyBudget(input: { used: number; networks: 
     requestedUnits,
     projectedUsed: used + requestedUnits,
     projectedRemaining: Math.max(0, remaining - requestedUnits),
-    allowed: requestedUnits > 0 && used + requestedUnits <= limit,
+    allowed: validUsage && requestedUnits > 0 && used + requestedUnits <= limit,
     accountingUnit: "published-network-item",
   };
 }
@@ -1059,7 +1043,7 @@ app.get("/api/production/diagnostics", async (c) => {
     const linkedin = accountFor(accounts, "linkedin");
     const instagram = accountFor(accounts, "instagram");
     const whatsapp = accountFor(accounts, "whatsapp");
-    const metricoolTools = metricool ? await listComposioTools(env, "metricool").catch(() => []) : [];
+    const metricoolTools = metricool ? await listComposioTools(env, metricool.toolkitSlug).catch(() => []) : [];
     const metricoolPublishTools = selectMetricoolPublishTools(metricoolTools);
     const socialToolkits = [
       { slug: "linkedin", account: linkedin },
@@ -1101,9 +1085,14 @@ app.get("/api/production/metricool-tools", async (c) => {
   try {
     if (!(await isComposioConfigured(c.env))) return c.json({ status: "unavailable", error: "Composio not configured." }, 503);
     const accounts = await listComposioConnectedAccounts(c.env);
-    const account = accountFor(accounts, "metricool");
-    if (!account) return c.json({ status: "unavailable", error: "Metricool is not connected." }, 503);
-    const tools = await listComposioTools(c.env, "metricool");
+    const matching = accounts.filter(account => isMetricoolToolkit(account.toolkitSlug) && isActiveComposioStatus(account.status) && (!c.env.METRICOOL_CONNECTED_ACCOUNT_ID || account.id === c.env.METRICOOL_CONNECTED_ACCOUNT_ID));
+    if (matching.length !== 1) return c.json({ status: "unavailable",
+      code: matching.length > 1 ? "METRICOOL_ACCOUNT_AMBIGUOUS" : accounts.some(account => isMetricoolToolkit(account.toolkitSlug)) ? "METRICOOL_ACCOUNT_INACTIVE_OR_WRONG_ID" : "METRICOOL_ACCOUNT_NOT_FOUND_FOR_USER",
+      activeMatches: matching.length, userIdSource: await resolveSecret(c.env.COMPOSIO_USER_ID) ? "configured" : "legacy-default",
+      executionEnabled: false,
+    }, 503);
+    const account = matching[0];
+    const tools = await listComposioTools(c.env, account.toolkitSlug);
     const analytics = selectMetricoolAnalyticsTools(tools);
     const publish = selectMetricoolPublishTools(tools);
     const serialize = (tool: ComposioTool) => ({
@@ -1164,45 +1153,81 @@ app.get("/api/production/canva-tool-schema", async (c) => {
   }
 });
 
-async function readMetricoolServerBudget(env: Env, networks: readonly string[]) {
-  if (!(await isComposioConfigured(env))) throw new Error("Metricool quota unavailable: Composio is not configured.");
-  const accounts = await listComposioConnectedAccounts(env);
-  const account = accountFor(accounts, "metricool");
-  if (!account) throw new Error("Metricool quota unavailable: no active Metricool account.");
-  const tools = await listComposioTools(env, "metricool");
-  const analytics = selectMetricoolAnalyticsTools(tools);
-  if (!analytics.length) throw new Error("Metricool quota unavailable: no analytics/read tool discovered.");
-  // Fail closed until a discovered Metricool read tool has a schema we can
-  // execute deterministically to count this calendar month's published
-  // network-items. Never fall back to a caller-supplied counter.
-  return {
-    status: "unresolved" as const,
-    allowed: false,
-    requestedUnits: metricoolNetworkUnitCost(networks),
-    limit: METRICOOL_MONTHLY_PUBLICATION_LIMIT,
-    source: "metricool-via-composio",
-    discoveredReadTools: analytics.slice(0, 12).map((tool) => ({
-      slug: tool.slug,
-      required: schemaRequired(tool),
-      propertyNames: Object.keys(schemaProperties(tool)),
-    })),
-    reason: "No deterministic server-side monthly usage reader selected yet.",
-  };
+async function metricoolProvider(env: Env, brandId: string) {
+  if (!(await isComposioConfigured(env))) throw new MetricoolBlocked("COMPOSIO_NOT_CONFIGURED", "connection");
+  return createMetricoolProvider({
+    accounts: async () => discoverComposioAccounts(await composioUserId(env), path => composioRequest(env, path, { signal: AbortSignal.timeout(15000) })),
+    tools: (toolkit) => listComposioTools(env, toolkit, 15000),
+    execute: (input) => executeComposioTool(env, { ...input, timeoutMs: 20000, toolVersion: "latest" }),
+    connectedAccountId: env.METRICOOL_CONNECTED_ACCOUNT_ID,
+    brandId,
+  });
+}
+
+async function finalizeMetricoolPublication(env: Env, input: Record<string, unknown>, authenticated: boolean) {
+  const handoff = prepareMetricoolHandoff(input);
+  const dryRun = input.dryRun !== false;
+  const base = { scheduled: false, published: false, retryAllowed: false, harvestId: handoff.harvestId };
+  if (handoff.status !== "ready-for-metricool-planning" || handoff.prepared.publicationDate) {
+    return { ...base, status: "rejected", stage: "editorial-validation", reason: "INVALID_HANDOFF_OR_CALLER_DATE", errors: handoff.errors };
+  }
+  // Explicit activation and bearer authentication are server requirements,
+  // separate from the decision and resource authorization carried by Octopus.
+  if (!dryRun && (!authenticated || env.METRICOOL_PUBLISHING_ENABLED !== "true")) {
+    return { ...base, status: "blocked", stage: "authorization", reason: "METRICOOL_EXECUTION_DISABLED_OR_UNAUTHORIZED" };
+  }
+  const operationId = String(input.operationId ?? "").trim();
+  if (!operationId || input.source !== "gerard" || input.decision !== "schedule") {
+    return { ...base, status: "rejected", stage: "authorization", reason: "EXPLICIT_GERARD_DECISION_REQUIRED" };
+  }
+  let stage = "persistence";
+  try {
+    const sql = await getSql(env);
+    const store = metricoolStateStore(sql, handoff.prepared.brandId);
+    const prior = (await store.read()).reservations.some(r => r.operationId === operationId);
+    if (!prior) {
+      stage = "provenance";
+      const harvest = await getGardenHarvestById(sql, handoff.harvestId);
+      if (!harvest || !classifyHarvestForSocial(harvest).eligible || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection") {
+        return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_INELIGIBLE" };
+      }
+      const route = chooseEditorialDestination(classifyEditorialTopic({ seedId: harvest.seed_id ?? "", title: harvest.title, text: handoff.prepared.text }));
+      if (route.preferredProvider !== "metricool") return { ...base, status: "rejected", stage: "destination", reason: "EDITORIAL_PROVIDER_MISMATCH" };
+      const sourceMedia = harvest.download_url || harvest.url;
+      if (handoff.prepared.media.some(url => url !== sourceMedia)) return { ...base, status: "rejected", stage: "provenance", reason: "MEDIA_NOT_FROM_SOURCE_HARVEST" };
+    }
+    const publication: Publication = { operationId, harvestId: handoff.harvestId, text: handoff.prepared.text,
+      media: handoff.prepared.media, networks: handoff.prepared.networks, brandId: handoff.prepared.brandId,
+      timezone: handoff.prepared.timezone, youtube: handoff.prepared.youtube };
+    stage = "connection";
+    return await executeMetricoolPublication(publication, {
+      provider: await metricoolProvider(env, publication.brandId),
+      store, dryRun,
+      enabled: env.METRICOOL_PUBLISHING_ENABLED === "true", authorized: authenticated,
+      verifyMedia: async (url) => {
+        const response = await fetch(url, { method: "HEAD", redirect: "error", signal: AbortSignal.timeout(10000) });
+        if (!response.ok) throw new MetricoolBlocked("MEDIA_UNAVAILABLE", "media");
+        return response.headers.get("Content-Type") ?? "";
+      },
+    });
+  } catch (error) {
+    const known = error instanceof MetricoolBlocked ? error : null;
+    return { ...base, status: "blocked", stage: known?.stage ?? stage, reason: known?.code ?? "DEPENDENCY_UNAVAILABLE", ...(known?.retryAfterSeconds ? { retryAfterSeconds: known.retryAfterSeconds } : {}) };
+  }
+}
+
+async function metricoolAuthenticated(env: Env, authorization: string | undefined): Promise<boolean> {
+  const token = await resolveSecret(env.METRICOOL_EXECUTION_TOKEN);
+  return Boolean(token && authorization === "Bearer " + token);
 }
 
 app.post("/api/social/publication/prepare", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const prepared = prepareSocialPublication(body);
   if (prepared.status !== "prepared") return c.json(prepared, 422);
-  try {
-    const budget = await readMetricoolServerBudget(c.env, prepared.networks);
-    if (!budget.allowed) {
-      return c.json({ ...prepared, status: "quota-unverified", budget, errors: ["Metricool monthly usage could not be verified server-side; publication is blocked."] }, 503);
-    }
-    return c.json({ ...prepared, budget }, 200);
-  } catch (error) {
-    return c.json({ ...prepared, status: "quota-unverified", errors: [error instanceof Error ? error.message : String(error)] }, 503);
-  }
+  // Preparation is advisory. The authenticated finalizer reads actual provider
+  // usage and durable reservations immediately before scheduling.
+  return c.json({ ...prepared, budget: { verified: false, status: "requires-finalization" }, requiresVerifiedBudget: true });
 });
 
 // Resource availability policy: quota exhaustion never triggers an immediate
@@ -1260,6 +1285,8 @@ export function prepareMetricoolHandoff(input: Record<string, unknown>) {
   const harvestId = String(input.harvestId ?? "").trim();
   const mediaHarvestId = String(input.mediaHarvestId ?? harvestId).trim();
   const errors = [...prepared.errors];
+  if (Array.isArray(input.networks) && input.networks.some(n => !SOCIAL_NETWORKS.has(String(n).trim().toLowerCase() as SocialNetwork))) errors.push("Unsupported network in the editorial decision.");
+  if (!prepared.text && !prepared.media.length) errors.push("Text or media is required.");
   if (!harvestId) errors.push("A source harvestId is required for editorial provenance.");
   if (mediaHarvestId !== harvestId) errors.push("Media belongs to a different harvest.");
   if (prepared.media.some((url) => !/^https:\/\//i.test(url))) errors.push("Media must use publicly accessible HTTPS URLs.");
@@ -1284,46 +1311,12 @@ app.post("/api/social/publication/handoff", async (c) => {
   return c.json(handoff, handoff.status === "invalid" ? 422 : 200);
 });
 
-// Final publication gate: no external scheduling action until a verified
-// Metricool budget and a real recommended time are available server-side.
+// The finalizer defaults to a read-only preview. Only the authenticated,
+// explicitly activated Octopus execution path may make a provider write.
 app.post("/api/social/publication/finalize", async (c) => {
-  const input = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
-  const handoff = prepareMetricoolHandoff(input);
-  if (handoff.status !== "ready-for-metricool-planning") {
-    return c.json({ status: "rejected", stage: "editorial-validation", handoff }, 422);
-  }
-  if (handoff.prepared.publicationDate) {
-    return c.json({
-      status: "rejected", stage: "scheduling-ownership",
-      error: "Gérard must not choose the publication date; Metricool best-time selection is required.",
-    }, 422);
-  }
-  try {
-    const budget = await readMetricoolServerBudget(c.env, handoff.prepared.networks);
-    // Experimental editorial policy: an unknown usage count is a warning, not
-    // grounds to reject Gerard's creative content. A VERIFIED exhausted quota
-    // remains a hard stop. Actual scheduling still requires a working adapter
-    // and provider confirmation; never report an unperformed write as success.
-    if (!budget.allowed && budget.status !== "unresolved") {
-      return c.json({
-        status: "waiting-for-metricool", stage: "verified-budget",
-        action: "retain-ready-content", harvestId: handoff.harvestId,
-        budget, scheduled: false,
-      }, 503);
-    }
-    return c.json({
-      status: "waiting-for-metricool", stage: "best-time-and-deduplication",
-      action: "retain-ready-content", harvestId: handoff.harvestId,
-      scheduled: false,
-      reason: "No verified Metricool best-time, existing-post and idempotent scheduling adapter is configured.",
-    }, 503);
-  } catch (error) {
-    return c.json({
-      status: "waiting-for-metricool", stage: "connection",
-      action: "retain-ready-content", harvestId: handoff.harvestId,
-      scheduled: false, error: error instanceof Error ? error.message : String(error),
-    }, 503);
-  }
+  const input = asRecord(await c.req.json().catch(() => null));
+  const outcome = await finalizeMetricoolPublication(c.env, input, await metricoolAuthenticated(c.env, c.req.header("Authorization")));
+  return c.json(outcome);
 });
 
 function metricoolPayloadFromPrepared(prepared: ReturnType<typeof prepareSocialPublication>) {
@@ -3957,6 +3950,7 @@ app.post("/api/octopus-adapter/execute", async (c) => {
   const result = await executeAdapterMission(envelope, {
     generateText: (request) => executeMistralText(c.env, request),
     knowledgeEnv: await knowledgeEnvFor(c.env),
+    publishSocial: async (input) => finalizeMetricoolPublication(c.env, input, await metricoolAuthenticated(c.env, c.req.header("Authorization"))),
   });
   // Always 200: the outcome travels in `status`, which is what Octopus reads.
   // A non-2xx would be recorded as an adapter transport failure and lose the

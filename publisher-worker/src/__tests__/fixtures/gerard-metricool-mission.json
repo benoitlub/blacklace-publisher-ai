@@ -1,0 +1,114 @@
+{
+  "candidate": {
+    "status": "ready",
+    "harvestId": "harvest-e2e",
+    "seedId": "feuch-dice",
+    "copy": {
+      "text": "Un nouveau jeu de dés à découvrir."
+    },
+    "media": null,
+    "compatibleNetworks": [
+      "facebook"
+    ],
+    "transport": {
+      "provider": "metricool"
+    },
+    "editorialRoute": {
+      "destination": {
+        "preferredProvider": "metricool"
+      }
+    }
+  },
+  "mission": {
+    "operationId": "gerard-metricool-481b02ea0c07afb732f465d1c4985a9651fc4bfa1994eb1b147e28e972820665-1792670400000",
+    "title": "Programmer la récolte harvest-e2e",
+    "objective": "Exécuter la décision de Gérard avec quota réel, dédoublonnage et confirmation Metricool.",
+    "requiredCapabilities": [
+      "social.publish"
+    ],
+    "authorizedResources": [
+      "social.publish"
+    ],
+    "context": {
+      "id": "poulpe-fiction",
+      "label": "Gérard",
+      "metadata": {
+        "source": "gerard-cycle",
+        "socialPublication": {
+          "operationId": "gerard-metricool-481b02ea0c07afb732f465d1c4985a9651fc4bfa1994eb1b147e28e972820665",
+          "harvestId": "harvest-e2e",
+          "mediaHarvestId": "harvest-e2e",
+          "seedId": "feuch-dice",
+          "text": "Un nouveau jeu de dés à découvrir.",
+          "media": [],
+          "networks": [
+            "facebook"
+          ],
+          "source": "gerard",
+          "decision": "schedule",
+          "dryRun": false
+        }
+      }
+    }
+  },
+  "mediaCase": {
+    "candidate": {
+      "status": "ready",
+      "harvestId": "harvest-media-e2e",
+      "seedId": "feuch-dice",
+      "copy": {
+        "text": "Un autre jeu de dés avec son visuel."
+      },
+      "media": {
+        "url": "https://example.org/feuch.png"
+      },
+      "compatibleNetworks": [
+        "facebook",
+        "instagram"
+      ],
+      "transport": {
+        "provider": "metricool"
+      },
+      "editorialRoute": {
+        "destination": {
+          "preferredProvider": "metricool"
+        }
+      }
+    },
+    "mission": {
+      "operationId": "gerard-metricool-6fe0529493fb804d1304c2879c219cdbf26cb966686e8ab088c63dee9cb5a348-1792670400000",
+      "title": "Programmer la récolte harvest-media-e2e",
+      "objective": "Exécuter la décision de Gérard avec quota réel, dédoublonnage et confirmation Metricool.",
+      "requiredCapabilities": [
+        "social.publish"
+      ],
+      "authorizedResources": [
+        "social.publish"
+      ],
+      "context": {
+        "id": "poulpe-fiction",
+        "label": "Gérard",
+        "metadata": {
+          "source": "gerard-cycle",
+          "socialPublication": {
+            "operationId": "gerard-metricool-6fe0529493fb804d1304c2879c219cdbf26cb966686e8ab088c63dee9cb5a348",
+            "harvestId": "harvest-media-e2e",
+            "mediaHarvestId": "harvest-media-e2e",
+            "seedId": "feuch-dice",
+            "text": "Un autre jeu de dés avec son visuel.",
+            "media": [
+              "https://example.org/feuch.png"
+            ],
+            "networks": [
+              "facebook",
+              "instagram"
+            ],
+            "source": "gerard",
+            "decision": "schedule",
+            "dryRun": false
+          }
+        }
+      }
+    }
+  }
+}
