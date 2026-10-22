@@ -120,3 +120,16 @@ test("authorization alone does not invent an active publishing executor", async 
   assert.equal(result.output.executable, false);
   assert.equal(producer.mock.callCount(), 0);
 });
+
+test("social delivery needs a nonempty provider ID and the matching confirmed flag", async () => {
+  for (const output of [
+    { status: "confirmed-scheduled", scheduled: true },
+    { status: "confirmed-scheduled", scheduled: true, postId: " " },
+    { status: "confirmed-scheduled", scheduled: false, postId: "unverified" },
+  ]) {
+    const result = await executeAdapterMission(mission({ requiredCapabilities: ["social.publish"], authorizedResources: ["social.publish"],
+      context: { metadata: { socialPublication: { transport: "buffer", dryRun: false } } },
+    }), { generateText, knowledgeEnv, publishSocial: async () => output });
+    assert.equal(result.status, "needs-input");
+  }
+});
