@@ -1,0 +1,38 @@
+name: Gerard local video prototype
+on:
+  pull_request:
+    paths:
+      - "artifacts/api-server/src/publisher/video/**"
+      - "artifacts/api-server/src/publisher/octopus-adapter.ts"
+      - "artifacts/api-server/src/routes/video.ts"
+      - "artifacts/api-server/src/routes/octopus-adapter.ts"
+      - "artifacts/api-server/src/routes/index.ts"
+      - "scripts/video/**"
+      - "scripts/gerard-video-e2e.test.mts"
+      - "docs/prototypes/natasha/request.json"
+      - ".github/workflows/video-prototype.yml"
+permissions:
+  contents: read
+jobs:
+  local-video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg fonts-dejavu-core
+      - run: pnpm install --no-frozen-lockfile
+      - run: node --test scripts/video/gerard-client.test.mjs
+      - name: Real local video, download, status and explicit feedback through existing Octopus
+        env:
+          PUBLISHER_VIDEO_PROOF_PATH: /tmp/video-e2e-proof.json
+        run: pnpm --filter @workspace/scripts exec tsx --test ./gerard-video-e2e.test.mts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: video-e2e-proof
+          path: /tmp/video-e2e-proof.json
+          if-no-files-found: ignore

@@ -1,0 +1,84 @@
+{
+  "proof": "gerard-existing-octopus-publisher-ffmpeg-mp4-feedback-next-mp4",
+  "mode": "actual-local-render",
+  "creativeBrief": "user-demo",
+  "feedback": "simulated-gerard-fixture",
+  "externalProviderWrites": 0,
+  "externalProviderCharge": 0,
+  "sourceReads": 1,
+  "sourceTransport": "official-local-bytes-as-download-fixture",
+  "referenceViewportSSIM": 0.988459,
+  "firstArtifact": {
+    "id": "11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f",
+    "mimeType": "video/mp4",
+    "downloadUrl": "/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/video.mp4",
+    "reportUrl": "/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/report.json",
+    "posterUrl": "/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/poster.jpg",
+    "sha256": "d78634dfd2a449f1368b22d941c52a11916a09d714349a0d1bfb7235002dfc32",
+    "bytes": 1401113,
+    "width": 1080,
+    "height": 1920,
+    "durationSeconds": 10
+  },
+  "improvedArtifact": {
+    "id": "30f24bb9916e8fc57fece98e9f0e056520b457cc9919c4fa800c4e5dc7f286ad",
+    "mimeType": "video/mp4",
+    "downloadUrl": "/api/production/video/artifacts/30f24bb9916e8fc57fece98e9f0e056520b457cc9919c4fa800c4e5dc7f286ad/video.mp4",
+    "reportUrl": "/api/production/video/artifacts/30f24bb9916e8fc57fece98e9f0e056520b457cc9919c4fa800c4e5dc7f286ad/report.json",
+    "posterUrl": "/api/production/video/artifacts/30f24bb9916e8fc57fece98e9f0e056520b457cc9919c4fa800c4e5dc7f286ad/poster.jpg",
+    "sha256": "5a40345d20c412eeb22a717c0d7f0dbae88b10ed2a548034318591928ec930b1",
+    "bytes": 1399593,
+    "width": 1080,
+    "height": 1920,
+    "durationSeconds": 10
+  },
+  "repeatedRequestRenders": 0,
+  "technicalQC": {
+    "technicalPassed": true,
+    "checks": {
+      "dimension": true,
+      "codec": true,
+      "pixelFormat": true,
+      "frameRate": true,
+      "duration": true,
+      "audio": true,
+      "fastStart": true,
+      "referenceHash": true,
+      "mobileCaptionBounds": true,
+      "fullReferenceFramePreserved": true
+    },
+    "decodePassed": true,
+    "identity": "existing-footage-preserved-human-review-pending",
+    "semanticAction": "not-automatically-verified",
+    "humanApproval": "pending"
+  },
+  "publication": {
+    "enabled": false,
+    "performed": false,
+    "destination": {
+      "project": "blacklace-island",
+      "platform": "instagram",
+      "account": "@pro.hbtd"
+    }
+  },
+  "trace": [
+    "publisher:GET:/api/production/video/catalog",
+    "octopus:/adapters",
+    "octopus:/adapters/register",
+    "octopus:/mission",
+    "publisher:POST:/api/octopus-adapter/execute",
+    "octopus:/mission",
+    "publisher:POST:/api/octopus-adapter/execute",
+    "source:pinned-existing-video-GET",
+    "publisher:GET:/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/video.mp4",
+    "octopus:/mission",
+    "publisher:POST:/api/octopus-adapter/execute",
+    "publisher:GET:/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/video.mp4",
+    "publisher:GET:/api/production/video/catalog",
+    "octopus:/mission",
+    "publisher:POST:/api/octopus-adapter/execute",
+    "octopus:/mission",
+    "publisher:POST:/api/octopus-adapter/execute",
+    "publisher:GET:/api/production/video/artifacts/30f24bb9916e8fc57fece98e9f0e056520b457cc9919c4fa800c4e5dc7f286ad/video.mp4"
+  ]
+}

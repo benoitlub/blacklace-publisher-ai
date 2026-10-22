@@ -1,0 +1,109 @@
+{
+  "contract": "publisher-video-result-v1",
+  "status": "ready-for-review",
+  "artifactId": "11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f",
+  "profile": "publisher-existing-video-v2",
+  "request": {
+    "version": "video-package-v1",
+    "decisionOwner": "gerard",
+    "authoredBy": "user-demo",
+    "characterId": "natasha",
+    "referenceId": "natasha-fragment-03",
+    "scene": "Natasha dans son studio Blacklace existant, face caméra.",
+    "action": "Réutiliser son sourire et son geste de victoire déjà présents dans le clip ; aucune nouvelle action générée.",
+    "mood": "Studio turquoise et violet existant ; habillage sobre, journalistique et cramoisi.",
+    "durationSeconds": 10,
+    "sourceStartSeconds": 0,
+    "loopSource": false,
+    "format": "9:16",
+    "mode": "existing-media",
+    "voice": "none",
+    "maxExternalCost": 0,
+    "automaticPublication": false,
+    "destination": {
+      "project": "blacklace-island",
+      "platform": "instagram",
+      "account": "@pro.hbtd"
+    },
+    "storyboard": [
+      {
+        "start": 0,
+        "end": 3,
+        "text": "LE SIGNAL PASSE."
+      },
+      {
+        "start": 3,
+        "end": 7,
+        "text": "NATASHA\nDEPUIS BLACKLACE."
+      },
+      {
+        "start": 7,
+        "end": 10,
+        "text": "ENTREZ DANS\nBLACKLACE ISLAND."
+      }
+    ]
+  },
+  "artifact": {
+    "id": "11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f",
+    "mimeType": "video/mp4",
+    "downloadUrl": "/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/video.mp4",
+    "reportUrl": "/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/report.json",
+    "posterUrl": "/api/production/video/artifacts/11b339201b059358a53ab72cf8bee85bffc503fd9a710d50faea7b81e3dc5c4f/poster.jpg",
+    "sha256": "d78634dfd2a449f1368b22d941c52a11916a09d714349a0d1bfb7235002dfc32",
+    "bytes": 1401113,
+    "width": 1080,
+    "height": 1920,
+    "durationSeconds": 10
+  },
+  "source": {
+    "referenceId": "natasha-fragment-03",
+    "url": "https://raw.githubusercontent.com/benoitlub/blacklace-echo/10b3c2bbf0b49c8b1b9e56df43afe9556762c6ce/public/assets/videos/nat3.mp4",
+    "sha256": "345eaa73904bdb632a36b45e6d51c0ad4f4410f71bad1ac084a23b6bb3fa16a9",
+    "gitBlob": "41dd64be4ed74800ab44cda895188eca7b5fdd2f",
+    "attribution": "Pro.Hibited Network / Benoît Lubert ; filigrane Kling de la source conservé",
+    "rights": "user-directed-existing-media-reuse; publication-requires-review",
+    "durationSeconds": 10.433333
+  },
+  "cost": {
+    "externalProviderCharge": 0,
+    "currency": "EUR",
+    "paidToolsInvoked": false,
+    "historicalSourceCost": "unknown-not-charged-by-this-job",
+    "infrastructureCost": null
+  },
+  "quality": {
+    "technicalPassed": true,
+    "checks": {
+      "dimension": true,
+      "codec": true,
+      "pixelFormat": true,
+      "frameRate": true,
+      "duration": true,
+      "audio": true,
+      "fastStart": true,
+      "referenceHash": true,
+      "mobileCaptionBounds": true,
+      "fullReferenceFramePreserved": true
+    },
+    "decodePassed": true,
+    "identity": "existing-footage-preserved-human-review-pending",
+    "semanticAction": "not-automatically-verified",
+    "humanApproval": "pending"
+  },
+  "warnings": [
+    "Silent montage: no source speech, cloned voice or generated voice.",
+    "Scene, action and mood are retained as instructions, not synthesized. Review their match against the existing footage."
+  ],
+  "errors": [],
+  "publication": {
+    "enabled": false,
+    "performed": false,
+    "destination": {
+      "project": "blacklace-island",
+      "platform": "instagram",
+      "account": "@pro.hbtd"
+    }
+  },
+  "createdAt": "2026-10-22T22:52:55.254Z",
+  "renderMilliseconds": 9005
+}
