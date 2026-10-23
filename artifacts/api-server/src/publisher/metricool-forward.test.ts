@@ -28,3 +28,17 @@ describe("local Octopus adapter to Worker", () => {
     } });
   });
 });
+
+it("uses only the requested transport's credential and rejects unknown destinations", async () => {
+  let calls = 0;
+  const fetchImpl: typeof fetch = async (_url, init) => {
+    calls++; expect(init?.headers).toMatchObject({ Authorization: "Bearer buffer-only" });
+    expect(init?.body).not.toContain("buffer-only");
+    expect(JSON.parse(String(init?.body)).transport).toBe("buffer");
+    return Response.json({ status: "ready-to-schedule", scheduled: false });
+  };
+  await forwardMetricoolPublication({ transport: "buffer" }, { workerUrl: "https://publisher.test", token: "metricool-only", bufferToken: "buffer-only", fetchImpl });
+  await forwardMetricoolPublication({ transport: "buffer", dryRun: false }, { workerUrl: "https://publisher.test", token: "metricool-only", fetchImpl });
+  await forwardMetricoolPublication({ transport: "unknown" }, { workerUrl: "https://publisher.test", token: "metricool-only", fetchImpl });
+  expect(calls).toBe(1);
+});

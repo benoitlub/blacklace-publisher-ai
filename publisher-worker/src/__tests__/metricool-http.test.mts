@@ -18,7 +18,7 @@ test("public finalize cannot schedule without both bearer and server activation"
 });
 test("unsupported networks, cross-harvest media and caller-chosen dates are rejected before any dependency", async t => {
   const network = t.mock.method(globalThis, "fetch", async () => { throw new Error("must not access any service"); });
-  for (const extra of [{ networks: ["facebook", "unknown"] }, { mediaHarvestId: "another-harvest" }, { publicationDate: "2026-10-23T10:00:00" }]) {
+  for (const extra of [{ brandId: "another-brand" }, { timezone: "UTC" }, { networks: ["facebook", "unknown"] }, { mediaHarvestId: "another-harvest" }, { publicationDate: "2026-10-23T10:00:00" }]) {
     const response = await worker.fetch(new Request("https://publisher.test/api/social/publication/finalize", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...request, ...extra }) }), {});
     const body = await response.json(); assert.equal(body.stage, "editorial-validation"); assert.equal(body.scheduled, false);
   }

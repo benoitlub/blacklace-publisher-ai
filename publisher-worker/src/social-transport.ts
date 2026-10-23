@@ -36,6 +36,9 @@ export function chooseSocialTransport(ctx: TransportContext): TransportDecision 
         : "buffer-not-connected",
     };
   }
+  if (ctx.requested === "metricool" && !ctx.metricoolAvailable) {
+    return { transport: "metricool", mode: "hold", reason: "requested-metricool-unavailable" };
+  }
   if (ctx.metricoolAvailable) {
     return { transport: "metricool", mode: "production", reason: "existing-working-route" };
   }

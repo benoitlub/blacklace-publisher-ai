@@ -7,7 +7,7 @@ import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
 import bookDestinationsCatalog from "./book-destinations-catalog.json";
 import { chooseSocialTransport, previewBufferPost } from "./social-transport";
-import { buildBufferBookPostMutation, buildGerardExistingDraftQueueMutation, inspectGerardExistingDraft, GERARD_BUFFER_HARVEST_ID, GERARD_BUFFER_POST_ID, GERARD_BOOK_CHANNEL_ID } from "./buffer-book-post";
+import { executeBufferBookPost, BufferTransportError, buildGerardExistingDraftQueueMutation, inspectGerardExistingDraft, GERARD_BUFFER_HARVEST_ID, GERARD_BUFFER_POST_ID, GERARD_BOOK_CHANNEL_ID, GERARD_BOOK_INSTAGRAM_CAPTION } from "./buffer-book-post";
 import { classifyEditorialTopic, chooseEditorialDestination } from "./editorial-routing";
 import {
   OBSERVATORY_DECISIONS,
@@ -67,6 +67,7 @@ type Env = {
   BUFFER_API_KEY?: string | SecretsStoreSecret;
   BUFFER_DRAFT_WRITE_TOKEN?: string | SecretsStoreSecret;
   BUFFER_BOOK_CHANNEL_ID?: string | SecretsStoreSecret;
+  BUFFER_PUBLISHING_ENABLED?: string;
   COMPOSIO_USER_ID?: string | SecretsStoreSecret;
   METRICOOL_CONNECTED_ACCOUNT_ID?: string;
   METRICOOL_EXECUTION_TOKEN?: string | SecretsStoreSecret;
@@ -1221,6 +1222,34 @@ async function metricoolAuthenticated(env: Env, authorization: string | undefine
   return Boolean(token && authorization === "Bearer " + token);
 }
 
+async function finalizeSocialPublication(env: Env, input: Record<string, unknown>, authorization?: string) {
+  const transport = input.transport ?? "metricool"; // Existing Metricool missions remain compatible.
+  if (transport === "metricool") return finalizeMetricoolPublication(env, input, await metricoolAuthenticated(env, authorization));
+  const base = { provider: "buffer", scheduled: false, published: false, retryAllowed: false };
+  if (transport !== "buffer") return { ...base, status: "rejected", stage: "destination", reason: "UNKNOWN_TRANSPORT" };
+  const token = await resolveSecret(env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!token || authorization !== "Bearer " + token) return { ...base, status: "blocked", stage: "authorization", reason: "BUFFER_UNAUTHORIZED" };
+  if (input.source !== "gerard" || input.decision !== "schedule" || !input.operationId || input.publicationDate ||
+      !Array.isArray(input.media) || input.media.length !== 1 || !Array.isArray(input.networks) ||
+      input.networks.length !== 1 || input.networks[0] !== "instagram" || input.channelId !== GERARD_BOOK_CHANNEL_ID ||
+      (input.mediaHarvestId !== undefined && input.mediaHarvestId !== input.harvestId))
+    return { ...base, status: "rejected", stage: "editorial-validation", reason: "INVALID_BUFFER_HANDOFF" };
+  try {
+    const harvest = await getGardenHarvestById(await getSql(env), String(input.harvestId ?? ""));
+    if (!harvest || !classifyHarvestForSocial(harvest).eligible || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection" ||
+        classifyEditorialTopic({ seedId: harvest.seed_id ?? "", title: harvest.title, text: String(input.text ?? "") }) !== "book")
+      return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_INELIGIBLE" };
+    // Reuse the existing authenticated Buffer route, reservation table and
+    // channel binding. No second scheduler or fallback transport is created.
+    const response = await app.fetch(new Request("https://publisher.internal/api/social/transports/buffer/book-draft", {
+      method: "POST", headers: { Authorization: authorization!, "Content-Type": "application/json" },
+      body: JSON.stringify({ harvestId: input.harvestId, seedId: harvest.seed_id, title: harvest.title, text: input.text,
+        mediaUrl: input.media[0], channelId: input.channelId, publish: true, dryRun: input.dryRun !== false }),
+    }), env);
+    return await response.json() as Record<string, unknown>;
+  } catch { return { ...base, status: "blocked", stage: "provenance", reason: "BUFFER_DEPENDENCY_UNAVAILABLE" }; }
+}
+
 app.post("/api/social/publication/prepare", async (c) => {
   const body = await c.req.json<Record<string, unknown>>().catch((): Record<string, unknown> => ({}));
   const prepared = prepareSocialPublication(body);
@@ -1285,6 +1314,8 @@ export function prepareMetricoolHandoff(input: Record<string, unknown>) {
   const harvestId = String(input.harvestId ?? "").trim();
   const mediaHarvestId = String(input.mediaHarvestId ?? harvestId).trim();
   const errors = [...prepared.errors];
+  if (input.brandId !== undefined && String(input.brandId) !== prepared.brandId) errors.push("Requested Metricool brand is not the verified configured destination.");
+  if (input.timezone !== undefined && input.timezone !== prepared.timezone) errors.push("Requested timezone differs from the configured Metricool destination.");
   if (Array.isArray(input.networks) && input.networks.some(n => !SOCIAL_NETWORKS.has(String(n).trim().toLowerCase() as SocialNetwork))) errors.push("Unsupported network in the editorial decision.");
   if (!prepared.text && !prepared.media.length) errors.push("Text or media is required.");
   if (!harvestId) errors.push("A source harvestId is required for editorial provenance.");
@@ -1315,7 +1346,7 @@ app.post("/api/social/publication/handoff", async (c) => {
 // explicitly activated Octopus execution path may make a provider write.
 app.post("/api/social/publication/finalize", async (c) => {
   const input = asRecord(await c.req.json().catch(() => null));
-  const outcome = await finalizeMetricoolPublication(c.env, input, await metricoolAuthenticated(c.env, c.req.header("Authorization")));
+  const outcome = await finalizeSocialPublication(c.env, input, c.req.header("Authorization"));
   return c.json(outcome);
 });
 
@@ -1597,13 +1628,13 @@ app.get("/api/social/transports/buffer/channels", async (c) => {
         }) : [], channels: [], publishingEnabled: false,
       });
     }
-    const channels: { id: string; name: string; service: string; organizationId: string }[] = [];
-    let error = false;
+    const channels: { id: string; name: string; service: string; organizationId: string; isDisconnected: boolean | null; isLocked: boolean | null; isQueuePaused: boolean | null; canQueue: boolean }[] = [];
+    let error = organizations.length > 10;
     for (const org of organizations.slice(0, 10)) {
       const v = org && typeof org === "object" ? org as Record<string, unknown> : {};
       const organizationId = typeof v.id === "string" ? v.id : "";
       if (!organizationId) continue;
-      const result = await request("query { channels(input: { organizationId: " + JSON.stringify(organizationId) + " }) { id name service } }");
+      const result = await request("query { channels(input: { organizationId: " + JSON.stringify(organizationId) + " }) { id name service isDisconnected isLocked isQueuePaused } }");
       const raw = result.data.data && typeof result.data.data === "object"
         ? (result.data.data as Record<string, unknown>).channels : null;
       if (!result.response.ok || result.data.errors || !Array.isArray(raw)) {
@@ -1615,6 +1646,10 @@ app.get("/api/social/transports/buffer/channels", async (c) => {
         channels.push({
           id: String(channel.id ?? ""), name: String(channel.name ?? ""),
           service: String(channel.service ?? ""), organizationId,
+          isDisconnected: typeof channel.isDisconnected === "boolean" ? channel.isDisconnected : null,
+          isLocked: typeof channel.isLocked === "boolean" ? channel.isLocked : null,
+          isQueuePaused: typeof channel.isQueuePaused === "boolean" ? channel.isQueuePaused : null,
+          canQueue: channel.isDisconnected === false && channel.isLocked === false && channel.isQueuePaused === false,
         });
       }
     }
@@ -1759,9 +1794,25 @@ app.get("/api/social/transports/buffer/book-draft/buffer-lookup", async (c) => {
   try {
     const channel = await request("query { channel(input:{id:"+JSON.stringify(channelId)+"}) { id name service organizationId isDisconnected isLocked isQueuePaused } }");
     const info = channel.payload?.data?.channel;
-    if (!channel.httpStatus || channel.payload.errors || !info?.organizationId) return c.json({status:"channel-query-failed",httpStatus:channel.httpStatus,errorMessages:(channel.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
-    const posts = await request("query { posts(first:100,input:{organizationId:"+JSON.stringify(info.organizationId)+",filter:{channelIds:["+JSON.stringify(channelId)+"]}}) { edges { node { id text status channelId createdAt } } pageInfo { hasNextPage } } }");
-    const edges = posts.payload?.data?.posts?.edges;
+    if (channel.httpStatus !== 200 || channel.payload.errors || !info?.organizationId) return c.json({status:"channel-query-failed",httpStatus:channel.httpStatus,errorMessages:(channel.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
+    // Never infer a missing draft from the first page or a failed query.
+    let cursor: string | null = null;
+    const seen = new Set<string>();
+    const allEdges: any[] = [];
+    let posts: Awaited<ReturnType<typeof request>> = {httpStatus:503,payload:{}};
+    for (let page = 0; page < 30; page++) {
+      posts = await request("query { posts(first:100" + (cursor ? ",after:"+JSON.stringify(cursor) : "") + ",input:{organizationId:"+JSON.stringify(info.organizationId)+",filter:{channelIds:["+JSON.stringify(channelId)+"]}}) { edges { node { id text status channelId createdAt } } pageInfo { hasNextPage endCursor } } }");
+      const data = posts.payload?.data?.posts;
+      if (posts.httpStatus !== 200 || posts.payload.errors || !Array.isArray(data?.edges)) break;
+      allEdges.push(...data.edges);
+      if (data.pageInfo?.hasNextPage === false) break;
+      const next = data.pageInfo?.endCursor;
+      if (typeof next !== "string" || !next || seen.has(next)) break;
+      seen.add(next); cursor = next;
+    }
+    const edges = allEdges;
+    const providerComplete = posts.httpStatus === 200 && !posts.payload.errors &&
+      Array.isArray(posts.payload?.data?.posts?.edges) && posts.payload?.data?.posts?.pageInfo?.hasNextPage === false;
     // Optional exact-harvest check: never guess from a loose keyword match.
     // This endpoint is read-only and does not clear retry reservations.
     let target: Record<string, unknown> | null = null;
@@ -1786,8 +1837,7 @@ app.get("/api/social/transports/buffer/book-draft/buffer-lookup", async (c) => {
           .filter((post:any) => normalize(post?.text) === normalize(expectedText))
           .map((post:any) => ({id:String(post?.id ?? ""),status:String(post?.status ?? ""),createdAt:post?.createdAt ?? null}))
           : [];
-        const complete = !posts.payload.errors && Array.isArray(edges) &&
-          posts.payload?.data?.posts?.pageInfo?.hasNextPage === false;
+        const complete = providerComplete;
         target = {
           harvestId:targetHarvestId, seedId:seedId || null,
           status:!harvest ? "not-in-publisher-garden" : !expectedText ? "copy-unverifiable" :
@@ -1799,7 +1849,7 @@ app.get("/api/social/transports/buffer/book-draft/buffer-lookup", async (c) => {
       }
     }
     const matches = Array.isArray(edges) ? edges.map((e:any)=>e.node).filter((p:any)=>/terra/i.test(String(p?.text||""))).map((p:any)=>({id:p.id,status:p.status,createdAt:p.createdAt,textExcerpt:String(p.text||"").slice(0,180)})) : [];
-    return c.json({status:posts.payload.errors?"posts-query-failed":"ok",channel:{id:info.id,name:info.name,service:info.service,isDisconnected:info.isDisconnected,isLocked:info.isLocked,isQueuePaused:info.isQueuePaused},postsHttpStatus:posts.httpStatus,postsInspected:Array.isArray(edges)?edges.length:0,hasNextPage:posts.payload?.data?.posts?.pageInfo?.hasNextPage??null,terraMatches:matches,target,errorMessages:(posts.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
+    return c.json({status:providerComplete?"ok":"posts-query-incomplete",channel:{id:info.id,name:info.name,service:info.service,isDisconnected:info.isDisconnected,isLocked:info.isLocked,isQueuePaused:info.isQueuePaused},postsHttpStatus:posts.httpStatus,postsInspected:Array.isArray(edges)?edges.length:0,hasNextPage:posts.payload?.data?.posts?.pageInfo?.hasNextPage??null,terraMatches:matches,target,errorMessages:(posts.payload.errors||[]).map((e:any)=>String(e.message||"error").slice(0,180)),publishingEnabled:false},200);
   } catch (_) { return c.json({status:"unavailable",reason:"buffer-lookup-network-error",publishingEnabled:false},502); }
 });
 
@@ -1892,6 +1942,7 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const mediaUrl = typeof body.mediaUrl === "string" ? body.mediaUrl : "";
   const harvestId = typeof body.harvestId === "string" ? body.harvestId.slice(0,250) : "";
   const publish = body.publish === true;
+  if (typeof body.text !== "string" || body.text.length > 5000) return c.json({status:"rejected",scheduled:false,reason:"copy-too-long-or-missing"},422);
   if (!harvestId || !text.trim() || !/^https:\/\//.test(mediaUrl) || classifyEditorialTopic({seedId,title,text}) !== "book") {
     return c.json({status:"rejected",draftCreated:false,reason:"invalid-book-package"},422);
   }
@@ -1902,41 +1953,38 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   if (configuredChannel && configuredChannel !== channelId) return c.json({status:"blocked",draftCreated:false,reason:"channel-mismatch"},409);
   const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
   if (!bufferKey || !(await isDatabaseConfigured(c.env))) return c.json({status:"blocked",draftCreated:false,reason:"missing-buffer-or-database"},503);
-  const digest = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify({channelId,harvestId,text,mediaUrl,publish})));
+  const dryRun = body.dryRun === true;
+  if (publish && !dryRun && c.env.BUFFER_PUBLISHING_ENABLED !== "true") return c.json({status:"blocked",reason:"BUFFER_EXECUTION_DISABLED",scheduled:false},403);
+  if (body.channelId !== undefined && body.channelId !== channelId) return c.json({status:"rejected",reason:"BUFFER_CHANNEL_MISMATCH",scheduled:false},422);
+  // The same copy/artwork/channel is one operation, including draft -> queue
+  // and identical content selected from another harvest. Preserve old rows.
+  const digest = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify({channelId,text,mediaUrl})));
   const fingerprint = Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,"0")).join("");
   const sql = await getSql(c.env);
-  await sql`CREATE TABLE IF NOT EXISTS buffer_draft_reservations (fingerprint TEXT PRIMARY KEY, harvest_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
-  const inserted = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT (fingerprint) DO UPDATE SET status='pending' WHERE buffer_draft_reservations.status='retry-authorized' RETURNING fingerprint`;
-  if (!inserted.length) return c.json({status:"already-reserved",draftCreated:false,reason:"duplicate-or-uncertain-write"},409);
-  try {
-    const mutation = buildBufferBookPostMutation({ text, channelId, mediaUrl, publish });
-    const response = await fetch("https://api.buffer.com",{method:"POST",headers:{Authorization:"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query:mutation}),signal:AbortSignal.timeout(12000)});
-    const payload = await response.json() as Record<string,any>;
-    // Accept only the documented successful union member; never infer success
-    // from HTTP 200 alone. A failed/uncertain response stays reserved.
-    const result = payload?.data?.createPost;
-    const postId = result?.__typename === "PostActionSuccess" ? result?.post?.id : null;
-    // A typed InvalidInputError means Buffer rejected input before creating a
-    // post. Keep the audit record but do not leave it as an ambiguous write.
-    if (response.ok && !payload.errors && result?.__typename === "InvalidInputError") {
-      const message = String(result?.message ?? "Buffer rejected invalid input").slice(0,300);
-      await sql`UPDATE buffer_draft_reservations SET status='validation-rejected' WHERE fingerprint=${fingerprint} AND status='pending' AND post_id IS NULL`;
-      return c.json({
-        status:"validation-rejected",draftCreated:false,publishingEnabled:false,
-        reason:"buffer-invalid-input",bufferResultType:"InvalidInputError",
-        bufferValidationMessages:[message],reservationStatus:"validation-rejected",
-        retryAllowed:false,
-      },422);
-    }
-    if (!response.ok || payload.errors || typeof postId !== "string") {
-      const codes = Array.isArray(payload.errors) ? payload.errors.slice(0,3).map((e: any) => String(e?.extensions?.code || "graphql-error").slice(0,60)) : [];
-      return c.json({status:"unknown",draftCreated:false,reason:!response.ok?"buffer-http-error":payload.errors?"buffer-graphql-error":"buffer-unconfirmed-result",bufferHttpStatus:response.status,bufferResultType:typeof result?.__typename==="string"?result.__typename:null,bufferValidationMessages:[...(Array.isArray(payload.errors)?payload.errors:[]),result].filter(Boolean).flatMap((entry:any)=>[entry.message,entry.error,entry.reason,entry.errors].flat().filter((v:any)=>typeof v==="string")).slice(0,5).map((v:string)=>v.slice(0,300)),graphqlErrorCodes:codes,reservationStatus:"pending",publishingEnabled:false},502);
-    }
-    await sql`UPDATE buffer_draft_reservations SET status=${publish ? 'queued' : 'draft-created'},post_id=${postId} WHERE fingerprint=${fingerprint}`;
-    return c.json({contract:"publisher-buffer-book-draft-v1",status:publish?"queued":"draft-created",draftCreated:!publish,postId,publishingEnabled:publish});
-  } catch (_) {
-    return c.json({status:"unknown",draftCreated:false,reason:"buffer-request-uncertain"},502);
-  }
+  if (!dryRun) await sql`CREATE TABLE IF NOT EXISTS buffer_draft_reservations (fingerprint TEXT PRIMARY KEY, harvest_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+  const outcome = await executeBufferBookPost({harvestId,text,mediaUrl,channelId,publish,dryRun}, {
+    request: async query => {
+      const response = await fetch("https://api.buffer.com",{method:"POST",headers:{Authorization:"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query}),signal:AbortSignal.timeout(12000)});
+      const payload = await response.json() as Record<string,any>;
+      if (!response.ok) throw new BufferTransportError(response.status === 429 ? "BUFFER_RATE_LIMITED" : [401,403].includes(response.status) ? "BUFFER_AUTHENTICATION_FAILED" : "BUFFER_HTTP_ERROR",response.status);
+      if ((Array.isArray(payload.errors) ? payload.errors.length > 0 : Boolean(payload.errors)) || !payload.data) throw new BufferTransportError("BUFFER_GRAPHQL_ERROR");
+      return payload;
+    },
+    load: async () => (await sql`SELECT fingerprint,status,post_id FROM buffer_draft_reservations WHERE harvest_id=${harvestId} OR fingerprint=${fingerprint}`).map(row => ({fingerprint:String(row.fingerprint),status:String(row.status),post_id:typeof row.post_id === "string" ? row.post_id : null})),
+    claim: async () => {
+      const rows = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT (fingerprint) DO UPDATE SET status='pending' WHERE buffer_draft_reservations.status='retry-authorized' RETURNING fingerprint`;
+      return rows.length === 1 ? {fingerprint,status:"pending",post_id:null} : null;
+    },
+    transition: async (row,status,postId) => {
+      const changed = await sql`UPDATE buffer_draft_reservations SET status=${status},post_id=${postId} WHERE fingerprint=${row.fingerprint} AND status=${row.status} AND post_id IS NOT DISTINCT FROM ${row.post_id} RETURNING fingerprint`;
+      return changed.length === 1;
+    },
+    verifyMedia: async () => {
+      const checked = await fetch(mediaUrl,{method:"HEAD",redirect:"error",signal:AbortSignal.timeout(10000)});
+      if (!checked.ok || !/^image\/(jpeg|png|webp)(;|$)/i.test(checked.headers.get("Content-Type") ?? "")) throw new Error("Unverified image");
+    },
+  });
+  return c.json({contract:"publisher-buffer-book-draft-v1",...outcome},outcome.status === "confirmation-required" ? 409 : 200);
 });
 
 
@@ -1990,21 +2038,26 @@ app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async
   const post = current.post;
   const channel = current.channel;
   if (channel?.id !== GERARD_BOOK_CHANNEL_ID || channel?.service !== "instagram" ||
-      channel.isDisconnected === true || channel.isLocked === true || channel.isQueuePaused === true)
+      channel.isDisconnected !== false || channel.isLocked !== false || channel.isQueuePaused !== false)
     return c.json({status:"channel-unavailable-or-paused",scheduled:false},409);
   if (post.id !== GERARD_BUFFER_POST_ID || post.channelId !== GERARD_BOOK_CHANNEL_ID)
     return c.json({status:"post-channel-mismatch",scheduled:false},409);
 
   // The provider is the authority when the network response was uncertain.
-  if (["scheduled","buffer","sent"].includes(String(post.status).toLowerCase())) {
+  if (["scheduled","sent"].includes(String(post.status).toLowerCase())) {
+    const sent = post.status === "sent";
+    const future = typeof post.dueAt === "string" && Number.isFinite(Date.parse(post.dueAt)) && Date.parse(post.dueAt) > Date.now();
+    const image = Array.isArray(post.assets) && post.assets.some((a:any) => typeof a?.mimeType === "string" && a.mimeType.startsWith("image/"));
+    if ((!sent && !future) || post.text !== GERARD_BOOK_INSTAGRAM_CAPTION || !image)
+      return c.json({status:"provider-confirmation-uncertain",scheduled:false},409);
     const dueAt = typeof post.dueAt === "string" ? post.dueAt : null;
-    if (currentState !== "queued") {
+    if (!dryRun && currentState !== "queued") {
       await sql`UPDATE buffer_draft_reservations SET status='queued'
         WHERE fingerprint=${String(reservations[0].fingerprint)}
           AND status IN ('promotion-pending','promotion-unknown','draft-created')`;
     }
-    return c.json({status:"already-queued-or-sent",scheduled:true,postId:GERARD_BUFFER_POST_ID,
-      providerStatus:post.status,dueAt,changed:false},200);
+    return c.json({status:"already-queued-or-sent",postId:GERARD_BUFFER_POST_ID,
+      providerStatus:post.status,dueAt,changed:false,published:sent,scheduled:!sent},200);
   }
   // A single recovery is allowed only for the fully logged typed Buffer error:
   // 38646496703: "Instagram posts require at least one image or video".
@@ -2031,11 +2084,14 @@ app.post("/api/social/transports/buffer/book-draft/queue-existing-gerard", async
     const mutation = buildGerardExistingDraftQueueMutation(GERARD_BUFFER_POST_ID);
     const result = await bufferRequest(mutation);
     const payload = result.payload?.data?.editPost;
-    const bufferPost = payload?.__typename === "PostActionSuccess" ? payload.post : null;
+    const reread = payload?.__typename === "PostActionSuccess" && payload.post?.id === GERARD_BUFFER_POST_ID
+      ? await bufferRequest(readQuery) : null;
+    const bufferPost = reread?.response.ok && !reread.payload.errors ? reread.payload?.data?.post : null;
     const success = result.response.ok && !result.payload.errors &&
       bufferPost?.id === GERARD_BUFFER_POST_ID &&
       bufferPost?.channelId === GERARD_BOOK_CHANNEL_ID &&
-      ["scheduled","buffer"].includes(String(bufferPost?.status ?? "").toLowerCase()) &&
+      bufferPost?.status === "scheduled" && bufferPost.text === GERARD_BOOK_INSTAGRAM_CAPTION &&
+      Array.isArray(bufferPost.assets) && bufferPost.assets.some((a:any) => typeof a?.mimeType === "string" && a.mimeType.startsWith("image/")) &&
       typeof bufferPost?.dueAt === "string" &&
       Number.isFinite(Date.parse(bufferPost.dueAt)) && Date.parse(bufferPost.dueAt) > Date.now();
     if (success) {
@@ -2081,16 +2137,17 @@ app.get("/api/social/transports", async (c) => {
   // Credential-presence diagnostic only: never expose the key or imply
   // that a Buffer API request has been authenticated.
   const bufferKeyConfigured = Boolean(await resolveSecret(c.env.BUFFER_API_KEY));
-  const requested = c.req.query("provider") === "buffer" ? "buffer" : undefined;
+  const provider = c.req.query("provider");
+  const requested = provider === "buffer" || provider === "metricool" ? provider : undefined;
   const decision = chooseSocialTransport({
     requested,
-    metricoolAvailable: true,
+    metricoolAvailable: false,
     bufferConnected: false,
   });
   return c.json({
     contract: "publisher-social-transports-v1",
     status: "read-only",
-    metricool: { mode: "existing-production", integration: "unchanged" },
+    metricool: { mode: "unverified", connected: false, quotaVerified: false },
     buffer: {
       mode: "dry-run",
       keyConfigured: bufferKeyConfigured,
@@ -3950,7 +4007,7 @@ app.post("/api/octopus-adapter/execute", async (c) => {
   const result = await executeAdapterMission(envelope, {
     generateText: (request) => executeMistralText(c.env, request),
     knowledgeEnv: await knowledgeEnvFor(c.env),
-    publishSocial: async (input) => finalizeMetricoolPublication(c.env, input, await metricoolAuthenticated(c.env, c.req.header("Authorization"))),
+    publishSocial: async (input) => finalizeSocialPublication(c.env, input, c.req.header("Authorization")),
   });
   // Always 200: the outcome travels in `status`, which is what Octopus reads.
   // A non-2xx would be recorded as an adapter transport failure and lose the

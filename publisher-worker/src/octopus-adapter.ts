@@ -210,15 +210,16 @@ export async function executeAdapterMission(
       const publication = mission.context?.metadata?.["socialPublication"];
       if (!deps.publishSocial || !isRecord(publication)) {
         return { operationId, status: "needs-input", summary: "La demande de publication structurée ou son exécuteur est indisponible.",
-          output: { capability, executable: false, authorizationRequired: false, provider: "metricool" } };
+          output: { capability, executable: false, authorizationRequired: false, provider: isRecord(publication) ? publication.transport ?? "metricool" : null } };
       }
       const outcome = await deps.publishSocial({ ...publication, operationId: stringValue(publication.operationId) ?? operationId });
       const output = isRecord(outcome) ? outcome : { status: "unconfirmed", scheduled: false };
-      const confirmed = output.status === "confirmed-scheduled" || output.status === "confirmed-published";
+      const confirmed = typeof output.postId === "string" && Boolean(output.postId.trim()) &&
+        ((output.status === "confirmed-scheduled" && output.scheduled === true) || (output.status === "confirmed-published" && output.published === true));
       const preview = output.status === "ready-to-schedule" && publication.dryRun !== false;
       return { operationId, status: confirmed || preview ? "completed" : "needs-input",
-        summary: confirmed ? "Statut Metricool confirmé par une lecture du fournisseur." : preview ? "Parcours Metricool vérifié en lecture seule ; aucune programmation." : "Publication conservée ; la programmation n’est pas confirmée.",
-        output: { capability, ...output, executable: false, provider: "metricool" } };
+        summary: confirmed ? "Statut confirmé par une lecture du fournisseur demandé." : preview ? "Parcours vérifié en lecture seule ; aucune programmation." : "Publication conservée ; la programmation n’est pas confirmée.",
+        output: { capability, ...output, executable: false, provider: publication.transport ?? "metricool" } };
 
     }
 

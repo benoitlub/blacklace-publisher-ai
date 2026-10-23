@@ -291,11 +291,13 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
     const output = await forwardMetricoolPublication(request as Record<string, unknown>, {
       workerUrl: process.env.PUBLISHER_URL || process.env.PUBLISHER_WORKER_URL || "https://blacklace-publisher-worker.benoitlubert.workers.dev",
       token: process.env.METRICOOL_EXECUTION_TOKEN,
+      bufferToken: process.env.BUFFER_DRAFT_WRITE_TOKEN,
     });
-    const confirmed = ["confirmed-scheduled", "confirmed-published"].includes(String(output.status));
+    const confirmed = typeof output.postId === "string" && Boolean(output.postId.trim()) &&
+      ((output.status === "confirmed-scheduled" && output.scheduled === true) || (output.status === "confirmed-published" && output.published === true));
     const preview = output.status === "ready-to-schedule" && (request as Record<string, unknown>).dryRun !== false;
     return { operationId: envelope.mission.operationId, status: confirmed || preview ? "completed" as const : "needs-input" as const,
-      summary: confirmed ? "Statut Metricool confirmé par Publisher." : preview ? "Préparation Metricool vérifiée, sans programmation." : "Récolte conservée ; confirmation Metricool requise.",
+      summary: confirmed ? "Statut du transport demandé confirmé par Publisher." : preview ? "Préparation vérifiée, sans programmation." : "Récolte conservée ; confirmation du transport demandé requise.",
       output: { ...output, capability: "social.publish", executable: false } };
   }
   if (capability === "knowledge.search") return searchKnowledge(envelope.mission);

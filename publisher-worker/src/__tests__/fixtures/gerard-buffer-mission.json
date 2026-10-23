@@ -1,0 +1,60 @@
+{
+  "candidate": {
+    "status": "ready",
+    "harvestId": "buffer-book-simulation",
+    "seedId": "gerard-et-gerard",
+    "copy": {
+      "text": "Le texte exact choisi par Gérard pour son livre."
+    },
+    "media": {
+      "url": "https://raw.githubusercontent.com/benoitlub/blacklace-publisher-ai/main/public/media/books/Gerard_et_Gerard_couverture_retouchee.jpg"
+    },
+    "compatibleNetworks": [
+      "instagram"
+    ],
+    "transport": {
+      "provider": "buffer",
+      "channelId": "6ac8c8226a5c39ccb65fdbf6"
+    },
+    "editorialRoute": {
+      "destination": {
+        "preferredProvider": "buffer"
+      }
+    }
+  },
+  "mission": {
+    "operationId": "gerard-buffer-572513c112253652925ad2e09c3ae7132131643706d8ad28b656c86f4d9a0b81-1792670400000",
+    "title": "Programmer la récolte buffer-book-simulation",
+    "objective": "Exécuter la décision Buffer de Gérard, du brouillon au statut confirmé, sans remplacement du transport.",
+    "requiredCapabilities": [
+      "social.publish"
+    ],
+    "authorizedResources": [
+      "social.publish"
+    ],
+    "context": {
+      "id": "poulpe-fiction",
+      "label": "Gérard",
+      "metadata": {
+        "source": "gerard-cycle",
+        "socialPublication": {
+          "operationId": "gerard-buffer-572513c112253652925ad2e09c3ae7132131643706d8ad28b656c86f4d9a0b81",
+          "transport": "buffer",
+          "harvestId": "buffer-book-simulation",
+          "mediaHarvestId": "buffer-book-simulation",
+          "text": "Le texte exact choisi par Gérard pour son livre.",
+          "media": [
+            "https://raw.githubusercontent.com/benoitlub/blacklace-publisher-ai/main/public/media/books/Gerard_et_Gerard_couverture_retouchee.jpg"
+          ],
+          "networks": [
+            "instagram"
+          ],
+          "channelId": "6ac8c8226a5c39ccb65fdbf6",
+          "source": "gerard",
+          "decision": "schedule",
+          "dryRun": false
+        }
+      }
+    }
+  }
+}

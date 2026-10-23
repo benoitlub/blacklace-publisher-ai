@@ -73,3 +73,119 @@ export function buildGerardExistingDraftQueueMutation(postId: string) {
     ", schedulingType: automatic, mode: addToQueue, saveToDraft: false" +
     " }) { __typename ... on PostActionSuccess { post { id status dueAt text channelId } } ... on InvalidInputError { message } } }";
 }
+
+// The general book circuit edits the draft in place with Gerard's exact copy
+// and artwork. The historical Gerard recovery above remains available.
+export function buildBufferBookQueueMutation(input: { postId: string; text: string; mediaUrl: string }) {
+  return buildBufferBookPostMutation({ ...input, channelId: "", publish: true })
+    .replace("createPost(input: {", "editPost(input: { id: " + JSON.stringify(input.postId) + ",")
+    .replace(', channelId: ""', "");
+}
+
+export type BufferReservation = { fingerprint: string; status: string; post_id: string | null };
+export type BufferBookPackage = { harvestId: string; text: string; mediaUrl: string; channelId: string; publish: boolean; dryRun: boolean };
+export type BufferBookDependencies = {
+  request: (query: string) => Promise<Record<string, any>>;
+  load: () => Promise<BufferReservation[]>;
+  claim: () => Promise<BufferReservation | null>;
+  transition: (row: BufferReservation, status: string, postId: string | null) => Promise<boolean>;
+  verifyMedia: () => Promise<void>;
+};
+
+export class BufferTransportError extends Error {
+  constructor(public readonly code: string, public readonly httpStatus?: number) { super(code); }
+}
+
+/** No automatic mutation retry: a lost create/edit response stays reserved. */
+export async function executeBufferBookPost(input: BufferBookPackage, deps: BufferBookDependencies) {
+  const base = { provider: "buffer", harvestId: input.harvestId, scheduled: false, published: false, draftCreated: false, publishingEnabled: false, retryAllowed: false };
+  let stage = "channel";
+  let knownPostId: string | null = null;
+  try {
+    const channel = (await deps.request("query { channel(input:{id:" + JSON.stringify(input.channelId) + "}) { id service isDisconnected isLocked isQueuePaused } }")).data?.channel;
+    if (channel?.id !== input.channelId || channel.service !== "instagram" ||
+        channel.isDisconnected !== false || channel.isLocked !== false || channel.isQueuePaused !== false)
+      return { ...base, status: "blocked", stage, reason: "BUFFER_CHANNEL_UNAVAILABLE" };
+    stage = "reservation";
+    const rows = (await deps.load()).filter(row => !["validation-rejected", "retry-authorized"].includes(row.status));
+    if (rows.length > 1) return { ...base, status: "confirmation-required", stage, reason: "BUFFER_MULTIPLE_RESERVATIONS" };
+    let row = rows[0];
+    const read = async (id: string): Promise<Record<string, any>> => {
+      stage = "provider-read";
+      const post = (await deps.request("query { post(input:{id:" + JSON.stringify(id) + "}) { id channelId status text dueAt assets { id mimeType } } }")).data?.post;
+      if (!post || post.id !== id || post.channelId !== input.channelId || post.text !== input.text ||
+          !Array.isArray(post.assets) || !post.assets.some((a: any) => typeof a?.mimeType === "string" && a.mimeType.startsWith("image/")))
+        throw new Error("Unverified provider post");
+      return post;
+    };
+    const confirmed = (post: Record<string, any>) => {
+      const sent = post.status === "sent";
+      const scheduled = post.status === "scheduled" && typeof post.dueAt === "string" && Number.isFinite(Date.parse(post.dueAt)) && Date.parse(post.dueAt) > Date.now();
+      if (!sent && !scheduled) return null;
+      return { ...base, status: sent ? "confirmed-published" : "confirmed-scheduled", scheduled, published: sent,
+        publishingEnabled: true, postId: post.id, channelId: post.channelId, providerStatus: post.status,
+        publicationDate: post.dueAt ?? null, dueAt: post.dueAt ?? null };
+    };
+    let post: Record<string, any> | null = null;
+    if (row) {
+      if (!row.post_id) return { ...base, status: "confirmation-required", stage, reason: "BUFFER_CREATE_UNCERTAIN" };
+      knownPostId = row.post_id;
+      post = await read(row.post_id);
+      const result = confirmed(post);
+      if (result) {
+        if (!input.dryRun && row.status !== "queued" && !(await deps.transition(row, "queued", row.post_id))) throw new Error("Concurrent change");
+        return result;
+      }
+      // Even a still-visible draft cannot prove that a timed-out edit failed.
+      if (!["draft-created", "pending"].includes(row.status) || post.status !== "draft")
+        return { ...base, postId: row.post_id, providerStatus: post.status, status: "confirmation-required", stage, reason: "BUFFER_PROMOTION_UNCERTAIN" };
+      if (row.status === "pending" && !input.dryRun) {
+        if (!(await deps.transition(row, "draft-created", row.post_id))) throw new Error("Concurrent change");
+        row = { ...row, status: "draft-created" };
+      }
+    }
+    stage = "media";
+    await deps.verifyMedia();
+    if (input.dryRun) return { ...base, status: "ready-to-schedule", stage: "preview", postId: row?.post_id ?? null, willPublish: false };
+    if (!row) {
+      stage = "reservation";
+      const claimed = await deps.claim();
+      if (!claimed) return { ...base, status: "confirmation-required", stage, reason: "BUFFER_ALREADY_RESERVED" };
+      row = claimed;
+      stage = "create-draft";
+      const created = (await deps.request(buildBufferBookPostMutation({ ...input, publish: false }))).data?.createPost;
+      if (created?.__typename === "InvalidInputError") {
+        await deps.transition(row, "validation-rejected", null);
+        return { ...base, status: "validation-rejected", stage, reason: "BUFFER_INVALID_INPUT" };
+      }
+      const id = created?.__typename === "PostActionSuccess" ? created.post?.id : null;
+      if (typeof id !== "string" || !id.trim()) throw new Error("No verified identifier");
+      knownPostId = id;
+      // Persist the identifier before readback, including during outages.
+      if (!(await deps.transition(row, "pending", id))) throw new Error("Concurrent change");
+      row = { ...row, post_id: id };
+      post = await read(id);
+      if (post.status !== "draft") throw new Error("Creation was not a draft");
+      if (!(await deps.transition(row, "draft-created", id))) throw new Error("Concurrent change");
+      row = { ...row, status: "draft-created" };
+    }
+    if (!input.publish) return { ...base, status: "draft-created", postId: row.post_id, channelId: input.channelId, draftCreated: true, providerStatus: "draft" };
+    stage = "promotion";
+    if (!(await deps.transition(row, "promotion-pending", row.post_id))) throw new Error("Concurrent change");
+    row = { ...row, status: "promotion-pending" };
+    const queued = (await deps.request(buildBufferBookQueueMutation({ ...input, postId: row.post_id! }))).data?.editPost;
+    if (queued?.__typename === "InvalidInputError") {
+      await deps.transition(row, "promotion-rejected", row.post_id);
+      return { ...base, postId: row.post_id, status: "validation-rejected", stage, reason: "BUFFER_INVALID_INPUT" };
+    }
+    if (queued?.__typename !== "PostActionSuccess" || queued.post?.id !== row.post_id) throw new Error("Unconfirmed edit");
+    const result = confirmed(await read(row.post_id!));
+    if (!result) throw new Error("No confirmed schedule");
+    if (!(await deps.transition(row, "queued", row.post_id))) throw new Error("Concurrent change");
+    return result;
+  } catch (error) {
+    return { ...base, status: "confirmation-required", stage, postId: knownPostId,
+      reason: error instanceof BufferTransportError ? error.code : "BUFFER_RESPONSE_UNCONFIRMED",
+      ...(error instanceof BufferTransportError && error.httpStatus ? { providerHttpStatus: error.httpStatus } : {}) };
+  }
+}

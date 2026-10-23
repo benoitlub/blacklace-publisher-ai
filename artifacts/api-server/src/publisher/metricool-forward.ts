@@ -2,13 +2,16 @@
 // Credentials stay server-side; neither Gerard nor Octopus receives the bearer.
 export async function forwardMetricoolPublication(
   publication: Record<string, unknown>,
-  options: { workerUrl: string; token?: string; fetchImpl?: typeof fetch },
+  options: { workerUrl: string; token?: string; bufferToken?: string; fetchImpl?: typeof fetch },
 ): Promise<Record<string, unknown>> {
   const dryRun = publication.dryRun !== false;
-  if (!dryRun && !options.token) return { status: "blocked", stage: "authorization", reason: "METRICOOL_EXECUTION_TOKEN_MISSING", scheduled: false };
+  const transport = publication.transport ?? "metricool";
+  if (transport !== "metricool" && transport !== "buffer") return { status: "rejected", stage: "destination", reason: "UNKNOWN_TRANSPORT", scheduled: false };
+  const token = transport === "buffer" ? options.bufferToken : options.token;
+  if ((!dryRun || transport === "buffer") && !token) return { status: "blocked", stage: "authorization", reason: transport === "buffer" ? "BUFFER_DRAFT_WRITE_TOKEN_MISSING" : "METRICOOL_EXECUTION_TOKEN_MISSING", scheduled: false };
   try {
     const response = await (options.fetchImpl ?? fetch)(`${options.workerUrl.replace(/\/$/, "")}/api/social/publication/finalize`, {
-      method: "POST", headers: { "Content-Type": "application/json", ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}) },
+      method: "POST", headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ ...publication, dryRun }), signal: AbortSignal.timeout(90000),
     });
     const data: unknown = await response.json();

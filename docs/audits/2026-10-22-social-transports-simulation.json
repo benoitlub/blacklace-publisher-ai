@@ -1,0 +1,121 @@
+{
+  "mode": "simulation",
+  "realExternalWrites": 0,
+  "productionConnectionsVerified": false,
+  "productionQuotaVerified": false,
+  "cases": [
+    {
+      "proof": "gerard-octopus-publisher-buffer",
+      "gerardClient": "actual-poulpe-client",
+      "octopus": "existing-pinned-engine",
+      "realExternalWrites": 0,
+      "simulatedWrites": [
+        "create-draft",
+        "queue-existing"
+      ],
+      "postId": "buffer-simulated-42",
+      "dueAt": "2026-10-23T12:00:00Z",
+      "repeatedRequestWrites": 0,
+      "trace": [
+        "octopus:/mission",
+        "publisher-local:adapter",
+        "worker:/api/social/publication/finalize",
+        "media:HEAD",
+        "buffer:create-draft",
+        "buffer:read:draft",
+        "buffer:queue-existing",
+        "buffer:read:scheduled",
+        "octopus:/mission",
+        "publisher-local:adapter",
+        "worker:/api/social/publication/finalize",
+        "buffer:read:scheduled"
+      ]
+    },
+    {
+      "proof": "gerard-octopus-publisher-composio-metricool",
+      "gerardClient": "actual-poulpe-client",
+      "octopus": "existing-pinned-engine",
+      "writes": "1 simulated, 0 real",
+      "quotaReaders": 12,
+      "mediaValidated": false,
+      "networks": [
+        "facebook"
+      ],
+      "providerPostId": "simulated-post-42",
+      "state": "confirmed-scheduled",
+      "repeatedRequestWrites": 0,
+      "trace": [
+        "octopus:/mission",
+        "publisher-local:adapter",
+        "worker:/api/social/publication/finalize",
+        "composio:get_brands",
+        "composio:get_scheduled_posts",
+        "composio:get_facebook_posts",
+        "composio:get_facebook_reels",
+        "composio:get_facebook_stories",
+        "composio:get_instagram_posts",
+        "composio:get_instagram_reels",
+        "composio:get_instagram_stories",
+        "composio:get_best_time_to_post",
+        "composio:get_facebook_posts",
+        "composio:get_facebook_reels",
+        "composio:get_facebook_stories",
+        "composio:get_instagram_posts",
+        "composio:get_instagram_reels",
+        "composio:get_instagram_stories",
+        "composio:get_scheduled_posts",
+        "composio:post_schedule_post",
+        "composio:get_scheduled_posts",
+        "octopus:/mission",
+        "publisher-local:adapter",
+        "worker:/api/social/publication/finalize",
+        "composio:get_brands",
+        "composio:get_scheduled_posts"
+      ]
+    },
+    {
+      "proof": "gerard-octopus-publisher-composio-metricool",
+      "gerardClient": "actual-poulpe-client",
+      "octopus": "existing-pinned-engine",
+      "writes": "1 simulated, 0 real",
+      "quotaReaders": 12,
+      "mediaValidated": true,
+      "networks": [
+        "facebook",
+        "instagram"
+      ],
+      "providerPostId": "simulated-post-42",
+      "state": "confirmed-scheduled",
+      "repeatedRequestWrites": 0,
+      "trace": [
+        "octopus:/mission",
+        "publisher-local:adapter",
+        "worker:/api/social/publication/finalize",
+        "composio:get_brands",
+        "composio:get_scheduled_posts",
+        "composio:get_facebook_posts",
+        "composio:get_facebook_reels",
+        "composio:get_facebook_stories",
+        "composio:get_instagram_posts",
+        "composio:get_instagram_reels",
+        "composio:get_instagram_stories",
+        "composio:get_best_time_to_post",
+        "composio:get_best_time_to_post",
+        "composio:get_facebook_posts",
+        "composio:get_facebook_reels",
+        "composio:get_facebook_stories",
+        "composio:get_instagram_posts",
+        "composio:get_instagram_reels",
+        "composio:get_instagram_stories",
+        "composio:get_scheduled_posts",
+        "composio:post_schedule_post",
+        "composio:get_scheduled_posts",
+        "octopus:/mission",
+        "publisher-local:adapter",
+        "worker:/api/social/publication/finalize",
+        "composio:get_brands",
+        "composio:get_scheduled_posts"
+      ]
+    }
+  ]
+}
