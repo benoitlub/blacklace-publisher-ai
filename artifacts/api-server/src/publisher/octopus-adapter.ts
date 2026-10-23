@@ -1,3 +1,4 @@
+import { forwardMetricoolPublication } from "./metricool-forward";
 import { logger } from "../lib/logger";
 import { productionEngine, type ProductionRequest } from "./production-engine";
 import { generatePostDraft } from "../services/mistral";
@@ -11,6 +12,7 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "content.article.write",
   "content.social.write",
   "knowledge.search",
+  "social.publish",
   "landing.generate",
 ] as const;
 
@@ -280,6 +282,22 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
     return { operationId: envelope.mission.operationId, status: "failed" as const, summary: "Publisher ne déclare aucune des capacités demandées.", output: { requestedCapabilities: envelope.mission.requiredCapabilities } };
   }
   if (capability === "content.generate" || capability === "copy.generate" || capability === "content.article.write" || capability === "content.social.write") return writeContent(envelope.mission, capability);
+  if (capability === "social.publish") {
+    const request = metadataValue(envelope.mission, "socialPublication");
+    if (!envelope.mission.authorizedResources?.includes("social.publish") || !request || typeof request !== "object" || Array.isArray(request)) {
+      return { operationId: envelope.mission.operationId, status: "needs-input" as const,
+        summary: "Décision et autorisation social.publish explicites requises.", output: { scheduled: false, executable: false, authorizationRequired: true } };
+    }
+    const output = await forwardMetricoolPublication(request as Record<string, unknown>, {
+      workerUrl: process.env.PUBLISHER_URL || process.env.PUBLISHER_WORKER_URL || "https://blacklace-publisher-worker.benoitlubert.workers.dev",
+      token: process.env.METRICOOL_EXECUTION_TOKEN,
+    });
+    const confirmed = ["confirmed-scheduled", "confirmed-published"].includes(String(output.status));
+    const preview = output.status === "ready-to-schedule" && (request as Record<string, unknown>).dryRun !== false;
+    return { operationId: envelope.mission.operationId, status: confirmed || preview ? "completed" as const : "needs-input" as const,
+      summary: confirmed ? "Statut Metricool confirmé par Publisher." : preview ? "Préparation Metricool vérifiée, sans programmation." : "Récolte conservée ; confirmation Metricool requise.",
+      output: { ...output, capability: "social.publish", executable: false } };
+  }
   if (capability === "knowledge.search") return searchKnowledge(envelope.mission);
   return generateLanding(envelope.mission);
 }

@@ -127,7 +127,7 @@ function systemPromptFor(capability: PublisherAdapterCapability): string {
  */
 export async function executeAdapterMission(
   envelope: OctopusAdapterEnvelope,
-  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike },
+  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (input: Record<string, unknown>) => Promise<unknown> },
 ): Promise<AdapterExecutionResult> {
   const mission = isRecord(envelope.mission) ? (envelope.mission as OctopusAdapterMission) : undefined;
   const operationId = stringValue(mission?.operationId) ?? `unknown-${Date.now()}`;
@@ -207,19 +207,19 @@ export async function executeAdapterMission(
           },
         };
       }
-      return {
-        operationId,
-        status: "needs-input",
-        summary: "Publication autorisée, mais l’exécuteur Metricool n’est pas encore activé. Aucun contenu n’a été publié.",
-        output: {
-          capability,
-          authorizationRequired: false,
-          destination: destination ?? null,
-          content: content ?? null,
-          executable: false,
-          provider: "metricool",
-        },
-      };
+      const publication = mission.context?.metadata?.["socialPublication"];
+      if (!deps.publishSocial || !isRecord(publication)) {
+        return { operationId, status: "needs-input", summary: "La demande de publication structurée ou son exécuteur est indisponible.",
+          output: { capability, executable: false, authorizationRequired: false, provider: "metricool" } };
+      }
+      const outcome = await deps.publishSocial({ ...publication, operationId: stringValue(publication.operationId) ?? operationId });
+      const output = isRecord(outcome) ? outcome : { status: "unconfirmed", scheduled: false };
+      const confirmed = output.status === "confirmed-scheduled" || output.status === "confirmed-published";
+      const preview = output.status === "ready-to-schedule" && publication.dryRun !== false;
+      return { operationId, status: confirmed || preview ? "completed" : "needs-input",
+        summary: confirmed ? "Statut Metricool confirmé par une lecture du fournisseur." : preview ? "Parcours Metricool vérifié en lecture seule ; aucune programmation." : "Publication conservée ; la programmation n’est pas confirmée.",
+        output: { capability, ...output, executable: false, provider: "metricool" } };
+
     }
 
     if (capability === "knowledge.search") {

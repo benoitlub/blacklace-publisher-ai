@@ -1,0 +1,28 @@
+name: Metricool simulated end-to-end
+
+on:
+  pull_request:
+    paths:
+      - "publisher-worker/**"
+      - "artifacts/api-server/src/publisher/**"
+      - "artifacts/api-server/src/routes/octopus-adapter.ts"
+      - "scripts/gerard-metricool-e2e.test.mts"
+      - ".github/workflows/metricool-simulation.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  simulation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --no-frozen-lockfile
+      - run: npm ci --no-audit --no-fund
+        working-directory: publisher-worker
+      - name: Exercise existing Octopus and both Publisher adapters offline
+        run: pnpm --filter @workspace/scripts exec tsx --test ./gerard-metricool-e2e.test.mts
