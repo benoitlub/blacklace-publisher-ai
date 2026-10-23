@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
 import bookDestinationsCatalog from "./book-destinations-catalog.json";
-import { chooseSocialTransport, previewBufferPost } from "./social-transport";
+import { chooseSocialTransport, inspectSocialCapabilities, previewBufferPost } from "./social-transport";
 import { executeBufferBookPost, BufferTransportError, buildGerardExistingDraftQueueMutation, inspectGerardExistingDraft, GERARD_BUFFER_HARVEST_ID, GERARD_BUFFER_POST_ID, GERARD_BOOK_CHANNEL_ID, GERARD_BOOK_INSTAGRAM_CAPTION } from "./buffer-book-post";
 import { classifyEditorialTopic, chooseEditorialDestination } from "./editorial-routing";
 import {
@@ -2144,8 +2144,19 @@ app.get("/api/social/transports", async (c) => {
     metricoolAvailable: false,
     bufferConnected: false,
   });
+  // A matching account does not imply authorization. The provider-backed
+  // observations will be wired separately after read-only authentication.
+  const account = (c.req.query("account") ?? "").slice(0,128);
+  const network = (c.req.query("network") ?? "").slice(0,64);
+  const mediaValue = c.req.query("media");
+  const media = mediaValue === "video" || mediaValue === "text" ? mediaValue : "image";
+  const capabilities = inspectSocialCapabilities({
+    targetAccount: account, network, media, observations: [],
+  });
   return c.json({
     contract: "publisher-social-transports-v1",
+    capabilities,
+    capabilityEvidence: "none-provider-read-required",
     status: "read-only",
     metricool: { mode: "unverified", connected: false, quotaVerified: false },
     buffer: {
