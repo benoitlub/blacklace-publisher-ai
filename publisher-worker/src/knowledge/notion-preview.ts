@@ -15,10 +15,10 @@ import {
  * carte annonçait donc « mock » alors que la génération de contenu, elle,
  * tourne sur du vrai Notion.
  *
- * Ce module rend compte de la source réellement utilisée : recherche si
- * aucun identifiant n'est configuré, base ou page précise sinon — de sorte
- * qu'ajouter un NOTION_DATABASE_ID plus tard bascule automatiquement sur le
- * chemin le plus précis.
+ * Ce diagnostic de connexion échantillonne toujours le workspace via la
+ * recherche. Un ancien identifiant de base/page ne doit pas masquer une
+ * connexion active. La résolution de contenu conserve ses chemins dédiés
+ * pour les bases/pages explicitement configurées.
  */
 
 const NOTION_API_URL = "https://api.notion.com/v1";

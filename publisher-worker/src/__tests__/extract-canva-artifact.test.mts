@@ -5,10 +5,7 @@
 // whenever the call failed — producing links like
 // canva.com/design/log_XXXX/edit that 404 on Canva's side.
 //
-// Run with: node --experimental-strip-types --test src/__tests__/extract-canva-artifact.test.mts
-// (no test framework exists in this package; this uses Node's built-in
-// test runner + native TS stripping rather than adding one, per the
-// "don't build a parallel test infra" instruction this was written under.)
+// Run with: npm test (Node test runner via tsx).
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -43,11 +40,18 @@ test("a bare log_id-shaped key is never mistaken for a design id, even on a succ
   assert.equal(artifact, null, "log_id must never be picked up as a design id/url");
 });
 
-test("a real design id/url on a successful response is extracted correctly", () => {
+test("an editor-only design is not a rendered social visual", () => {
+  assert.equal(extractCanvaArtifact({
+    successful: true,
+    data: { design_id: "DAGxxxREAL123", urls: { edit_url: "https://www.canva.com/design/DAGxxxREAL123/edit" } },
+  }, "Test seed"), null);
+});
+
+test("a rendered design on a successful response is extracted correctly", () => {
   const realSuccessResponse = {
     data: {
       design_id: "DAGxxxREAL123",
-      urls: { edit_url: "https://www.canva.com/design/DAGxxxREAL123/edit" },
+      urls: { edit_url: "https://www.canva.com/design/DAGxxxREAL123/edit", download_url: "https://example.org/rendered-design.png" },
     },
     successful: true,
     error: null,
@@ -56,5 +60,6 @@ test("a real design id/url on a successful response is extracted correctly", () 
   const artifact = extractCanvaArtifact(realSuccessResponse, "Test seed");
   assert.ok(artifact, "a genuine successful response must yield an artifact");
   assert.equal(artifact?.url, "https://www.canva.com/design/DAGxxxREAL123/edit");
+  assert.equal(artifact?.downloadUrl, "https://example.org/rendered-design.png");
   assert.ok(!artifact?.url?.includes("log_"), "the extracted url must never be built from log_id");
 });

@@ -149,7 +149,7 @@ test("un jeton valide sans page partagée le dit, au lieu d'un vert trompeur", a
   }
 });
 
-test("un identifiant explicite reprend la main sur la recherche", async () => {
+test("un ancien identifiant ne masque pas la connexion workspace active", async () => {
   const calls: string[] = [];
   const restore = stubNotion((url) => {
     calls.push(url);
@@ -157,8 +157,8 @@ test("un identifiant explicite reprend la main sur la recherche", async () => {
   });
   try {
     await knowledgeSourceDiagnostics({ NOTION_API_KEY: "clé", NOTION_DATABASE_ID: "db-1" });
-    assert.ok(calls.some((url) => url.includes("/databases/db-1/query")));
-    assert.ok(!calls.some((url) => url.endsWith("/search")));
+    assert.ok(calls.some((url) => url.endsWith("/search")));
+    assert.ok(!calls.some((url) => url.includes("/databases/db-1/query")));
   } finally {
     restore();
   }
