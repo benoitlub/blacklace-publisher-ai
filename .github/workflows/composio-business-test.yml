@@ -1,0 +1,48 @@
+name: Gerard Composio business circuit
+on:
+  pull_request:
+    paths:
+      - "publisher-worker/**"
+      - "artifacts/api-server/src/publisher/**"
+      - "artifacts/api-server/src/services/composio*"
+      - "scripts/gerard-composio-e2e.test.mts"
+      - "scripts/composio-read-diagnostics.mjs"
+      - ".github/workflows/composio-business-test.yml"
+permissions:
+  contents: read
+jobs:
+  business-circuit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: benoitlub/octopus-engine
+          ref: a46822958afd017bf30cb07ef156781cc789d4d7
+          path: _test/octopus
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: pnpm install --no-frozen-lockfile
+      - run: npm ci --no-audit --no-fund
+        working-directory: publisher-worker
+      - run: npm install --ignore-scripts --no-audit --no-fund && npm run build
+        working-directory: _test/octopus
+      - name: Current Octopus, both Publisher adapters, dynamic discovery and controlled reads
+        env:
+          OCTOPUS_APP_PATH: ${{ github.workspace }}/_test/octopus/dist/app.js
+          COMPOSIO_PROOF_PATH: /tmp/composio-business-proof.json
+        run: pnpm --filter @workspace/scripts exec tsx --test ./gerard-composio-e2e.test.mts
+      - name: Read-only deployed connection and schema evidence (no provider execution)
+        env:
+          COMPOSIO_DIAGNOSTIC_PATH: /tmp/composio-production-diagnostics.json
+          COMPOSIO_VALIDATE_METADATA: "true"
+        run: pnpm --filter @workspace/scripts exec tsx ./composio-read-diagnostics.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: composio-business-evidence
+          path: /tmp/composio-*.json
+          if-no-files-found: ignore

@@ -38,28 +38,32 @@ export function isComposioConfigured(): boolean {
 }
 
 export async function listComposioConnectedAccounts(userId: string): Promise<ComposioConnectedAccount[]> {
-  const paths = [
-    `/connected_accounts?user_ids=${encodeURIComponent(userId)}&limit=100`,
-    `/connected_accounts?user_id=${encodeURIComponent(userId)}&limit=100`,
-    "/connected_accounts?limit=100",
-  ];
-  const found = new Map<string, ComposioConnectedAccount>();
-  let lastError: unknown = null;
-
-  for (const path of paths) {
+  if (!userId.trim()) throw new Error("COMPOSIO_USER_REQUIRED");
+  for (const parameter of ["user_ids", "user_id"]) {
+    const found = new Map<string,ComposioConnectedAccount>(), seen = new Set<string>();
+    let cursor = "";
     try {
-      const payload = await composioRequest(path);
-      for (const item of extractItems(payload).map(normalizeConnectedAccount)) {
-        if (item) found.set(item.id, item);
+      for (let page=0;page<30;page++) {
+        const payload = asRecord(await composioRequest(`/connected_accounts?${parameter}=${encodeURIComponent(userId)}&limit=100${cursor?`&cursor=${encodeURIComponent(cursor)}`:""}`));
+        const data = asRecord(payload.data);
+        if (![payload.items,payload.connected_accounts,payload.data,data.items,data.connected_accounts].some(Array.isArray)) throw new Error("COMPOSIO_ACCOUNTS_INVALID_RESPONSE");
+        for (const value of extractItems(payload)) {
+          const raw=asRecord(value),owner=stringValue(raw.user_id??raw.entity_id??asRecord(raw.user).id);
+          if(owner&&owner!==userId) continue;
+          const account=normalizeConnectedAccount(value);if(account)found.set(account.id,account);
+        }
+        const next=stringValue(payload.next_cursor??data.next_cursor);
+        if(!next){if(payload.has_more===true||data.has_more===true)throw new Error("COMPOSIO_ACCOUNTS_INCOMPLETE");return [...found.values()];}
+        if(seen.has(next))throw new Error("COMPOSIO_ACCOUNTS_PAGINATION_LOOP");seen.add(next);cursor=next;
       }
-      if (found.size > 0) break;
-    } catch (error) {
-      lastError = error;
+      throw new Error("COMPOSIO_ACCOUNTS_PAGE_LIMIT");
+    } catch(error) {
+      const status=Number(asRecord(error).status);
+      if(parameter==="user_ids"&&!cursor&&[400,404,422].includes(status))continue;
+      throw error;
     }
   }
-
-  if (found.size === 0 && lastError) throw lastError;
-  return [...found.values()];
+  throw new Error("COMPOSIO_ACCOUNTS_UNAVAILABLE");
 }
 
 export async function listComposioTools(toolkitSlug: string): Promise<ComposioTool[]> {
@@ -173,7 +177,7 @@ async function composioRequest(path: string, init: RequestInit = {}): Promise<un
   let payload: unknown = null;
   try { payload = text ? JSON.parse(text) : null; } catch (_) { payload = { message: text }; }
   if (!response.ok) {
-    throw new Error(`Composio ${response.status}: ${errorMessage(payload)}`);
+    throw Object.assign(new Error(`Composio ${response.status}: ${errorMessage(payload)}`), { status: response.status });
   }
   return payload;
 }
