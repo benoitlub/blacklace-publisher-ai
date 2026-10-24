@@ -4008,6 +4008,10 @@ app.post("/api/octopus-adapter/execute", async (c) => {
     generateText: (request) => executeMistralText(c.env, request),
     knowledgeEnv: await knowledgeEnvFor(c.env),
     publishSocial: async (input) => finalizeSocialPublication(c.env, input, c.req.header("Authorization")),
+    searchBusinessSources: async (query) => composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_WEB", {
+      method: "POST",
+      body: JSON.stringify({ arguments: { query: query.slice(0, 1200) }, user_id: await composioUserId(c.env), version: "latest" }),
+    }),
   });
   // Always 200: the outcome travels in `status`, which is what Octopus reads.
   // A non-2xx would be recorded as an adapter transport failure and lose the
