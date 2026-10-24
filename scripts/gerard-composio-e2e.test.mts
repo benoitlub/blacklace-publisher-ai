@@ -348,7 +348,7 @@ test(
           response.status,
           scenario === "success" || scenario === "empty"
             ? "completed"
-            : "needs-input",
+            : "waiting-authorization",
         );
       }
       assert.equal(
