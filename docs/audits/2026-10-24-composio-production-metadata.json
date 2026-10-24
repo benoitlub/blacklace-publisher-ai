@@ -1,0 +1,668 @@
+{
+  "observedAt": "2026-10-24T19:14:38.741Z",
+  "mode": "read-only-metadata",
+  "providerExecutions": 0,
+  "checks": [
+    {
+      "endpoint": "/api/adapter/health",
+      "httpStatus": 200,
+      "status": "ok",
+      "capabilities": [
+        "content.generate",
+        "copy.generate",
+        "content.article.write",
+        "content.social.write",
+        "social.publish",
+        "knowledge.search",
+        "tool.search",
+        "business.sources.search"
+      ],
+      "executed": false
+    },
+    {
+      "endpoint": "/api/observatory/discovery/account",
+      "httpStatus": 200,
+      "status": "ok",
+      "configured": true,
+      "userIdConfigured": true,
+      "searchAccountCount": 0,
+      "activeSearchAccounts": 0,
+      "executed": false
+    },
+    {
+      "endpoint": "/api/observatory/discovery/schema",
+      "httpStatus": 200,
+      "status": "ok",
+      "tools": [
+        {
+          "slug": "COMPOSIO_SEARCH_DUCK_DUCK_GO",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "DuckDuckGoSearchRequest",
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "type": "string",
+                "title": "Query",
+                "examples": [
+                  "Python programming"
+                ],
+                "description": "The search query for the Composio DuckDuckGo Search API, specifying the search topic."
+              },
+              "start": {
+                "type": "integer",
+                "title": "Start",
+                "minimum": 0,
+                "examples": [
+                  0,
+                  30,
+                  60
+                ],
+                "description": "Result offset for pagination. Use multiples of the page size (typically 10-30) to retrieve subsequent pages of results."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_EVENT",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "EventSearchRequest",
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "gl": {
+                "type": "string",
+                "title": "Gl",
+                "examples": [
+                  "us",
+                  "uk",
+                  "ca",
+                  "au",
+                  "de",
+                  "fr",
+                  "jp",
+                  "br",
+                  "in",
+                  "mx"
+                ],
+                "description": "Country code for the search region (ISO 3166-1 alpha-2). Determines which country's events to prioritize."
+              },
+              "hl": {
+                "type": "string",
+                "title": "Hl",
+                "examples": [
+                  "en",
+                  "es",
+                  "fr",
+                  "de",
+                  "it",
+                  "pt",
+                  "ja",
+                  "ko",
+                  "zh",
+                  "ar",
+                  "hi",
+                  "ru"
+                ],
+                "description": "Language code for search interface and results (ISO 639-1). Controls the language of event descriptions and interface."
+              },
+              "query": {
+                "type": "string",
+                "title": "Query",
+                "examples": [
+                  "Music concerts",
+                  "Tech conferences",
+                  "Food festivals",
+                  "Comedy shows in downtown",
+                  "Virtual networking events"
+                ],
+                "description": "The search query for events, specifying the event topic. Must be non-empty and include a specific event type (e.g., 'concert', 'festival'); empty or overly generic values like 'events' may trigger 'Invalid parameters' errors or return noisy results."
+              },
+              "start": {
+                "type": "integer",
+                "title": "Start",
+                "default": 0,
+                "examples": [
+                  0,
+                  10,
+                  20,
+                  30
+                ],
+                "description": "Result offset for pagination. Each page typically contains 10 results. Use multiples of 10 for page navigation. Stop paginating when a page returns no new items to avoid unbounded loops on sparse results."
+              },
+              "htichips": {
+                "type": "string",
+                "title": "Htichips",
+                "examples": [
+                  "date:today",
+                  "date:tomorrow",
+                  "date:week",
+                  "date:weekend",
+                  "date:next_week",
+                  "date:month",
+                  "date:next_month",
+                  "event_type:Virtual-Event",
+                  "date:weekend,event_type:Virtual-Event",
+                  "date:today,event_type:Virtual-Event",
+                  "date:next_week"
+                ],
+                "description": "Advanced event filters. Multiple filters can be combined with commas for precise event discovery. Only the listed date and event_type values are supported; unsupported or arbitrary values silently return no results. Relative date values (e.g., 'today', 'tomorrow') resolve against UTC, so account for timezone offset near midnight."
+              },
+              "location": {
+                "type": "string",
+                "title": "Location",
+                "examples": [
+                  "Austin",
+                  "New York",
+                  "San Francisco",
+                  "London",
+                  "Toronto",
+                  "Manhattan",
+                  "Seattle"
+                ],
+                "description": "Geographic location to search for events. Use city-level specificity for best results. If omitted, search uses proxy location. Avoid 'City, Country' format - use just city names."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_EXA_ANSWER",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "ExaAnswerRequest",
+            "required": [
+              "content"
+            ],
+            "properties": {
+              "content": {
+                "type": "string",
+                "title": "Content",
+                "examples": [
+                  "give me image of narendra modi"
+                ],
+                "description": "The user message content for the Exa answer API."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_FETCH_URL_CONTENT",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "FetchUrlContentRequest",
+            "required": [
+              "urls"
+            ],
+            "properties": {
+              "text": {
+                "type": "boolean",
+                "title": "Text",
+                "default": true,
+                "description": "Include extracted markdown text content from the page. Defaults to true."
+              },
+              "urls": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Urls",
+                "examples": [
+                  [
+                    "https://example.com/article",
+                    "https://docs.python.org/"
+                  ]
+                ],
+                "description": "List of public URLs to web pages (HTML content) to fetch content from. URLs must be valid and publicly accessible. Do not use direct links to images (.jpg, .png, .gif), PDFs, or other binary files - use web page URLs only. Also accepts a single URL string."
+              },
+              "extras": {
+                "type": "object",
+                "title": "Extras",
+                "description": "Additional content options like imageLinks or links counts (e.g., {'imageLinks': 3, 'links': 5}).",
+                "additionalProperties": {
+                  "type": "integer"
+                }
+              },
+              "summary": {
+                "anyOf": [
+                  {
+                    "type": "boolean"
+                  },
+                  {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    }
+                  }
+                ],
+                "title": "Summary",
+                "description": "Include AI-generated summary of the page content. Can be boolean or object with query/schema options."
+              },
+              "max_characters": {
+                "type": "integer",
+                "title": "Max Characters",
+                "description": "Maximum number of characters to extract from each page. Maps to text.maxCharacters in Exa API."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_GOOGLE_MAPS",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "GoogleMapsSearchRequest",
+            "required": [
+              "q"
+            ],
+            "properties": {
+              "q": {
+                "type": "string",
+                "title": "Q",
+                "examples": [
+                  "pizza",
+                  "hotels"
+                ],
+                "description": "The query you want to search. Include city/region and category to avoid ambiguous or wrong-region results (e.g., 'pizza downtown Chicago' not 'pizza'). Verify name and full address before selecting a result."
+              },
+              "ll": {
+                "type": "string",
+                "title": "Ll",
+                "examples": [
+                  "@40.7455096,-74.0083012,14z"
+                ],
+                "description": "GPS coordinates for the search, formatted as '@latitude,longitude,zoom_level'. Required when using pagination. Results are limited to the visible map viewport defined by these coordinates; shift coordinates across adjacent viewports to cover nearby areas."
+              },
+              "start": {
+                "type": "integer",
+                "title": "Start",
+                "examples": [
+                  "1",
+                  "15"
+                ],
+                "description": "Used for pagination. Each page returns ~20 `local_results`; increment `start` by 20 and follow `serpapi_pagination.next` tokens to retrieve subsequent pages. Omitting pagination silently misses results."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_IMAGE",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "ImageSearchRequest",
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "ijn": {
+                "type": "integer",
+                "title": "Ijn",
+                "minimum": 0,
+                "examples": [
+                  0,
+                  1,
+                  2,
+                  3
+                ],
+                "description": "Image page number for pagination. Starts at 0 (first page). Each page returns up to 100 results. Use incrementing values (0, 1, 2, ...) to retrieve additional pages."
+              },
+              "num": {
+                "type": "integer",
+                "title": "Num",
+                "default": 20,
+                "maximum": 100,
+                "minimum": 1,
+                "examples": [
+                  10,
+                  20,
+                  50
+                ],
+                "description": "Number of image results to return. Defaults to 20 if not specified. Google typically returns up to 100 results."
+              },
+              "query": {
+                "type": "string",
+                "title": "Query",
+                "examples": [
+                  "Apple"
+                ],
+                "description": "The search query for the Composio Image Search API, specifying the image topic."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_NPPESNPI_LOOKUP",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "NPPESNPILookupRequest",
+            "properties": {
+              "city": {
+                "type": "string",
+                "title": "City",
+                "examples": [
+                  "Boston",
+                  "New York"
+                ],
+                "description": "City name associated with provider address."
+              },
+              "skip": {
+                "type": "integer",
+                "title": "Skip",
+                "minimum": 0,
+                "examples": [
+                  0,
+                  10,
+                  20
+                ],
+                "description": "Number of records to skip for pagination. Used with limit for paginated results."
+              },
+              "limit": {
+                "type": "integer",
+                "title": "Limit",
+                "default": 10,
+                "maximum": 1200,
+                "minimum": 1,
+                "examples": [
+                  10,
+                  50,
+                  100
+                ],
+                "description": "Maximum number of records to return per request. Range: 1 to 1200. Default: 10."
+              },
+              "state": {
+                "type": "string",
+                "title": "State",
+                "examples": [
+                  "CA",
+                  "NY",
+                  "TX"
+                ],
+                "description": "Two-letter state abbreviation. Cannot be used as sole search criterion - must be combined with other parameters."
+              },
+              "number": {
+                "type": "string",
+                "title": "Number",
+                "examples": [
+                  "1234567890"
+                ],
+                "description": "10-digit National Provider Identifier number for exact lookup. When provided, performs exact NPI match."
+              },
+              "version": {
+                "type": "string",
+                "title": "Version",
+                "default": "2.1",
+                "examples": [
+                  "2.1"
+                ],
+                "description": "API version number. Required by the CMS NPPES API."
+              },
+              "last_name": {
+                "type": "string",
+                "title": "Last Name",
+                "examples": [
+                  "Smith",
+                  "Sm*"
+                ],
+                "description": "Individual provider last name. Supports trailing wildcard (*) after minimum 2 characters. Applies to Individual Providers (NPI-1) only."
+              },
+              "first_name": {
+                "type": "string",
+                "title": "First Name",
+                "examples": [
+                  "John",
+                  "Jo*"
+                ],
+                "description": "Individual provider first name. Supports trailing wildcard (*) after minimum 2 characters. Applies to Individual Providers (NPI-1) only."
+              },
+              "postal_code": {
+                "type": "string",
+                "title": "Postal Code",
+                "examples": [
+                  "94044",
+                  "94044-1234",
+                  "940*"
+                ],
+                "description": "5 or 9 digit postal code. Supports trailing wildcard (*) after minimum 2 characters."
+              },
+              "enumeration_type": {
+                "enum": [
+                  "NPI-1",
+                  "NPI-2",
+                  "ind",
+                  "org"
+                ],
+                "type": "string",
+                "title": "Enumeration Type",
+                "examples": [
+                  "NPI-1",
+                  "NPI-2"
+                ],
+                "description": "Provider classification type: 'NPI-1' or 'ind' for Individual providers, 'NPI-2' or 'org' for Organizational providers."
+              },
+              "organization_name": {
+                "type": "string",
+                "title": "Organization Name",
+                "examples": [
+                  "Mayo Clinic",
+                  "Mayo*"
+                ],
+                "description": "Organization name for searching organizational providers. Supports trailing wildcard (*) after minimum 2 characters."
+              },
+              "taxonomy_description": {
+                "type": "string",
+                "title": "Taxonomy Description",
+                "examples": [
+                  "Family Medicine",
+                  "Cardio*"
+                ],
+                "description": "Healthcare provider taxonomy description or specialty. Supports wildcard (*) after minimum 2 characters."
+              }
+            },
+            "description": "Request model for NPPES NPI Registry lookup."
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_SCHOLAR",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "ScholarSearchRequest",
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "type": "string",
+                "title": "Query",
+                "examples": [
+                  "Machine Learning"
+                ],
+                "description": "The search query for the Composio Scholar Search API, specifying the academic topic or paper title. Prefer short, focused keyphrases over long quoted phrases to avoid zero results. Include author names, field qualifiers, or year ranges to improve relevance and avoid topic drift."
+              },
+              "start": {
+                "type": "integer",
+                "title": "Start",
+                "minimum": 0,
+                "examples": [
+                  0,
+                  10,
+                  20,
+                  30
+                ],
+                "description": "Result offset for pagination. Each page typically contains 10 results. Use multiples of 10 (0, 10, 20, 30, ...) to navigate pages. Stop paginating when a page returns no new results."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_TAVILY",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "TavilySearchRequest",
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "type": "string",
+                "title": "Query",
+                "examples": [
+                  "climate change",
+                  "quantum computing",
+                  "best practices for REST API design"
+                ],
+                "description": "The primary text used to perform the search. This is the key term or phrase that the search functionality will use to retrieve results."
+              },
+              "max_results": {
+                "type": "integer",
+                "title": "Max Results",
+                "default": 5,
+                "examples": [
+                  5,
+                  10,
+                  20
+                ],
+                "description": "The maximum number of search results that the API should return. This limits the size of the result set for the query."
+              },
+              "search_depth": {
+                "enum": [
+                  "basic",
+                  "advanced"
+                ],
+                "type": "string",
+                "title": "Search Depth",
+                "default": "basic",
+                "examples": [
+                  "basic",
+                  "advanced"
+                ],
+                "description": "Determines the thoroughness of the search. A 'basic' search might perform a quick and broad search, while 'advanced' could indicate a more intensive and narrow search."
+              },
+              "include_answer": {
+                "type": "boolean",
+                "title": "Include Answer",
+                "default": false,
+                "examples": [
+                  true,
+                  false
+                ],
+                "description": "Specifies whether to include direct answers to the query in the search results. Useful for queries that expect a factual answer."
+              },
+              "include_images": {
+                "type": "boolean",
+                "title": "Include Images",
+                "default": false,
+                "examples": [
+                  true,
+                  false
+                ],
+                "description": "A flag indicating whether to include images in the search results. When set to true, the response will contain image links related to the query."
+              },
+              "exclude_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Exclude Domains",
+                "examples": [
+                  [
+                    "exclude.com",
+                    "spam.com"
+                  ],
+                  [
+                    "irrelevant.org",
+                    "bannedsite.net"
+                  ]
+                ],
+                "description": "A list of domain names to exclude from the search results. Results from these domains will not be included, which can help to filter out unwanted content."
+              },
+              "include_domains": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "title": "Include Domains",
+                "examples": [
+                  [
+                    "example.com",
+                    "example.org"
+                  ],
+                  [
+                    "mysite.com",
+                    "myblog.net"
+                  ]
+                ],
+                "description": "A list of domain names to include in the search results. Only results from these specified domains will be returned, allowing for targeted searches."
+              },
+              "include_raw_content": {
+                "type": "boolean",
+                "title": "Include Raw Content",
+                "default": false,
+                "examples": [
+                  true,
+                  false
+                ],
+                "description": "If set to true, the search results will include the raw content from the search index, which may contain unprocessed HTML or text."
+              }
+            }
+          }
+        },
+        {
+          "slug": "COMPOSIO_SEARCH_WEB",
+          "toolkit": "composio_search",
+          "inputSchema": {
+            "type": "object",
+            "title": "SearchRequest",
+            "required": [
+              "query"
+            ],
+            "properties": {
+              "query": {
+                "type": "string",
+                "title": "Query",
+                "examples": [
+                  "Coffee"
+                ],
+                "description": "The search query for the Composio Exa API. Must be non-empty; using any other parameter name (e.g., 'q') causes an invalid-request error. Include qualifiers (year, region, platform, intent) for better results — broad queries return generic content; excessive site: or quoted-term filters can return zero results. Add disambiguating terms (city, role, domain) when searching for people or organizations with common names."
+              }
+            }
+          }
+        }
+      ],
+      "toolCount": 10,
+      "executed": false
+    }
+  ],
+  "readOnlyPlan": {
+    "status": "ready-to-read",
+    "reason": null,
+    "selectedTool": "COMPOSIO_SEARCH_DUCK_DUCK_GO",
+    "executed": false,
+    "trace": [
+      {
+        "stage": "discovery",
+        "discovered": 10,
+        "connected": 0
+      },
+      {
+        "stage": "selection",
+        "toolSlug": "COMPOSIO_SEARCH_DUCK_DUCK_GO",
+        "toolkit": "composio-search",
+        "connected": false,
+        "authMode": "managed-platform-auth",
+        "schemaValidated": true
+      }
+    ],
+    "mode": "replay-of-real-deployed-metadata"
+  }
+}
