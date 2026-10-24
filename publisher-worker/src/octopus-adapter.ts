@@ -37,6 +37,7 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "social.publish",
   "knowledge.search",
   "tool.search",
+  "business.sources.search",
 ] as const;
 
 export type PublisherAdapterCapability = (typeof PUBLISHER_ADAPTER_CAPABILITIES)[number];
@@ -127,7 +128,7 @@ function systemPromptFor(capability: PublisherAdapterCapability): string {
  */
 export async function executeAdapterMission(
   envelope: OctopusAdapterEnvelope,
-  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (input: Record<string, unknown>) => Promise<unknown> },
+  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (input: Record<string, unknown>) => Promise<unknown>; searchBusinessSources?: (query: string) => Promise<unknown> },
 ): Promise<AdapterExecutionResult> {
   const mission = isRecord(envelope.mission) ? (envelope.mission as OctopusAdapterMission) : undefined;
   const operationId = stringValue(mission?.operationId) ?? `unknown-${Date.now()}`;
@@ -165,6 +166,24 @@ export async function executeAdapterMission(
   }
 
   try {
+    if (capability === "business.sources.search") {
+      const query = stringValue(mission.prompt) ?? stringValue(mission.objective);
+      if (!query || !deps.searchBusinessSources) return {
+        operationId, status: "needs-input", summary: "Recherche B2B indisponible : requête ou connecteur manquant.",
+        output: { capability, verified: false, candidates: [], status: "source-unavailable" },
+      };
+      const response = await deps.searchBusinessSources(query);
+      const data = isRecord(response) ? response : {};
+      const raw = Array.isArray(data["citations"]) ? data["citations"] : Array.isArray((data["data"] as any)?.citations) ? (data["data"] as any).citations : [];
+      const candidates = raw.slice(0, 10).filter(isRecord).map(item => ({
+        title: stringValue(item["title"]) ?? stringValue(item["name"]),
+        url: stringValue(item["url"]) ?? stringValue(item["link"]),
+        snippet: stringValue(item["snippet"]) ?? stringValue(item["description"]),
+        verification: "search-result-only",
+      })).filter(item => item.title && item.url && /^https?:\/\//i.test(item.url));
+      return { operationId, status: "completed", summary: `Recherche B2B : ${candidates.length} source(s) publiques candidates, non qualifiées.`,
+        output: { capability, status: candidates.length ? "sources-found" : "no-sources", verified: false, candidates, contacted: false, orders: 0 } };
+    }
     if (capability === "tool.search") {
       const seedId = stringValue(mission.context?.metadata?.["seedId"])
         ?? stringValue(mission.context?.metadata?.["parcelId"])
