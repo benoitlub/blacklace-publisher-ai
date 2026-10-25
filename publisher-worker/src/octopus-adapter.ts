@@ -198,8 +198,19 @@ export async function executeAdapterMission(
       const gardenContext = isRecord(mission.context?.metadata?.["gardenContext"])
         ? mission.context?.metadata?.["gardenContext"] as Record<string, unknown>
         : undefined;
-      const sql = await getSql(deps.knowledgeEnv);
-      const pack = await buildObservatoryToolPack(sql, { seedId, deliverable, gardenContext });
+      // Discovery must remain useful even in a stateless adapter test or when
+      // Neon is temporarily unavailable. Report the missing Observatory
+      // honestly; never turn this into a fictitious executable tool.
+      let observatoryAvailable = true;
+      let pack: Awaited<ReturnType<typeof buildObservatoryToolPack>>;
+      try {
+        const sql = await getSql(deps.knowledgeEnv);
+        pack = await buildObservatoryToolPack(sql, { seedId, deliverable, gardenContext });
+      } catch {
+        observatoryAvailable = false;
+        pack = { version: 3, seedId, deliverable, generatedAt: new Date().toISOString(),
+          context: {}, tools: [], source: "publisher-observatory-unavailable" };
+      }
       // Scout results are research candidates, never executable adapters.
       // A missing/offline catalog does not interrupt the existing Neon tool pack.
       const discoveries = await discoverAutonomousGemTools(deliverable);
@@ -224,7 +235,7 @@ export async function executeAdapterMission(
         status: "completed",
         summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s), ${novel.length} pépite(s) à adapter).`,
         output: { capability, ...pack, tools: [...pack.tools, ...novel], scoutCandidates: novel.length,
-          composioDiscovery, executable: false, authorizationRequired: true },
+          composioDiscovery, observatoryAvailable, executable: false, authorizationRequired: true },
       };
     }
 
