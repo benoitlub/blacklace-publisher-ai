@@ -235,7 +235,8 @@ export async function executeAdapterMission(
         status: "completed",
         summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s), ${novel.length} pépite(s) à adapter).`,
         output: { capability, ...pack, tools: [...pack.tools, ...novel], scoutCandidates: novel.length,
-          composioDiscovery, observatoryAvailable, executable: false, authorizationRequired: true },
+          composioDiscovery, observatoryAvailable, executed: false,
+          executable: false, authorizationRequired: true },
       };
     }
 
