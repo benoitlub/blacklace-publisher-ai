@@ -1,3 +1,4 @@
+import { validateProductionArtifact } from "./artifact-validator";
 import type {
   ExecutionReport,
   ProducerRegistry,
@@ -26,7 +27,17 @@ export class Executor {
       }
 
       try {
-        artifacts.push(await producer.execute(request, step.id));
+        const artifact = await producer.execute(request, step.id);
+        const validationErrors = validateProductionArtifact(artifact, request, producer.id, step.id);
+        if (validationErrors.length > 0) {
+          errors.push({
+            stepId: step.id,
+            producerId: producer.id,
+            message: `Artifact rejected by quality gate: ${validationErrors.join(" ")}`,
+          });
+          continue;
+        }
+        artifacts.push(artifact);
       } catch (error) {
         errors.push({
           stepId: step.id,
