@@ -1,3 +1,4 @@
+import { readGarden } from "./garden-readonly";
 import { discoverBusinessTools, executeBusinessSearch } from "./composio-discovery";
 import { composioOperationStore } from "./composio-operation-state";
 import { createMetricoolProvider } from "./metricool-composio";
@@ -104,6 +105,9 @@ async function mistralApiKey(env: Env): Promise<string> {
 
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", cors());
+
+// Observational metadata only: no schema creation, registration, AI or publishing.
+app.all("/api/garden/v1/snapshot", (c) => readGarden(c.req.raw, c.env));
 
 app.get("/api/health", async (c) => {
   // Keep the adapter registration alive independently from the expensive

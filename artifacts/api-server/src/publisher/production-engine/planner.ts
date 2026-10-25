@@ -32,11 +32,14 @@ export class Planner {
       return this.unsupportedPlan(request, "No producer registered for this capability.");
     }
 
-    const compatible = producers.sort((a, b) => this.score(b, request) - this.score(a, request));
+    // A registered provider is not necessarily executable.
+    const compatible = producers
+      .filter((producer) => isUsable(producer) && Boolean(producer.execute) && meetsConstraints(producer, request))
+      .sort((a, b) => this.score(b, request) - this.score(a, request));
 
-    const selected = compatible.find((producer) => isUsable(producer)) ?? null;
+    const selected = compatible[0] ?? null;
     if (!selected) {
-      return this.blockedPlan(request, producers, "No available or authorized producer can execute this capability.");
+      return this.blockedPlan(request, producers, "No executable, authorized producer satisfies the cost and quality constraints.");
     }
 
     return {
@@ -62,14 +65,12 @@ export class Planner {
       capability,
       producerId: producer.id,
       producerLabel: producer.label,
-      status: producer.execute ? "ready" : "blocked",
+      status: "ready",
       cost: producer.cost,
       quality: producer.quality,
       connector: producer.connector,
       alternatives: unique([...producer.alternatives, ...allProducers.filter((item) => item.id !== producer.id).map((item) => item.id)]),
-      reason: producer.execute
-        ? `${producer.label} is the best available deterministic producer for ${capability}.`
-        : `${producer.label} is registered but has no executor in Production Engine V1.`,
+      reason: `${producer.label} is the best available executable producer for ${capability}.`,
     };
   }
 
@@ -124,4 +125,21 @@ function isUsable(producer: Producer): boolean {
 
 function unique(values: string[]): string[] {
   return [...new Set(values)];
+}
+
+const COST_ORDER: ProductionCost[] = ["none", "low", "medium", "high"];
+const QUALITY_ORDER: ProductionQuality[] = ["basic", "standard", "high"];
+
+function meetsConstraints(producer: Producer, request: ProductionRequest): boolean {
+  const { maxCost, minQuality } = request.constraints ?? {};
+  if (maxCost && maxCost !== "unknown") {
+    const maxIndex = COST_ORDER.indexOf(maxCost);
+    const producerIndex = COST_ORDER.indexOf(producer.cost);
+    if (producerIndex < 0 || producerIndex > maxIndex) return false;
+  }
+  if (minQuality) {
+    const minimum = QUALITY_ORDER.indexOf(minQuality);
+    if (minimum >= 0 && QUALITY_ORDER.indexOf(producer.quality) < minimum) return false;
+  }
+  return true;
 }

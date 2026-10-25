@@ -66,6 +66,45 @@ describe("Production Engine V1", () => {
     });
   });
 
+  it("does not claim readiness for a connected producer without an executor", () => {
+    const registry = new ProducerRegistry([{ ...unavailableLandingProducer("connected-no-executor"), status: "authorized" }]);
+    const plan = new ProductionEngine(registry).plan(baseRequest);
+    expect(plan.status).toBe("blocked");
+    expect(plan.steps[0]?.status).toBe("blocked");
+  });
+
+  it("falls back from a preferred producer that has no executor", () => {
+    const registry = new ProducerRegistry([
+      { ...unavailableLandingProducer("preferred-no-executor"), status: "available" },
+      new HtmlLocalProducer(),
+    ]);
+    const plan = new ProductionEngine(registry).plan({ ...baseRequest, preferredProducerId: "preferred-no-executor" });
+    expect(plan.status).toBe("ready");
+    expect(plan.steps[0]?.producerId).toBe("html-local");
+  });
+
+  it("blocks production when the only executor exceeds the cost ceiling", () => {
+    const costly: Producer = {
+      ...unavailableLandingProducer("expensive"),
+      status: "available", cost: "high", execute: async () => { throw new Error("Should never run"); },
+    };
+    const plan = new ProductionEngine(new ProducerRegistry([costly])).plan({
+      ...baseRequest, constraints: { maxCost: "low" },
+    });
+    expect(plan.status).toBe("blocked");
+  });
+
+  it("enforces minimum quality even for the preferred producer", () => {
+    const basic: Producer = {
+      ...unavailableLandingProducer("basic"), status: "available", quality: "basic",
+      execute: async () => { throw new Error("Should never run"); },
+    };
+    const plan = new ProductionEngine(new ProducerRegistry([basic])).plan({
+      ...baseRequest, preferredProducerId: "basic", constraints: { minQuality: "high" },
+    });
+    expect(plan.status).toBe("blocked");
+  });
+
   it("marks an unknown capability as unsupported", () => {
     const engine = new ProductionEngine(createDefaultProducerRegistry());
     const plan = engine.plan({ ...baseRequest, capability: "crm-sync" as ProducerCapability });
@@ -75,6 +114,37 @@ describe("Production Engine V1", () => {
       status: "unsupported",
       alternatives: [],
     });
+  });
+
+  it("rejects a producer that returns an empty artifact", async () => {
+    const fake: Producer = {
+      ...unavailableLandingProducer("empty-output"), status: "available",
+      execute: async (request, stepId) => ({
+        id: "artifact-empty", requestId: request.id, stepId, producerId: "empty-output",
+        capability: request.capability, type: "test", title: "Empty", createdAt: new Date().toISOString(),
+      }),
+    };
+    const engine = new ProductionEngine(new ProducerRegistry([fake]));
+    const report = await engine.execute(engine.plan(baseRequest), baseRequest);
+    expect(report.status).toBe("failed");
+    expect(report.artifacts).toHaveLength(0);
+    expect(report.errors[0]?.message).toContain("no usable content");
+    expect(report.observations).toMatchObject([{ outcome: "artifact-rejected", reasonCodes: ["artifact-empty"], source: "publisher-production-engine" }]);
+  });
+
+  it("rejects an artifact belonging to a different request", async () => {
+    const fake: Producer = {
+      ...unavailableLandingProducer("wrong-request"), status: "available",
+      execute: async (request, stepId) => ({
+        id: "artifact-wrong", requestId: "another-request", stepId, producerId: "wrong-request",
+        capability: request.capability, type: "text", title: "Wrong", content: "Some content", createdAt: new Date().toISOString(),
+      }),
+    };
+    const engine = new ProductionEngine(new ProducerRegistry([fake]));
+    const report = await engine.execute(engine.plan(baseRequest), baseRequest);
+    expect(report.status).toBe("failed");
+    expect(report.errors[0]?.message).toContain("requestId");
+    expect(report.observations[0]?.reasonCodes).toContain("request-mismatch");
   });
 
   it("executes a complete responsive landing page through the selected producer", async () => {
@@ -104,6 +174,7 @@ describe("Production Engine V1", () => {
         selfContained: true,
       },
     });
+    expect(report.observations).toMatchObject([{ outcome: "artifact-validated", reasonCodes: [] }]);
     expect(report.artifacts[0]?.content).toContain("<!doctype html>");
     expect(report.artifacts[0]?.content).toContain("<meta name=\"viewport\"");
     expect(report.artifacts[0]?.content).toContain("@media(max-width:780px)");

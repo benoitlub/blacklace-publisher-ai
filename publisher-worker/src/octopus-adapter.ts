@@ -1,6 +1,7 @@
 import { businessCandidates } from "./composio-discovery";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 import { buildObservatoryToolPack, getSql } from "./db";
+import { discoverAutonomousGemTools } from "./autonomous-gems";
 
 /**
  * Octopus adapter surface, running on Cloudflare.
@@ -184,10 +185,6 @@ export async function executeAdapterMission(
         return {operationId,status:completed?"completed":"needs-input",summary:completed?"Recherche B2B contrôlée ; les sources candidates ne sont pas des prospects qualifiés.":"Recherche B2B bloquée ; aucune réussite commerciale déclarée.",output};
       } catch {return {operationId,status:"failed",summary:"Échec du transport de recherche B2B.",output:{capability:"business.sources.search",status:"blocked",reason:"BUSINESS_SOURCES_UNAVAILABLE",candidates:[],verified:false}};}
     }
-    if (capability === "tool.search" && deps.discoverTools) {
-      try {const output=await deps.discoverTools(stringValue(mission.prompt)??stringValue(mission.objective)??"web search");return {operationId,status:"completed",summary:"Inventaire dynamique ; découverte, connexion et exécution sont distinctes.",output:{capability,...(isRecord(output)?output:{}),executed:false}};}
-      catch {return {operationId,status:"needs-input",summary:"Inventaire Composio indisponible.",output:{capability,tools:[],status:"blocked",reason:"TOOL_DISCOVERY_UNAVAILABLE",executed:false}};}
-    }
     if (capability === "tool.search") {
       const seedId = stringValue(mission.context?.metadata?.["seedId"])
         ?? stringValue(mission.context?.metadata?.["parcelId"])
@@ -203,11 +200,31 @@ export async function executeAdapterMission(
         : undefined;
       const sql = await getSql(deps.knowledgeEnv);
       const pack = await buildObservatoryToolPack(sql, { seedId, deliverable, gardenContext });
+      // Scout results are research candidates, never executable adapters.
+      // A missing/offline catalog does not interrupt the existing Neon tool pack.
+      const discoveries = await discoverAutonomousGemTools(deliverable);
+      const known = new Set(pack.tools.map(tool => String(tool.url ?? '').toLowerCase()));
+      const novel = discoveries.filter(tool => !known.has(tool.url.toLowerCase()));
+      // Composio discovery is a separate, read-only inventory. Preserve the
+      // existing Observatory and public scout results without presenting a
+      // discovered Composio tool as an authorized/executable producer.
+      let composioDiscovery: Record<string, unknown> | null = null;
+      if (deps.discoverTools) {
+        try {
+          const discovered = await deps.discoverTools(deliverable || "web search");
+          composioDiscovery = isRecord(discovered)
+            ? { ...discovered, executionVerified: false }
+            : { status: "unavailable", executionVerified: false };
+        } catch {
+          composioDiscovery = { status: "unavailable", executionVerified: false };
+        }
+      }
       return {
         operationId,
         status: "completed",
-        summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s)).`,
-        output: { capability, ...pack, executable: false, authorizationRequired: true },
+        summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s), ${novel.length} pépite(s) à adapter).`,
+        output: { capability, ...pack, tools: [...pack.tools, ...novel], scoutCandidates: novel.length,
+          composioDiscovery, executable: false, authorizationRequired: true },
       };
     }
 
