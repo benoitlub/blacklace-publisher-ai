@@ -1972,8 +1972,11 @@ app.post("/api/social/transports/buffer/terra-video", async (c) => {
     if (!complete) return c.json({ status: "provider-list-incomplete", channelId }, 409);
     if (matches.length) return c.json({ status: "existing-terra-post-review-required", channelId, matches }, 409);
     if (body.dryRun !== false) return c.json({ status: "ready", channelId, service: channels[channelId], mediaUrl, text: copy, publishAttempted: false });
-    const media = await fetch(mediaUrl, { method: "HEAD", signal: AbortSignal.timeout(12000) });
-    if (!media.ok || !/^video\/mp4\b/i.test(media.headers.get("Content-Type") ?? ""))
+    // Do not fetch this Worker's own public URL from inside the same Worker:
+    // Cloudflare can reject recursive self-fetches. Check the immutable source
+    // size instead; our public fixed-path endpoint sets video/mp4 explicitly.
+    const media = await fetch("https://raw.githubusercontent.com/benoitlub/blacklace-publisher-ai/main/public/media/books/terra/Terra%20book%20teaser.mp4", { method: "HEAD", signal: AbortSignal.timeout(12000) });
+    if (!media.ok || Number(media.headers.get("Content-Length")) !== 4447386)
       return c.json({ status: "video-unavailable", channelId }, 409);
     const sql = await getSql(c.env);
     await sql`CREATE TABLE IF NOT EXISTS terra_video_campaign_reservations (reservation_key TEXT PRIMARY KEY, channel_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
