@@ -39,10 +39,24 @@ export interface ProductionArtifact {
   metadata?: Record<string, unknown>;
 }
 
+/** Safe operational evidence for Gérard's existing learning pipeline.
+ * No prompts, assets, raw responses, credentials or personal data. */
+export interface ProductionObservation {
+  requestId: string;
+  stepId: string;
+  producerId: string;
+  capability: ProducerCapability;
+  outcome: "artifact-validated" | "artifact-rejected" | "execution-failed";
+  reasonCodes: string[];
+  observedAt: string;
+  source: "publisher-production-engine";
+}
+
 export interface ExecutionReport {
   planId: string;
   status: "completed" | "partial" | "failed";
   artifacts: ProductionArtifact[];
+  observations: ProductionObservation[];
   errors: Array<{ stepId: string; producerId: string; message: string }>;
 }
 
