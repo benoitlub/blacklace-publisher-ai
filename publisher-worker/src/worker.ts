@@ -4241,6 +4241,31 @@ app.post("/api/observatory/sources/mark-processed", async (c) => {
   }
 });
 
+// Public, fixed-asset video delivery for the author-supplied TERRA teaser.
+// GitHub Raw serves MP4 files as application/octet-stream; social publishers
+// require a video content type. This endpoint cannot proxy arbitrary URLs.
+app.get("/media/books/terra/teaser.mp4", async (c) => {
+  const source = "https://raw.githubusercontent.com/benoitlub/blacklace-publisher-ai/main/public/media/books/terra/Terra%20book%20teaser.mp4";
+  try {
+    const upstream = await fetch(source, { signal: AbortSignal.timeout(15000) });
+    if (!upstream.ok || !upstream.body) return c.text("TERRA video unavailable", 502);
+    const length = upstream.headers.get("Content-Length");
+    // Source is a fixed, author-uploaded 4.45 MB MP4. Reject unexpected content.
+    if (length && Number(length) !== 4447386) return c.text("TERRA video changed", 502);
+    return new Response(upstream.body, {
+      status: 200,
+      headers: {
+        "Content-Type": "video/mp4",
+        "Cache-Control": "public, max-age=300",
+        "X-Content-Type-Options": "nosniff",
+        ...(length ? { "Content-Length": length } : {}),
+      },
+    });
+  } catch (_) {
+    return c.text("TERRA video unavailable", 502);
+  }
+});
+
 export default {
   fetch: app.fetch,
   async scheduled(_event: unknown, env: Env, ctx: { waitUntil(promise: Promise<unknown>): void }) {
