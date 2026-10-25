@@ -175,7 +175,7 @@ export async function executeAdapterMission(
       };
       const response = await deps.searchBusinessSources(query);
       const data = isRecord(response) ? response : {};
-      const raw = Array.isArray(data["citations"]) ? data["citations"] : Array.isArray((data["data"] as any)?.citations) ? (data["data"] as any).citations : [];
+      const raw: unknown[] = Array.isArray(data["citations"]) ? data["citations"] : Array.isArray((data["data"] as any)?.citations) ? (data["data"] as any).citations : [];
       const candidates = raw.slice(0, 10).filter(isRecord).map(item => ({
         title: stringValue(item["title"]) ?? stringValue(item["name"]),
         url: stringValue(item["url"]) ?? stringValue(item["link"]),
