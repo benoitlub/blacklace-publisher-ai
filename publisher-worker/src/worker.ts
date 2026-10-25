@@ -78,6 +78,8 @@ type Env = {
   BUFFER_PUBLISHING_ENABLED?: string;
   COMPOSIO_USER_ID?: string | SecretsStoreSecret;
   METRICOOL_CONNECTED_ACCOUNT_ID?: string;
+  /** Separate connected account inside the existing Composio project. */
+  METRICOOL_BLACKLACE_CONNECTED_ACCOUNT_ID?: string;
   METRICOOL_EXECUTION_TOKEN?: string | SecretsStoreSecret;
   METRICOOL_PUBLISHING_ENABLED?: string;
   DATABASE_URL?: string | SecretsStoreSecret;
@@ -1172,7 +1174,13 @@ async function metricoolProvider(env: Env, brandId: string) {
   // The two brands use independent Composio projects; no implicit credential fallback.
   let selectedEnv: Env;
   try { selectedEnv = metricoolCredentialsForBrand(env, brandId); }
-  catch { throw new MetricoolBlocked("METRICOOL_BRAND_NOT_ALLOWLISTED", "destination"); }
+  catch (error) {
+    const code = error instanceof Error ? error.message : "METRICOOL_ROUTING_FAILED";
+    if (["BLACKLACE_METRICOOL_ACCOUNT_NOT_CONFIGURED", "METRICOOL_ACCOUNT_DESTINATION_COLLISION"].includes(code)) {
+      throw new MetricoolBlocked(code, "connection");
+    }
+    throw new MetricoolBlocked("METRICOOL_BRAND_NOT_ALLOWLISTED", "destination");
+  }
   if (!(await isComposioConfigured(selectedEnv))) throw new MetricoolBlocked(brandId === "7653100" ? "BLACKLACE_COMPOSIO_NOT_CONFIGURED" : "COMPOSIO_NOT_CONFIGURED", "connection");
   return createMetricoolProvider({
     accounts: async () => discoverComposioAccounts(await composioUserId(selectedEnv), path => composioRequest(selectedEnv, path, { signal: AbortSignal.timeout(15000) })),
