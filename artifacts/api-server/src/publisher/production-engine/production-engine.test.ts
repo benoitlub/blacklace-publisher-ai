@@ -129,6 +129,7 @@ describe("Production Engine V1", () => {
     expect(report.status).toBe("failed");
     expect(report.artifacts).toHaveLength(0);
     expect(report.errors[0]?.message).toContain("no usable content");
+    expect(report.observations).toMatchObject([{ outcome: "artifact-rejected", reasonCodes: ["artifact-empty"], source: "publisher-production-engine" }]);
   });
 
   it("rejects an artifact belonging to a different request", async () => {
@@ -143,6 +144,7 @@ describe("Production Engine V1", () => {
     const report = await engine.execute(engine.plan(baseRequest), baseRequest);
     expect(report.status).toBe("failed");
     expect(report.errors[0]?.message).toContain("requestId");
+    expect(report.observations[0]?.reasonCodes).toContain("request-mismatch");
   });
 
   it("executes a complete responsive landing page through the selected producer", async () => {
@@ -172,6 +174,7 @@ describe("Production Engine V1", () => {
         selfContained: true,
       },
     });
+    expect(report.observations).toMatchObject([{ outcome: "artifact-validated", reasonCodes: [] }]);
     expect(report.artifacts[0]?.content).toContain("<!doctype html>");
     expect(report.artifacts[0]?.content).toContain("<meta name=\"viewport\"");
     expect(report.artifacts[0]?.content).toContain("@media(max-width:780px)");
