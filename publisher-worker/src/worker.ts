@@ -6,7 +6,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { officialMediaBySeed, officialDestinationBySeed } from "./official-media";
 import bookDestinationsCatalog from "./book-destinations-catalog.json";
-import { chooseSocialTransport, previewBufferPost } from "./social-transport";
+import { chooseSocialTransport, inspectSocialCapabilities, previewBufferPost } from "./social-transport";
 import { executeBufferBookPost, BufferTransportError, buildGerardExistingDraftQueueMutation, inspectGerardExistingDraft, GERARD_BUFFER_HARVEST_ID, GERARD_BUFFER_POST_ID, GERARD_BOOK_CHANNEL_ID, GERARD_BOOK_INSTAGRAM_CAPTION } from "./buffer-book-post";
 import { classifyEditorialTopic, chooseEditorialDestination } from "./editorial-routing";
 import {
@@ -2144,8 +2144,57 @@ app.get("/api/social/transports", async (c) => {
     metricoolAvailable: false,
     bufferConnected: false,
   });
+  // Provider read is intentionally scoped to the previously verified
+  // author's Instagram channel. No mutation, inferred permission or fallback.
+  const account = (c.req.query("account") ?? "").slice(0,128);
+  const network = (c.req.query("network") ?? "").slice(0,64);
+  const mediaValue = c.req.query("media");
+  const media = mediaValue === "video" || mediaValue === "text" ? mediaValue : "image";
+  const observations: Parameters<typeof inspectSocialCapabilities>[0]["observations"][number][] = [];
+  let bufferProbeStatus = "not-requested";
+  if (account.replace(/^@/, "").toLowerCase() === "benoitlubert" &&
+      network.toLowerCase() === "instagram" && bufferKeyConfigured) {
+    try {
+      const key = await resolveSecret(c.env.BUFFER_API_KEY);
+      const configured = await resolveSecret(c.env.BUFFER_BOOK_CHANNEL_ID);
+      if (configured && configured !== GERARD_BOOK_CHANNEL_ID) {
+        bufferProbeStatus = "configured-channel-mismatch";
+      } else {
+        const response = await fetch("https://api.buffer.com", {
+          method: "POST",
+          headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+          body: JSON.stringify({ query: "query { channel(input:{id:" + JSON.stringify(GERARD_BOOK_CHANNEL_ID) + "}) { id name service isDisconnected isLocked isQueuePaused } }" }),
+          signal: AbortSignal.timeout(8000),
+        });
+        const payload: unknown = await response.json().catch(() => null);
+        const root = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+        const data = root.data && typeof root.data === "object" ? root.data as Record<string, unknown> : {};
+        const channel = data.channel && typeof data.channel === "object" ? data.channel as Record<string, unknown> : {};
+        const identityMatches = channel.id === GERARD_BOOK_CHANNEL_ID &&
+          String(channel.service ?? "").toLowerCase() === "instagram";
+        bufferProbeStatus = !response.ok || root.errors ? "provider-read-failed" :
+          !identityMatches ? "channel-identity-not-verified" : "channel-read-confirmed";
+        if (bufferProbeStatus === "channel-read-confirmed") {
+          const connected = channel.isDisconnected === false && channel.isLocked === false &&
+            channel.isQueuePaused === false;
+          observations.push({
+            provider: "buffer", account: "benoitlubert", network: "instagram",
+            connected, canSchedule: null, supportedMedia: ["image"],
+            verifiedAt: new Date().toISOString(), source: "buffer-channel-read",
+            blocker: "scheduling-permission-unverified",
+          });
+        }
+      }
+    } catch (_) { bufferProbeStatus = "provider-unreachable"; }
+  }
+  const capabilities = inspectSocialCapabilities({
+    targetAccount: account, network, media, observations,
+  });
   return c.json({
     contract: "publisher-social-transports-v1",
+    capabilities,
+    capabilityEvidence: bufferProbeStatus,
+    bufferProbeStatus,
     status: "read-only",
     metricool: { mode: "unverified", connected: false, quotaVerified: false },
     buffer: {
