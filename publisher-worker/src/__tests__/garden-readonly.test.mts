@@ -1,6 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createGardenReader } from "../garden-readonly.ts";
+test("Workerd-compatible manual mode rejects redirects without following Location", async () => {
+  const urls: string[] = [];
+  const read = createGardenReader(async (input, options) => {
+    urls.push(String(input));
+    assert.equal(options?.redirect, "manual");
+    return new Response(null, {
+      status: 302,
+      headers: { Location: "https://untrusted.example/" },
+    });
+  });
+  const response = await read(new Request(endpoint), {});
+  assert.equal(response.status, 503);
+  assert.deepEqual(urls, [
+    "https://api.github.com/repos/benoitlub/poulpe-fiction/commits/main",
+    "https://github.com/benoitlub/poulpe-fiction/commits/main.atom",
+  ]);
+});
 test("public revision fallback survives rejected tokens and REST rate limits without forwarding credentials", async () => {
   for (const status of [401, 403]) {
     const f = fixtureFetcher();
@@ -51,7 +68,7 @@ function fixtureFetcher(fail = "") {
     const url = String(input);
     calls.push({ url, options });
     assert.equal(options?.method, "GET");
-    assert.equal(options?.redirect, "error");
+    assert.equal(options?.redirect, "manual");
     if (fail && url.includes(fail)) throw Error("SECRET upstream error");
     const data = url.endsWith("/commits/main")
       ? { sha }

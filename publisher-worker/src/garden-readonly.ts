@@ -29,7 +29,8 @@ async function readText(
     const response = await fetcher(url, {
       method: "GET",
       headers: { Accept: "application/json", ...headers },
-      redirect: "error",
+      // Workerd supports manual/follow only. Manual plus !ok rejects every 3xx.
+      redirect: "manual",
       signal: controller.signal,
     });
     if (!response.ok) throw new Error("Source unavailable");
