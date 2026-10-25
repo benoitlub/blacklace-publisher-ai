@@ -2012,6 +2012,62 @@ app.post("/api/social/transports/buffer/terra-video", async (c) => {
   } catch (_) { return c.json({ status: "preflight-unavailable", channelId }, 503); }
 });
 
+// Read-only reconciliation for the three exact TERRA Morphic video posts.
+// A successful createPost is not proof of publication; Buffer is authoritative.
+app.get("/api/social/transports/buffer/terra-video/status", async (c) => {
+  const secret = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!secret || c.req.header("Authorization") !== "Bearer " + secret) return c.json({ status: "unauthorized" }, 401);
+  const key = await resolveSecret(c.env.BUFFER_API_KEY);
+  if (!key || !(await isDatabaseConfigured(c.env))) return c.json({ status: "unavailable", reason: "missing-provider-or-db" }, 503);
+  const targets = [
+    { channelId: "6ac8cda06a5c39ccb6602479", network: "facebook" },
+    { channelId: "6ac8d0056a5c39ccb6603992", network: "youtube" },
+    { channelId: "6ac8c8226a5c39ccb65fdbf6", network: "instagram" },
+  ];
+  try {
+    const sql = await getSql(c.env);
+    const result = [];
+    for (const target of targets) {
+      const reservationKey = "terra-morphic-teaser-v1:" + target.channelId;
+      const rows = await sql`SELECT status,post_id,created_at FROM terra_video_campaign_reservations WHERE reservation_key=${reservationKey} LIMIT 1`;
+      const reservation = rows[0];
+      const postId = typeof reservation?.post_id === "string" ? reservation.post_id : null;
+      const item: Record<string, unknown> = {
+        network: target.network, channelId: target.channelId,
+        postId, reservationStatus: reservation?.status ?? "missing",
+        acceptedAt: reservation?.created_at ?? null,
+        providerStatus: null, delivery: "unverified", dueAt: null,
+        videoVerified: false, publicUrl: null,
+      };
+      if (postId) {
+        try {
+          const query = "query { post(input:{id:" + JSON.stringify(postId) +
+            "}) { id channelId status text dueAt assets { mimeType } } }";
+          const response = await fetch("https://api.buffer.com", {
+            method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+            body: JSON.stringify({ query }), signal: AbortSignal.timeout(12000),
+          });
+          const payload = await response.json() as Record<string, any>;
+          const post = payload?.data?.post;
+          if (!response.ok || payload.errors || post?.id !== postId || post?.channelId !== target.channelId) {
+            item.delivery = "provider-unverified";
+          } else {
+            const status = String(post.status ?? "").toLowerCase();
+            item.providerStatus = status;
+            item.dueAt = typeof post.dueAt === "string" ? post.dueAt : null;
+            item.videoVerified = Array.isArray(post.assets) && post.assets.some((asset: any) => /^video\//i.test(String(asset?.mimeType ?? "")));
+            item.delivery = status === "sent" ? "published" : status === "error" ? "failed" :
+              ["scheduled", "buffer"].includes(status) ? "scheduled" : status === "draft" ? "draft" : "unknown";
+          }
+        } catch (_) { item.delivery = "provider-unreachable"; }
+      }
+      result.push(item);
+    }
+    return c.json({ contract: "terra-video-delivery-status-v1", status: "read-only", checkedAt: new Date().toISOString(),
+      posts: result, publishingEnabled: false, writesPerformed: false });
+  } catch (_) { return c.json({ status: "unavailable", reason: "database-read-failed" }, 503); }
+});
+
 // Explicit one-time release for the known uncertain TERRA reservation.
 // A separate audit row is preserved before allowing exactly one retry.
 app.post("/api/social/transports/buffer/book-draft/release-terra", async (c) => {
