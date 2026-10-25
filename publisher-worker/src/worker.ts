@@ -1981,9 +1981,15 @@ app.post("/api/social/transports/buffer/terra-video", async (c) => {
     const sql = await getSql(c.env);
     await sql`CREATE TABLE IF NOT EXISTS terra_video_campaign_reservations (reservation_key TEXT PRIMARY KEY, channel_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
     const reservationKey = "terra-morphic-teaser-v1:" + channelId;
-    const claimed = await sql`INSERT INTO terra_video_campaign_reservations (reservation_key,channel_id,status) VALUES (${reservationKey},${channelId},'pending') ON CONFLICT DO NOTHING RETURNING reservation_key`;
+    // A provider-confirmed InvalidInputError created no post, so a corrected
+    // package can retry once; ambiguous and accepted outcomes stay locked.
+    const claimed = await sql`INSERT INTO terra_video_campaign_reservations (reservation_key,channel_id,status) VALUES (${reservationKey},${channelId},'pending') ON CONFLICT (reservation_key) DO UPDATE SET status='pending' WHERE terra_video_campaign_reservations.status='validation-rejected' RETURNING reservation_key`;
     if (claimed.length !== 1) return c.json({ status: "already-reserved", channelId, publishAttempted: false }, 409);
-    const metadata = channels[channelId] === "instagram" ? ", metadata: { instagram: { type: reel, shouldShareToFeed: true } }" : "";
+    const metadata = channels[channelId] === "instagram"
+      ? ", metadata: { instagram: { type: reel, shouldShareToFeed: true } }"
+      : channels[channelId] === "facebook"
+        ? ", metadata: { facebook: { type: reel } }"
+        : ", metadata: { youtube: { title: \"TERRA — Bande-annonce du roman de Benoît Lubert\", categoryId: \"24\", madeForKids: false, isAiGenerated: true } }";
     const mutation = "mutation { createPost(input: { text:" + JSON.stringify(copy) + ", channelId:" + JSON.stringify(channelId) +
       ", schedulingType: automatic, mode: addToQueue, saveToDraft: false" + metadata +
       ", assets: [{ video: { url:" + JSON.stringify(mediaUrl) + " } }] }) { __typename ... on PostActionSuccess { post { id } } ... on InvalidInputError { message } } }";
