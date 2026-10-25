@@ -98,6 +98,22 @@ test("picks capabilities in declaration order", () => {
   assert.equal(requestedCapability({ operationId: "x", requiredCapabilities: [] }), undefined);
 });
 
+test("tool.search discovers read-only tools even when the Observatory database is offline", async () => {
+  let discoveryCalls = 0;
+  const result = await executeAdapterMission(mission({ requiredCapabilities: ["tool.search"] }), {
+    generateText, knowledgeEnv,
+    discoverTools: async () => {
+      discoveryCalls += 1;
+      return { status: "discovered", tools: [{ slug: "search" }] };
+    },
+  });
+  assert.equal(result.status, "completed");
+  assert.equal(result.output.observatoryAvailable, false);
+  assert.equal(result.output.executable, false);
+  assert.equal(result.output.authorizationRequired, true);
+  assert.equal(discoveryCalls, 1);
+});
+
 test("social.publish requires explicit authorization and never generates content", async t => {
   const producer = t.mock.fn(generateText);
   const result = await executeAdapterMission(mission({ requiredCapabilities: ["social.publish"] }), {

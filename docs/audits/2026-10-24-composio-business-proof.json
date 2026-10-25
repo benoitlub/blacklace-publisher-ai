@@ -1,0 +1,84 @@
+{
+  "proof": "gerard-cultivate-octopus-express-worker-composio",
+  "gerardClient": "actual-cycle-script",
+  "octopusApp": "current-repository-build",
+  "externalProviderNetwork": "fully-simulated",
+  "realExternalExecutions": 0,
+  "realVerifiedProspects": 0,
+  "realContacts": 0,
+  "realOrders": 0,
+  "simulatedToolExecutions": 4,
+  "repeatedRequestExecutions": 0,
+  "outcomes": [
+    {
+      "scenario": "success",
+      "status": "sources-found",
+      "reason": null,
+      "realVerifiedProspects": 0
+    },
+    {
+      "scenario": "missing",
+      "status": "blocked",
+      "reason": "NO_ACTIVE_CONNECTION",
+      "realVerifiedProspects": 0
+    },
+    {
+      "scenario": "rate",
+      "status": "blocked",
+      "reason": "COMPOSIO_RATE_LIMITED",
+      "realVerifiedProspects": 0
+    },
+    {
+      "scenario": "provider-error",
+      "status": "confirmation-required",
+      "reason": "PROVIDER_APPLICATION_ERROR",
+      "realVerifiedProspects": 0
+    },
+    {
+      "scenario": "empty",
+      "status": "no-sources",
+      "reason": null,
+      "realVerifiedProspects": 0
+    }
+  ],
+  "trace": [
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema",
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema",
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema",
+    "execute-discovered-tool",
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema",
+    "express->worker",
+    "scoped-accounts",
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema",
+    "execute-discovered-tool",
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema",
+    "execute-discovered-tool",
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema",
+    "execute-discovered-tool",
+    "express->worker",
+    "scoped-accounts",
+    "dynamic-tools",
+    "tool-schema"
+  ]
+}

@@ -1,3 +1,4 @@
+import { businessCandidates } from "./composio-discovery";
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 import { buildObservatoryToolPack, getSql } from "./db";
 import { discoverAutonomousGemTools } from "./autonomous-gems";
@@ -39,6 +40,7 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "knowledge.search",
   "tool.search",
   "business.sources.search",
+  "tool.execute",
 ] as const;
 
 export type PublisherAdapterCapability = (typeof PUBLISHER_ADAPTER_CAPABILITIES)[number];
@@ -129,7 +131,7 @@ function systemPromptFor(capability: PublisherAdapterCapability): string {
  */
 export async function executeAdapterMission(
   envelope: OctopusAdapterEnvelope,
-  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (input: Record<string, unknown>) => Promise<unknown>; searchBusinessSources?: (query: string) => Promise<unknown> },
+  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (input: Record<string, unknown>) => Promise<unknown>; searchBusinessSources?: (query: string, options: {operationId:string;dryRun:boolean;authorized:boolean}) => Promise<unknown>; discoverTools?: (query: string) => Promise<unknown> },
 ): Promise<AdapterExecutionResult> {
   const mission = isRecord(envelope.mission) ? (envelope.mission as OctopusAdapterMission) : undefined;
   const operationId = stringValue(mission?.operationId) ?? `unknown-${Date.now()}`;
@@ -167,23 +169,21 @@ export async function executeAdapterMission(
   }
 
   try {
-    if (capability === "business.sources.search") {
-      const query = stringValue(mission.prompt) ?? stringValue(mission.objective);
-      if (!query || !deps.searchBusinessSources) return {
-        operationId, status: "needs-input", summary: "Recherche B2B indisponible : requête ou connecteur manquant.",
-        output: { capability, verified: false, candidates: [], status: "source-unavailable" },
+    if (capability === "business.sources.search" || capability === "tool.execute") {
+      const request = isRecord(mission.context?.metadata?.["toolRequest"]) ? mission.context!.metadata!["toolRequest"] as Record<string, unknown> : {};
+      if (capability === "tool.execute" && request.capability !== "business.sources.search") return {
+        operationId,status:"needs-input",summary:"Utiliser la capacité métier gardée pour les actions externes, les médias payants ou la publication.",
+        output:{capability,status:"blocked",reason:"GUARDED_CAPABILITY_REQUIRED",executed:false},
       };
-      const response = await deps.searchBusinessSources(query);
-      const data = isRecord(response) ? response : {};
-      const raw: unknown[] = Array.isArray(data["citations"]) ? data["citations"] : Array.isArray((data["data"] as any)?.citations) ? (data["data"] as any).citations : [];
-      const candidates = raw.slice(0, 10).filter(isRecord).map(item => ({
-        title: stringValue(item["title"]) ?? stringValue(item["name"]),
-        url: stringValue(item["url"]) ?? stringValue(item["link"]),
-        snippet: stringValue(item["snippet"]) ?? stringValue(item["description"]),
-        verification: "search-result-only",
-      })).filter(item => item.title && item.url && /^https?:\/\//i.test(item.url));
-      return { operationId, status: "completed", summary: `Recherche B2B : ${candidates.length} source(s) publiques candidates, non qualifiées.`,
-        output: { capability, status: candidates.length ? "sources-found" : "no-sources", verified: false, candidates, contacted: false, orders: 0 } };
+      const query = stringValue(mission.prompt) ?? stringValue(mission.objective);
+      if (!query || !deps.searchBusinessSources) return {operationId,status:"needs-input",summary:"Recherche B2B indisponible : requête ou transport manquant.",output:{capability:"business.sources.search",verified:false,candidates:[],status:"source-unavailable"}};
+      try {
+        const response = await deps.searchBusinessSources(query,{operationId,dryRun:request.dryRun !== false,authorized:mission.authorizedResources?.includes("tools.read")===true});
+        const data=isRecord(response)?response:{};
+        const output=data.capability === "business.sources.search" ? data : {capability:"business.sources.search",status:"sources-found",candidates:businessCandidates(response),verified:false,contacted:false,orders:0};
+        const completed=["sources-found","no-sources","ready-to-read"].includes(String(output.status));
+        return {operationId,status:completed?"completed":"needs-input",summary:completed?"Recherche B2B contrôlée ; les sources candidates ne sont pas des prospects qualifiés.":"Recherche B2B bloquée ; aucune réussite commerciale déclarée.",output};
+      } catch {return {operationId,status:"failed",summary:"Échec du transport de recherche B2B.",output:{capability:"business.sources.search",status:"blocked",reason:"BUSINESS_SOURCES_UNAVAILABLE",candidates:[],verified:false}};}
     }
     if (capability === "tool.search") {
       const seedId = stringValue(mission.context?.metadata?.["seedId"])
@@ -198,18 +198,45 @@ export async function executeAdapterMission(
       const gardenContext = isRecord(mission.context?.metadata?.["gardenContext"])
         ? mission.context?.metadata?.["gardenContext"] as Record<string, unknown>
         : undefined;
-      const sql = await getSql(deps.knowledgeEnv);
-      const pack = await buildObservatoryToolPack(sql, { seedId, deliverable, gardenContext });
+      // Discovery must remain useful even in a stateless adapter test or when
+      // Neon is temporarily unavailable. Report the missing Observatory
+      // honestly; never turn this into a fictitious executable tool.
+      let observatoryAvailable = true;
+      let pack: Awaited<ReturnType<typeof buildObservatoryToolPack>>;
+      try {
+        const sql = await getSql(deps.knowledgeEnv);
+        pack = await buildObservatoryToolPack(sql, { seedId, deliverable, gardenContext });
+      } catch {
+        observatoryAvailable = false;
+        pack = { version: 3, seedId, deliverable, generatedAt: new Date().toISOString(),
+          context: {}, tools: [], source: "publisher-observatory-unavailable" };
+      }
       // Scout results are research candidates, never executable adapters.
       // A missing/offline catalog does not interrupt the existing Neon tool pack.
       const discoveries = await discoverAutonomousGemTools(deliverable);
       const known = new Set(pack.tools.map(tool => String(tool.url ?? '').toLowerCase()));
       const novel = discoveries.filter(tool => !known.has(tool.url.toLowerCase()));
+      // Composio discovery is a separate, read-only inventory. Preserve the
+      // existing Observatory and public scout results without presenting a
+      // discovered Composio tool as an authorized/executable producer.
+      let composioDiscovery: Record<string, unknown> | null = null;
+      if (deps.discoverTools) {
+        try {
+          const discovered = await deps.discoverTools(deliverable || "web search");
+          composioDiscovery = isRecord(discovered)
+            ? { ...discovered, executionVerified: false }
+            : { status: "unavailable", executionVerified: false };
+        } catch {
+          composioDiscovery = { status: "unavailable", executionVerified: false };
+        }
+      }
       return {
         operationId,
         status: "completed",
         summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s), ${novel.length} pépite(s) à adapter).`,
-        output: { capability, ...pack, tools: [...pack.tools, ...novel], scoutCandidates: novel.length, executable: false, authorizationRequired: true },
+        output: { capability, ...pack, tools: [...pack.tools, ...novel], scoutCandidates: novel.length,
+          composioDiscovery, observatoryAvailable, executed: false,
+          executable: false, authorizationRequired: true },
       };
     }
 

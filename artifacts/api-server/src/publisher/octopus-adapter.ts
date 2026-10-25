@@ -1,3 +1,4 @@
+import { forwardComposioMission } from "./composio-forward";
 import { forwardMetricoolPublication } from "./metricool-forward";
 import { logger } from "../lib/logger";
 import { productionEngine, type ProductionRequest } from "./production-engine";
@@ -14,6 +15,9 @@ export const PUBLISHER_ADAPTER_CAPABILITIES = [
   "knowledge.search",
   "social.publish",
   "landing.generate",
+  "tool.search",
+  "tool.execute",
+  "business.sources.search",
 ] as const;
 
 export type PublisherAdapterCapability = (typeof PUBLISHER_ADAPTER_CAPABILITIES)[number];
@@ -281,6 +285,10 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
   if (!capability) {
     return { operationId: envelope.mission.operationId, status: "failed" as const, summary: "Publisher ne déclare aucune des capacités demandées.", output: { requestedCapabilities: envelope.mission.requiredCapabilities } };
   }
+  if (["tool.search","tool.execute","business.sources.search"].includes(capability)) return {
+    operationId:envelope.mission.operationId,
+    ...await forwardComposioMission(envelope,{workerUrl:process.env.PUBLISHER_URL||process.env.PUBLISHER_WORKER_URL||"https://blacklace-publisher-worker.benoitlubert.workers.dev"}),
+  };
   if (capability === "content.generate" || capability === "copy.generate" || capability === "content.article.write" || capability === "content.social.write") return writeContent(envelope.mission, capability);
   if (capability === "social.publish") {
     const request = metadataValue(envelope.mission, "socialPublication");

@@ -1,4 +1,6 @@
 import { readGarden } from "./garden-readonly";
+import { discoverBusinessTools, executeBusinessSearch } from "./composio-discovery";
+import { composioOperationStore } from "./composio-operation-state";
 import { createMetricoolProvider } from "./metricool-composio";
 import { executeMetricoolPublication, MetricoolBlocked, type Publication } from "./metricool-publication";
 import { metricoolStateStore } from "./metricool-state";
@@ -345,10 +347,13 @@ async function composioUserId(env: Env): Promise<string> {
 export class ComposioHttpError extends Error {
   readonly status: number;
 
-  constructor(status: number, message: string) {
+  readonly retryAfterSeconds?: number;
+
+  constructor(status: number, message: string, retryAfterSeconds?: number) {
     super(message);
     this.name = "ComposioHttpError";
     this.status = status;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
 }
 
@@ -377,7 +382,7 @@ async function composioRequest(env: Env, path: string, init: RequestInit = {}): 
       : typeof nested.message === "string"
         ? nested.message
         : text || `Composio ${response.status}`;
-    throw new ComposioHttpError(response.status, `Composio ${response.status}: ${message}`);
+    throw new ComposioHttpError(response.status, `Composio ${response.status}: ${message}`, Number(response.headers.get("Retry-After")) || undefined);
   }
   return payload;
 }
@@ -3585,7 +3590,11 @@ function executableToolPack(tool: ComposioTool, connected: boolean) {
     name: tool.name,
     description: tool.description,
     capabilities,
-    executable: connected && capabilities.length > 0,
+    discovered: true,
+    connectionActive: connected,
+    executionVerified: false,
+    candidateForExecution: connected && capabilities.length > 0 && Boolean(tool.inputSchema),
+    executable: false,
     connectionRequired: !connected,
     inputSchema: tool.inputSchema,
     provenance: { source: "live-composio-inventory", discoveredAt: new Date().toISOString() },
@@ -3701,11 +3710,11 @@ app.get("/api/observatory/capability-gap", async (c) => {
       try {
         for (const tool of await listComposioTools(c.env, toolkit)) {
           const pack = executableToolPack(tool, Boolean(accountFor(accounts, toolkit)));
-          if (pack.executable && pack.capabilities.includes(capability) && toolMatchesMission(tool, capability, mission)) matches.push(pack);
+          if (pack.candidateForExecution && pack.capabilities.includes(capability) && toolMatchesMission(tool, capability, mission)) matches.push(pack);
         }
       } catch (_) {}
     }
-    if (matches.length) return c.json({ status: "covered", contract: "publisher-capability-gap-v1", capability, mission: mission || null, matches, discoveryRequired: false });
+    if (matches.length) return c.json({ status: "candidates-found", contract: "publisher-capability-gap-v1", capability, mission: mission || null, matches, discoveryRequired: false, executionVerified: false, executable: false });
 
     const queries: Record<PublisherCapability, string> = {
       "visual.generate": "AI image generation API text to image tool developer API Mistral image generation",
@@ -4003,6 +4012,7 @@ app.get("/api/adapter/health", async (c) => {
     capabilities: [...PUBLISHER_ADAPTER_CAPABILITIES],
     executeUrl: `${publisherPublicUrl(c.env)}/api/octopus-adapter/execute`,
     textProducerConfigured,
+    composioConfigured: await isComposioConfigured(c.env),
   });
 });
 
@@ -4012,9 +4022,13 @@ app.post("/api/octopus-adapter/execute", async (c) => {
     generateText: (request) => executeMistralText(c.env, request),
     knowledgeEnv: await knowledgeEnvFor(c.env),
     publishSocial: async (input) => finalizeSocialPublication(c.env, input, c.req.header("Authorization")),
-    searchBusinessSources: async (query) => composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_WEB", {
-      method: "POST",
-      body: JSON.stringify({ arguments: { query: query.slice(0, 1200) }, user_id: await composioUserId(c.env), version: "latest" }),
+    discoverTools: async query => {
+      const tools=await discoverBusinessTools(query,{userId:await composioUserId(c.env),request:(path,init)=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)})});
+      return {status:"discovered",tools:tools.map(t=>({slug:t.slug,name:t.name,toolkit:t.toolkit,inputSchema:t.schema,discovered:true,connected:t.connected,authMode:t.authMode,supportedReadPolicy:t.readPolicy})),executionVerified:false};
+    },
+    searchBusinessSources: async (query,options) => executeBusinessSearch({query,...options},{
+      userId:await composioUserId(c.env),request:(path,init)=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)}),
+      store:async()=>composioOperationStore(await getSql(c.env)),
     }),
   });
   // Always 200: the outcome travels in `status`, which is what Octopus reads.
