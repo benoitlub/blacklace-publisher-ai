@@ -1,5 +1,6 @@
 import { resolveKnowledgePackage } from "./knowledge/knowledge-package-resolver";
 import { buildObservatoryToolPack, getSql } from "./db";
+import { discoverAutonomousGemTools } from "./autonomous-gems";
 
 /**
  * Octopus adapter surface, running on Cloudflare.
@@ -174,7 +175,7 @@ export async function executeAdapterMission(
       };
       const response = await deps.searchBusinessSources(query);
       const data = isRecord(response) ? response : {};
-      const raw = Array.isArray(data["citations"]) ? data["citations"] : Array.isArray((data["data"] as any)?.citations) ? (data["data"] as any).citations : [];
+      const raw: unknown[] = Array.isArray(data["citations"]) ? data["citations"] : Array.isArray((data["data"] as any)?.citations) ? (data["data"] as any).citations : [];
       const candidates = raw.slice(0, 10).filter(isRecord).map(item => ({
         title: stringValue(item["title"]) ?? stringValue(item["name"]),
         url: stringValue(item["url"]) ?? stringValue(item["link"]),
@@ -199,11 +200,16 @@ export async function executeAdapterMission(
         : undefined;
       const sql = await getSql(deps.knowledgeEnv);
       const pack = await buildObservatoryToolPack(sql, { seedId, deliverable, gardenContext });
+      // Scout results are research candidates, never executable adapters.
+      // A missing/offline catalog does not interrupt the existing Neon tool pack.
+      const discoveries = await discoverAutonomousGemTools(deliverable);
+      const known = new Set(pack.tools.map(tool => String(tool.url ?? '').toLowerCase()));
+      const novel = discoveries.filter(tool => !known.has(tool.url.toLowerCase()));
       return {
         operationId,
         status: "completed",
-        summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s)).`,
-        output: { capability, ...pack, executable: false, authorizationRequired: true },
+        summary: `Tool Pack préparé par Publisher pour ${seedId} (${pack.tools.length} outil(s), ${novel.length} pépite(s) à adapter).`,
+        output: { capability, ...pack, tools: [...pack.tools, ...novel], scoutCandidates: novel.length, executable: false, authorizationRequired: true },
       };
     }
 
