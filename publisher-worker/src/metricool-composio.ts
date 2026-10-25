@@ -62,7 +62,9 @@ function responseRows(payload: unknown): { rows: unknown[]; next: string; total?
 }
 function networksOf(value: unknown): string[] {
   if (Array.isArray(value)) return value.map(item => typeof item === "string" ? item.toLowerCase() : str(rec(item).network ?? rec(item).name).toLowerCase());
-  if (value && typeof value === "object") return Object.entries(rec(value)).filter(([, v]) => v === true || rec(v).connected === true || str(rec(v).id)).map(([key]) => key.toLowerCase());
+  if (value && typeof value === "object") return Object.entries(rec(value))
+    .filter(([key, v]) => !/adsdata$/i.test(key) && (v === true || (typeof v === "string" && !!v.trim()) || rec(v).connected === true || !!str(rec(v).id)))
+    .map(([key]) => key.replace(/Data$/, "").toLowerCase());
   return blocked("METRICOOL_NETWORKS_INVALID", "destination");
 }
 function postOf(value: unknown, network?: string, timezone = "Europe/Madrid", brandId?: string): ProviderPost {
@@ -101,7 +103,7 @@ export async function createMetricoolProvider(deps: {
   tools: (toolkit: string) => Promise<MetricoolTool[]>;
   execute: (input: { toolSlug: string; connectedAccountId: string; arguments: Record<string, unknown> }) => Promise<unknown>;
   connectedAccountId?: string; brandId: string;
-}): Promise<MetricoolProvider> {
+}): Promise<MetricoolProvider & { inspectBrand(): Promise<{ id: string; label: string; timezone: string; networks: string[] }> }> {
   const safeRead = async <T>(read: () => Promise<T>): Promise<T> => {
     try { return await read(); } catch (error) {
       if (error instanceof MetricoolBlocked) throw error;
@@ -142,15 +144,21 @@ export async function createMetricoolProvider(deps: {
     }
     return blocked("METRICOOL_PAGE_LIMIT", "provider-history");
   };
+  const inspectBrand = async () => {
+    const rows = await all("get_brands", {});
+    const match = rows.filter(row => str(rec(row).id) === deps.brandId);
+    if (match.length !== 1) blocked("METRICOOL_BRAND_NOT_ACCESSIBLE", "destination");
+    const r = rec(match[0]);
+    const networks = networksOf(r.networks ?? r.networksData);
+    return { id: deps.brandId, label: str(r.label), timezone: str(r.timezone), networks: [...new Set(networks)] };
+  };
   return {
+    inspectBrand,
     async brand() {
-      const rows = await all("get_brands", {});
-      const match = rows.filter(row => str(rec(row).id) === deps.brandId);
-      if (match.length !== 1) blocked("METRICOOL_BRAND_NOT_ACCESSIBLE", "destination");
-      const r = rec(match[0]);
-      const networks = networksOf(r.networks ?? r.networksData);
+      const identity = await inspectBrand();
+      const networks = identity.networks;
       if (!networks.length || networks.some(n => !["facebook", "instagram", "youtube"].includes(n))) blocked("METRICOOL_BRAND_QUOTA_COVERAGE_UNSUPPORTED", "verified-budget");
-      return { id: deps.brandId, label: str(r.label), timezone: str(r.timezone), networks: [...new Set(networks)] };
+      return identity;
     },
     async published(start, end, networks) {
       // Include reels and stories as well as posts; do not certify a brand-wide

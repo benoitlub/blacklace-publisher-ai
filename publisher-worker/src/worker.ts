@@ -1183,6 +1183,21 @@ async function metricoolProvider(env: Env, brandId: string) {
   });
 }
 
+// Read-only connection probe. Never publishes, consumes a quota or reveals credentials.
+app.get("/api/production/metricool-blacklace/status", async (c) => {
+  try {
+    const provider = await metricoolProvider(c.env, "7653100");
+    const brand = await provider.inspectBrand();
+    if (brand.id !== "7653100" || brand.label.toLowerCase() !== "blacklace" || !brand.networks.includes("tiktok")) {
+      return c.json({ status: "blocked", reason: "BLACKLACE_TIKTOK_NOT_CONNECTED", publicationEnabled: false }, 503);
+    }
+    return c.json({ status: "connected", brand: "Blacklace", tiktok: true, publicationEnabled: false });
+  } catch (error) {
+    const known = error instanceof MetricoolBlocked ? error : null;
+    return c.json({ status: "blocked", reason: known?.code ?? "BLACKLACE_CONNECTION_UNVERIFIED", publicationEnabled: false }, 503);
+  }
+});
+
 async function finalizeMetricoolPublication(env: Env, input: Record<string, unknown>, authenticated: boolean) {
   const handoff = prepareMetricoolHandoff(input);
   const dryRun = input.dryRun !== false;

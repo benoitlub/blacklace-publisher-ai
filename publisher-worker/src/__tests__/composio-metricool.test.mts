@@ -52,6 +52,15 @@ test("uses the discovered account and exact tool schema, including MCP JSON cont
   assert.equal((await p.brand()).id, "3350145");
   assert.deepEqual(await p.bestTimes("2026-10-22", "2026-10-28", "facebook", "Europe/Madrid"), [{ dayOfWeek: 6, hour: 12, value: 90 }]);
 });
+test("Blacklace TikTok can be inspected without treating its quota as verified", async () => {
+  const p = await createMetricoolProvider({
+    ...deps(async () => envelope([{ id: 7653100, label: "Blacklace", timezone: "Europe/Paris", networksData: { tiktokData: "beniblacklace" } }])),
+    brandId: "7653100",
+  });
+  assert.deepEqual(await p.inspectBrand(), { id: "7653100", label: "Blacklace", timezone: "Europe/Paris", networks: ["tiktok"] });
+  await assert.rejects(p.brand(), /QUOTA_COVERAGE_UNSUPPORTED/);
+});
+
 test("brand-wide published reads cover stories/reels/posts on every connected network", async () => {
   const names: string[] = [];
   const p = await createMetricoolProvider(deps(async ({ toolSlug }) => { names.push(toolOperation(toolSlug)); return envelope([]); }));
