@@ -2,6 +2,7 @@ import { readGarden } from "./garden-readonly";
 import { discoverBusinessTools, executeBusinessSearch } from "./composio-discovery";
 import { composioOperationStore } from "./composio-operation-state";
 import { createMetricoolProvider } from "./metricool-composio";
+import { metricoolCredentialsForBrand } from "./metricool-routing";
 import { executeMetricoolPublication, MetricoolBlocked, type Publication } from "./metricool-publication";
 import { metricoolStateStore } from "./metricool-state";
 import { discoverComposioAccounts, isActiveAccount, isMetricoolToolkit } from "./composio-accounts";
@@ -67,6 +68,10 @@ type Env = {
   AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
+  /** Independent Composio project for Blacklace's Metricool/TikTok brand. */
+  Composio2?: string | SecretsStoreSecret;
+  COMPOSIO2_USER_ID?: string | SecretsStoreSecret;
+  COMPOSIO2_METRICOOL_CONNECTED_ACCOUNT_ID?: string;
   BUFFER_API_KEY?: string | SecretsStoreSecret;
   BUFFER_DRAFT_WRITE_TOKEN?: string | SecretsStoreSecret;
   BUFFER_BOOK_CHANNEL_ID?: string | SecretsStoreSecret;
@@ -1164,12 +1169,16 @@ app.get("/api/production/canva-tool-schema", async (c) => {
 });
 
 async function metricoolProvider(env: Env, brandId: string) {
-  if (!(await isComposioConfigured(env))) throw new MetricoolBlocked("COMPOSIO_NOT_CONFIGURED", "connection");
+  // The two brands use independent Composio projects; no implicit credential fallback.
+  let selectedEnv: Env;
+  try { selectedEnv = metricoolCredentialsForBrand(env, brandId); }
+  catch { throw new MetricoolBlocked("METRICOOL_BRAND_NOT_ALLOWLISTED", "destination"); }
+  if (!(await isComposioConfigured(selectedEnv))) throw new MetricoolBlocked(brandId === "7653100" ? "BLACKLACE_COMPOSIO_NOT_CONFIGURED" : "COMPOSIO_NOT_CONFIGURED", "connection");
   return createMetricoolProvider({
-    accounts: async () => discoverComposioAccounts(await composioUserId(env), path => composioRequest(env, path, { signal: AbortSignal.timeout(15000) })),
-    tools: (toolkit) => listComposioTools(env, toolkit, 15000),
-    execute: (input) => executeComposioTool(env, { ...input, timeoutMs: 20000, toolVersion: "latest" }),
-    connectedAccountId: env.METRICOOL_CONNECTED_ACCOUNT_ID,
+    accounts: async () => discoverComposioAccounts(await composioUserId(selectedEnv), path => composioRequest(selectedEnv, path, { signal: AbortSignal.timeout(15000) })),
+    tools: (toolkit) => listComposioTools(selectedEnv, toolkit, 15000),
+    execute: (input) => executeComposioTool(selectedEnv, { ...input, timeoutMs: 20000, toolVersion: "latest" }),
+    connectedAccountId: selectedEnv.METRICOOL_CONNECTED_ACCOUNT_ID,
     brandId,
   });
 }
