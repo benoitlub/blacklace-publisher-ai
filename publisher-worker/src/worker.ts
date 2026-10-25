@@ -1928,7 +1928,7 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
 app.post("/api/social/transports/buffer/terra-video", async (c) => {
   const token = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
   if (!token || c.req.header("Authorization") !== "Bearer " + token) return c.json({ status: "unauthorized" }, 401);
-  const body = await c.req.json<{ channelId?: string; dryRun?: boolean }>().catch(() => ({}));
+  const body = await c.req.json<{ channelId?: string; dryRun?: boolean }>().catch((): { channelId?: string; dryRun?: boolean } => ({}));
   const channels: Record<string, string> = {
     "6ac8cda06a5c39ccb6602479": "facebook",
     "6ac8c8226a5c39ccb65fdbf6": "instagram",
@@ -1959,13 +1959,13 @@ app.post("/api/social/transports/buffer/terra-video", async (c) => {
     const seen = new Set<string>();
     const matches: { id: string; status: string }[] = [];
     for (let page = 0; page < 30; page++) {
-      const pageData = (await request("query { posts(first:100" + (cursor ? ",after:" + JSON.stringify(cursor) : "") +
+      const pageData: any = (await request("query { posts(first:100" + (cursor ? ",after:" + JSON.stringify(cursor) : "") +
         ",input:{organizationId:" + JSON.stringify(channel.organizationId) + ",filter:{channelIds:[" + JSON.stringify(channelId) + "]}}) { edges { node { id text status } } pageInfo { hasNextPage endCursor } } }")).posts;
       if (!Array.isArray(pageData?.edges)) break;
       for (const edge of pageData.edges) if (/\bTERRA\b|B0H4CN5MSH/i.test(String(edge?.node?.text ?? "")))
         matches.push({ id: String(edge.node.id), status: String(edge.node.status) });
       if (pageData.pageInfo?.hasNextPage === false) { complete = true; break; }
-      const next = pageData.pageInfo?.endCursor;
+      const next: unknown = pageData.pageInfo?.endCursor;
       if (typeof next !== "string" || !next || seen.has(next)) break;
       seen.add(next); cursor = next;
     }
