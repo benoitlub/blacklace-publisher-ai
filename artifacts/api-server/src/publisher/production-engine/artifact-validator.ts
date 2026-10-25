@@ -24,10 +24,10 @@ export function validateProductionArtifact(
     if (!/^https:\/\//i.test(value)) errors.push("Artifact URL must use HTTPS.");
   }
   if (request.capability === "landing-page" && artifact.type === "landing-page.html") {
-    if (!/<!doctype html>/i.test(content) || !/<main[\\s>]/i.test(content)) {
+    if (!/<!doctype html>/i.test(content) || !/<main[\s>]/i.test(content)) {
       errors.push("Landing page is missing a valid HTML document and main region.");
     }
-    if (!/<meta\\s+name=["']viewport["']/i.test(content)) {
+    if (!/<meta\s+name=["']viewport["']/i.test(content)) {
       errors.push("Landing page is missing its viewport metadata.");
     }
   }
