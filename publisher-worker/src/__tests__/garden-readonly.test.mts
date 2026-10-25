@@ -1,6 +1,47 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createGardenReader } from "../garden-readonly.ts";
+test("public revision fallback survives rejected tokens and REST rate limits without forwarding credentials", async () => {
+  for (const status of [401, 403]) {
+    const f = fixtureFetcher();
+    const calls: string[] = [];
+    const read = createGardenReader(async (input, options) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.endsWith("/commits/main"))
+        return new Response("unavailable", { status });
+      if (url.endsWith("/commits/main.atom")) {
+        assert.equal(new Headers(options?.headers).has("Authorization"), false);
+        return new Response(
+          `<feed><entry><id>tag:github.com,2008:Grit::Commit/${sha}</id></entry></feed>`,
+        );
+      }
+      return f.fetcher(input, options);
+    });
+    const response = await read(new Request(endpoint), {
+      GITHUB_TOKEN: "REJECTED-TEST-TOKEN",
+    });
+    assert.equal(response.status, 200);
+    const snapshot = (await response.json()) as any;
+    assert.equal(snapshot.sourceRef, sha);
+    assert.ok(
+      calls.includes(
+        "https://github.com/benoitlub/poulpe-fiction/commits/main.atom",
+      ),
+    );
+    assert.ok(!JSON.stringify(snapshot).includes("REJECTED-TEST-TOKEN"));
+  }
+});
+test("malformed public first commit fails closed, even if a later entry has a valid id", async () => {
+  const read = createGardenReader(async (input) =>
+    String(input).endsWith(".atom")
+      ? new Response(
+          `<feed><entry><id>bad</id></entry><entry><id>tag:github.com,2008:Grit::Commit/${sha}</id></entry></feed>`,
+        )
+      : new Response("unavailable", { status: 401 }),
+  );
+  assert.equal((await read(new Request(endpoint), {})).status, 503);
+});
 // Synthetic source records only. Never execute a mission or contact a provider.
 const sha = "a".repeat(40);
 const endpoint = "https://publisher.example/api/garden/v1/snapshot";

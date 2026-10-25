@@ -11,12 +11,14 @@ export interface GardenReadEnv {
   OCTOPUS_ENGINE?: { fetch: Fetcher };
 }
 const REPO = "https://api.github.com/repos/benoitlub/poulpe-fiction";
+const PUBLIC_COMMITS =
+  "https://github.com/benoitlub/poulpe-fiction/commits/main.atom";
 const RAW = "https://raw.githubusercontent.com/benoitlub/poulpe-fiction";
 const OCTOPUS = "https://octopus-engine-app.benoitlubert.workers.dev/events";
 const MAX_BYTES = 2 * 1024 * 1024;
 
 /** All URLs are fixed or derived from a validated commit SHA. No user URL is accepted. */
-async function readJson(
+async function readText(
   fetcher: Fetcher,
   url: string,
   headers: Record<string, string> = {},
@@ -53,9 +55,42 @@ async function readJson(
     } finally {
       reader.releaseLock();
     }
-    return JSON.parse(raw);
+    return raw;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+async function readJson(
+  fetcher: Fetcher,
+  url: string,
+  headers: Record<string, string> = {},
+) {
+  return JSON.parse(await readText(fetcher, url, headers));
+}
+
+async function readRevision(fetcher: Fetcher, token: string): Promise<string> {
+  try {
+    const head = await readJson(fetcher, `${REPO}/commits/main`, {
+      "User-Agent": "Poulpe-Garden-ReadOnly",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    });
+    if (!/^[a-f0-9]{40}$/.test(head?.sha))
+      throw new Error("Invalid source revision");
+    return head.sha;
+  } catch {
+    // Public repository only. GitHub's Atom feed remains readable when the
+    // configured token expires or the shared REST rate limit is exhausted.
+    // Extract the first commit only; never parse XML entities or follow links.
+    const atom = await readText(fetcher, PUBLIC_COMMITS, {
+      Accept: "application/atom+xml",
+    });
+    const entry = atom.match(/<entry\b[^>]*>([\s\S]*?)<\/entry>/)?.[1];
+    const sha = entry?.match(
+      /<id>tag:github\.com,2008:Grit::Commit\/([a-f0-9]{40})<\/id>/,
+    )?.[1];
+    if (!sha) throw new Error("Public source revision unavailable");
+    return sha;
   }
 }
 
@@ -76,13 +111,8 @@ export function createGardenReader(
     } catch {
       /* public read can still succeed */
     }
-    const head = await readJson(fetcher, `${REPO}/commits/main`, {
-      "User-Agent": "Poulpe-Garden-ReadOnly",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    });
-    if (!/^[a-f0-9]{40}$/.test(head?.sha))
-      throw new Error("Invalid source revision");
-    const base = `${RAW}/${head.sha}/garden/`;
+    const revision = await readRevision(fetcher, token);
+    const base = `${RAW}/${revision}/garden/`;
     const readOctopus = env.OCTOPUS_ENGINE
       ? env.OCTOPUS_ENGINE.fetch.bind(env.OCTOPUS_ENGINE)
       : fetcher;
@@ -99,7 +129,7 @@ export function createGardenReader(
       state: state.status === "fulfilled" ? state.value : undefined,
       harvests: harvests.status === "fulfilled" ? harvests.value : undefined,
       octopus: octopus.status === "fulfilled" ? octopus.value : undefined,
-      sourceRef: head.sha,
+      sourceRef: revision,
       observedAt: new Date(now()).toISOString(),
     });
   }
