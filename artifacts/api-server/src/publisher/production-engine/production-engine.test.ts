@@ -66,6 +66,45 @@ describe("Production Engine V1", () => {
     });
   });
 
+  it("does not claim readiness for a connected producer without an executor", () => {
+    const registry = new ProducerRegistry([{ ...unavailableLandingProducer("connected-no-executor"), status: "authorized" }]);
+    const plan = new ProductionEngine(registry).plan(baseRequest);
+    expect(plan.status).toBe("blocked");
+    expect(plan.steps[0]?.status).toBe("blocked");
+  });
+
+  it("falls back from a preferred producer that has no executor", () => {
+    const registry = new ProducerRegistry([
+      { ...unavailableLandingProducer("preferred-no-executor"), status: "available" },
+      new HtmlLocalProducer(),
+    ]);
+    const plan = new ProductionEngine(registry).plan({ ...baseRequest, preferredProducerId: "preferred-no-executor" });
+    expect(plan.status).toBe("ready");
+    expect(plan.steps[0]?.producerId).toBe("html-local");
+  });
+
+  it("blocks production when the only executor exceeds the cost ceiling", () => {
+    const costly: Producer = {
+      ...unavailableLandingProducer("expensive"),
+      status: "available", cost: "high", execute: async () => { throw new Error("Should never run"); },
+    };
+    const plan = new ProductionEngine(new ProducerRegistry([costly])).plan({
+      ...baseRequest, constraints: { maxCost: "low" },
+    });
+    expect(plan.status).toBe("blocked");
+  });
+
+  it("enforces minimum quality even for the preferred producer", () => {
+    const basic: Producer = {
+      ...unavailableLandingProducer("basic"), status: "available", quality: "basic",
+      execute: async () => { throw new Error("Should never run"); },
+    };
+    const plan = new ProductionEngine(new ProducerRegistry([basic])).plan({
+      ...baseRequest, preferredProducerId: "basic", constraints: { minQuality: "high" },
+    });
+    expect(plan.status).toBe("blocked");
+  });
+
   it("marks an unknown capability as unsupported", () => {
     const engine = new ProductionEngine(createDefaultProducerRegistry());
     const plan = engine.plan({ ...baseRequest, capability: "crm-sync" as ProducerCapability });
