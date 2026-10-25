@@ -1924,6 +1924,80 @@ app.get("/api/social/transports/buffer/book-draft/schema-check", async (c) => {
   }
 });
 
+// Explicitly authorized TERRA video campaign. Provider uncertainty never retries.
+app.post("/api/social/transports/buffer/terra-video", async (c) => {
+  const token = await resolveSecret(c.env.BUFFER_DRAFT_WRITE_TOKEN);
+  if (!token || c.req.header("Authorization") !== "Bearer " + token) return c.json({ status: "unauthorized" }, 401);
+  const body = await c.req.json<{ channelId?: string; dryRun?: boolean }>().catch((): { channelId?: string; dryRun?: boolean } => ({}));
+  const channels: Record<string, string> = {
+    "6ac8cda06a5c39ccb6602479": "facebook",
+    "6ac8c8226a5c39ccb65fdbf6": "instagram",
+    "6ac8d0056a5c39ccb6603992": "youtube",
+  };
+  const channelId = body.channelId ?? "";
+  if (!channels[channelId]) return c.json({ status: "invalid-channel" }, 422);
+  const key = await resolveSecret(c.env.BUFFER_API_KEY);
+  if (!key || !(await isDatabaseConfigured(c.env))) return c.json({ status: "credentials-or-db-unavailable" }, 503);
+  const mediaUrl = "https://blacklace-publisher-worker.benoitlubert.workers.dev/media/books/terra/teaser.mp4";
+  const copy = "Et si la Terre n'était pas exactement ce que nous croyons ? 🌍\n\n" +
+    "TERRA, un voyage de science-fiction pour regarder notre monde autrement. " +
+    "Découvrez le roman de Benoît Lubert.\n\n📖 " + officialDestinationBySeed.terra +
+    "\n\n#TERRA #ScienceFiction #Livre #Lecture";
+  const request = async (query: string) => {
+    const response = await fetch("https://api.buffer.com", { method: "POST", headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" }, body: JSON.stringify({ query }), signal: AbortSignal.timeout(12000) });
+    const payload = await response.json() as Record<string, any>;
+    if (!response.ok || payload.errors) throw new Error("buffer-request-unconfirmed");
+    return payload.data as Record<string, any>;
+  };
+  try {
+    const channel = (await request("query { channel(input:{id:" + JSON.stringify(channelId) + "}) { id service organizationId isDisconnected isLocked isQueuePaused } }")).channel;
+    if (channel?.id !== channelId || channel.service !== channels[channelId] || !channel.organizationId ||
+        channel.isDisconnected !== false || channel.isLocked !== false || channel.isQueuePaused !== false)
+      return c.json({ status: "channel-unavailable", channelId }, 409);
+    let cursor: string | null = null;
+    let complete = false;
+    const seen = new Set<string>();
+    const matches: { id: string; status: string }[] = [];
+    for (let page = 0; page < 30; page++) {
+      const pageData: any = (await request("query { posts(first:100" + (cursor ? ",after:" + JSON.stringify(cursor) : "") +
+        ",input:{organizationId:" + JSON.stringify(channel.organizationId) + ",filter:{channelIds:[" + JSON.stringify(channelId) + "]}}) { edges { node { id text status } } pageInfo { hasNextPage endCursor } } }")).posts;
+      if (!Array.isArray(pageData?.edges)) break;
+      for (const edge of pageData.edges) if (/\bTERRA\b|B0H4CN5MSH/i.test(String(edge?.node?.text ?? "")))
+        matches.push({ id: String(edge.node.id), status: String(edge.node.status) });
+      if (pageData.pageInfo?.hasNextPage === false) { complete = true; break; }
+      const next: unknown = pageData.pageInfo?.endCursor;
+      if (typeof next !== "string" || !next || seen.has(next)) break;
+      seen.add(next); cursor = next;
+    }
+    if (!complete) return c.json({ status: "provider-list-incomplete", channelId }, 409);
+    if (matches.length) return c.json({ status: "existing-terra-post-review-required", channelId, matches }, 409);
+    if (body.dryRun !== false) return c.json({ status: "ready", channelId, service: channels[channelId], mediaUrl, text: copy, publishAttempted: false });
+    const media = await fetch(mediaUrl, { method: "HEAD", signal: AbortSignal.timeout(12000) });
+    if (!media.ok || !/^video\/mp4\b/i.test(media.headers.get("Content-Type") ?? ""))
+      return c.json({ status: "video-unavailable", channelId }, 409);
+    const sql = await getSql(c.env);
+    await sql`CREATE TABLE IF NOT EXISTS terra_video_campaign_reservations (reservation_key TEXT PRIMARY KEY, channel_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+    const reservationKey = "terra-morphic-teaser-v1:" + channelId;
+    const claimed = await sql`INSERT INTO terra_video_campaign_reservations (reservation_key,channel_id,status) VALUES (${reservationKey},${channelId},'pending') ON CONFLICT DO NOTHING RETURNING reservation_key`;
+    if (claimed.length !== 1) return c.json({ status: "already-reserved", channelId, publishAttempted: false }, 409);
+    const metadata = channels[channelId] === "instagram" ? ", metadata: { instagram: { type: reel, shouldShareToFeed: true } }" : "";
+    const mutation = "mutation { createPost(input: { text:" + JSON.stringify(copy) + ", channelId:" + JSON.stringify(channelId) +
+      ", schedulingType: automatic, mode: addToQueue, saveToDraft: false" + metadata +
+      ", assets: [{ video: { url:" + JSON.stringify(mediaUrl) + " } }] }) { __typename ... on PostActionSuccess { post { id } } ... on InvalidInputError { message } } }";
+    try {
+      const action = (await request(mutation)).createPost;
+      if (action?.__typename === "InvalidInputError") {
+        await sql`UPDATE terra_video_campaign_reservations SET status='validation-rejected' WHERE reservation_key=${reservationKey} AND status='pending'`;
+        return c.json({ status: "provider-validation-rejected", channelId, reason: String(action.message ?? "invalid-input").slice(0,250) }, 422);
+      }
+      const postId = action?.__typename === "PostActionSuccess" ? action.post?.id : null;
+      if (typeof postId !== "string" || !postId) throw new Error("post-id-not-confirmed");
+      await sql`UPDATE terra_video_campaign_reservations SET status='provider-accepted',post_id=${postId} WHERE reservation_key=${reservationKey} AND status='pending'`;
+      return c.json({ status: "provider-accepted", channelId, postId, queued: true, published: false });
+    } catch (_) { return c.json({ status: "provider-result-uncertain", channelId, retryAllowed: false }, 409); }
+  } catch (_) { return c.json({ status: "preflight-unavailable", channelId }, 503); }
+});
+
 // Explicit one-time release for the known uncertain TERRA reservation.
 // A separate audit row is preserved before allowing exactly one retry.
 app.post("/api/social/transports/buffer/book-draft/release-terra", async (c) => {
