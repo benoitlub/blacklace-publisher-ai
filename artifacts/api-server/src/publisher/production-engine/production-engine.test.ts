@@ -116,6 +116,35 @@ describe("Production Engine V1", () => {
     });
   });
 
+  it("rejects a producer that returns an empty artifact", async () => {
+    const fake: Producer = {
+      ...unavailableLandingProducer("empty-output"), status: "available",
+      execute: async (request, stepId) => ({
+        id: "artifact-empty", requestId: request.id, stepId, producerId: "empty-output",
+        capability: request.capability, type: "test", title: "Empty", createdAt: new Date().toISOString(),
+      }),
+    };
+    const engine = new ProductionEngine(new ProducerRegistry([fake]));
+    const report = await engine.execute(engine.plan(baseRequest), baseRequest);
+    expect(report.status).toBe("failed");
+    expect(report.artifacts).toHaveLength(0);
+    expect(report.errors[0]?.message).toContain("no usable content");
+  });
+
+  it("rejects an artifact belonging to a different request", async () => {
+    const fake: Producer = {
+      ...unavailableLandingProducer("wrong-request"), status: "available",
+      execute: async (request, stepId) => ({
+        id: "artifact-wrong", requestId: "another-request", stepId, producerId: "wrong-request",
+        capability: request.capability, type: "text", title: "Wrong", content: "Some content", createdAt: new Date().toISOString(),
+      }),
+    };
+    const engine = new ProductionEngine(new ProducerRegistry([fake]));
+    const report = await engine.execute(engine.plan(baseRequest), baseRequest);
+    expect(report.status).toBe("failed");
+    expect(report.errors[0]?.message).toContain("requestId");
+  });
+
   it("executes a complete responsive landing page through the selected producer", async () => {
     const request: ProductionRequest = {
       ...baseRequest,
