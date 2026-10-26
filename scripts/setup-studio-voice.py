@@ -15,7 +15,12 @@ expected = '641d1ab097da2b81128c076810edb052b385decc8be3381814802a64a73baf99'
 for name in ['fr_FR-siwis-medium.onnx', 'fr_FR-siwis-medium.onnx.json', 'MODEL_CARD']:
     dest = target / name
     if not dest.exists():
-        subprocess.run(['curl', '--fail', '--location', '--silent', '--show-error', '--max-time', '180', '--output', str(dest), base + name], check=True)
+        temporary = dest.with_name(dest.name + '.download')
+        try:
+            subprocess.run(['curl', '--fail', '--location', '--silent', '--show-error', '--connect-timeout', '20', '--max-time', '180', '--output', str(temporary), base + name], check=True)
+            temporary.replace(dest)
+        finally:
+            temporary.unlink(missing_ok=True)
 model = target / 'fr_FR-siwis-medium.onnx'
 if hashlib.sha256(model.read_bytes()).hexdigest() != expected:
     raise SystemExit('Model checksum mismatch; refusing synthesis.')

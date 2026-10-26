@@ -52,12 +52,22 @@ jobs:
           repository: benoitlub/poulpe-fiction
           ref: 0c1649bd7a8357e0b293f212d5a1a7778c7a5480
           path: _test/poulpe
-      - name: Prepare free local audiovisual runtime
+      - name: Verify FFmpeg and fonts
+        timeout-minutes: 4
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y ffmpeg fonts-dejavu-core
+          if ! command -v ffmpeg >/dev/null || [ ! -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf ]; then
+            sudo apt-get update -qq -o Acquire::Retries=1 -o Acquire::http::Timeout=30
+            sudo apt-get install -y ffmpeg fonts-dejavu-core
+          fi
+          ffmpeg -version
+      - name: Install local Piper
+        timeout-minutes: 4
+        run: |
           python3 -m venv .studio-venv
-          .studio-venv/bin/pip install 'piper-tts==1.8.0'
+          .studio-venv/bin/pip install --timeout 30 --retries 1 'piper-tts==1.8.0'
+      - name: Download and verify the French voice model
+        timeout-minutes: 4
+        run: |
           python3 scripts/setup-studio-voice.py
           echo "PIPER_BIN=$PWD/.studio-venv/bin/piper" >> "$GITHUB_ENV"
           echo "PIPER_MODEL=$PWD/data/studio-models/fr_FR-siwis-medium.onnx" >> "$GITHUB_ENV"
