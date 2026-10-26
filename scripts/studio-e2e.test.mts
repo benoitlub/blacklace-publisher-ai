@@ -9,7 +9,11 @@ import {
   rm,
   mkdir,
   copyFile,
+  readdir,
+  cp,
 } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import path from "node:path";
 import { tmpdir } from "node:os";
 import { pathToFileURL } from "node:url";
@@ -53,7 +57,7 @@ test(
       await import("../artifacts/api-server/src/routes/octopus-adapter.ts");
     const { default: studioRouter } =
       await import("../artifacts/api-server/src/routes/studio.ts");
-    const { runParcelStudio } = await import(
+    const { runParcelStudio, studioOperationId } = await import(
       pathToFileURL(process.env.GERARD_STUDIO_CLIENT).href
     );
     let missions = 0,
@@ -141,10 +145,66 @@ test(
         },
       ],
     };
+    const cycleRoot = path.join(root, "cycle");
+    await mkdir(path.join(cycleRoot, "scripts"), { recursive: true });
+    await mkdir(path.join(cycleRoot, "garden"));
+    const sourceDir = path.dirname(process.env.GERARD_STUDIO_CLIENT);
+    for (const name of await readdir(sourceDir))
+      if (name.endsWith(".mjs"))
+        await copyFile(
+          path.join(sourceDir, name),
+          path.join(cycleRoot, "scripts", name),
+        );
+    await cp(
+      path.join(sourceDir, "../templates"),
+      path.join(cycleRoot, "templates"),
+      { recursive: true },
+    );
+    await writeFile(
+      path.join(cycleRoot, "garden/restart-seeds.json"),
+      JSON.stringify({ seeds: [seed] }),
+    );
+    await writeFile(path.join(cycleRoot, "garden/gerard-state.json"), "{}");
+    await writeFile(
+      path.join(cycleRoot, "garden/harvests.json"),
+      '{"harvests":[]}',
+    );
+    await promisify(execFile)(
+      process.execPath,
+      [path.join(cycleRoot, "scripts/gerard-cycle.mjs")],
+      {
+        cwd: cycleRoot,
+        timeout: 180000,
+        maxBuffer: 2 * 1024 * 1024,
+        env: {
+          ...process.env,
+          GERARD_MODE: "cultivate",
+          GERARD_AV_STUDIO_ENABLED: "true",
+          OCTOPUS_URL: base,
+          LOCAL_PUBLISHER_URL: base,
+          PUBLISHER_URL: base,
+        },
+      },
+    );
+    const cycleState = JSON.parse(
+      await readFile(path.join(cycleRoot, "garden/gerard-state.json"), "utf8"),
+    );
+    assert.equal(cycleState.lastResult.status, "ok");
+    assert.equal(
+      cycleState.lastResult.decision,
+      "studio-files-ready-for-review",
+    );
+    const operationId = studioOperationId(seed, "video");
+    const archiveDir = path.join(
+      cycleRoot,
+      "garden/studio",
+      seed.parcelId,
+      operationId,
+    );
     const options = {
-      operationId: "studio-real-e2e",
+      operationId,
       publisherUrl: base,
-      outputDir: path.join(root, "gerard"),
+      outputDir: archiveDir,
       submit: async (mission: any) => {
         const response = await fetch(base + "/mission", {
           method: "POST",
@@ -162,7 +222,7 @@ test(
     assert.equal(result.report.audio.voice.language, "fr_FR");
     assert.equal(result.report.video.synchronizedCaptionCount, 6);
     assert.equal(result.published, false);
-    const mp4 = await readFile(path.join(root, "gerard", "short.mp4"));
+    const mp4 = await readFile(path.join(archiveDir, "short.mp4"));
     if (process.env.STUDIO_ARTIFACT_DIR) {
       await mkdir(process.env.STUDIO_ARTIFACT_DIR, { recursive: true });
       for (const file of [
@@ -172,7 +232,7 @@ test(
         "poster.jpg",
       ])
         await copyFile(
-          path.join(root, "gerard", file),
+          path.join(archiveDir, file),
           path.join(process.env.STUDIO_ARTIFACT_DIR, file),
         );
     }
@@ -183,7 +243,7 @@ test(
     assert.equal(adapterExecutions, 1);
     assert.equal(externalCalls, 0);
     await writeFile(
-      path.join(root, "gerard", "short.mp4"),
+      path.join(archiveDir, "short.mp4"),
       Buffer.from("changed file"),
     );
     await assert.rejects(runParcelStudio(seed, options), /hash-mismatch/);
@@ -192,6 +252,8 @@ test(
       proof: "real-gerard-octopus-publisher-piper-ffmpeg",
       observedAt: new Date().toISOString(),
       providersSimulated: false,
+      gerardCycleExecuted: true,
+      cycleDecision: cycleState.lastResult.decision,
       externalCalls,
       missions,
       adapterExecutions,

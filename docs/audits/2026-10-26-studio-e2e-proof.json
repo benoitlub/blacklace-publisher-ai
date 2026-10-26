@@ -1,13 +1,15 @@
 {
   "proof": "real-gerard-octopus-publisher-piper-ffmpeg",
-  "observedAt": "2026-10-26T18:02:49.631Z",
+  "observedAt": "2026-10-26T18:46:39.964Z",
   "providersSimulated": false,
+  "gerardCycleExecuted": true,
+  "cycleDecision": "studio-files-ready-for-review",
   "externalCalls": 0,
   "missions": 1,
   "adapterExecutions": 1,
   "artifact": {
-    "sha256": "adc8071da4a1072c4551c74ae79a63ee05d660159bea749c4d21a5247df3839d",
-    "bytes": 755982
+    "sha256": "7a25925aab91768ec3c373190de413721756e5e0dc1a026e1ec1cb61e8642421",
+    "bytes": 617650
   },
   "video": {
     "verified": true,
@@ -22,9 +24,9 @@
     "sampleRate": 48000,
     "channels": 2,
     "loudness": {
-      "integratedLufs": -16.01,
-      "truePeakDbtp": -3.22,
-      "lra": 4.7
+      "integratedLufs": -16.03,
+      "truePeakDbtp": -3.41,
+      "lra": 1.6
     },
     "synchronizedCaptionCount": 6,
     "subtitleTiming": "per-sentence measured TTS durations; no word-level alignment",
@@ -33,6 +35,7 @@
   },
   "cost": {
     "externalProviderCalls": 0,
+    "externalProviderGenerations": 0,
     "externalProviderCost": 0,
     "localComputeCostNotMetered": true
   },
