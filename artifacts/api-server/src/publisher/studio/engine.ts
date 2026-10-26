@@ -11,6 +11,7 @@ import {
 import { produceAudio } from "./audio";
 import { produceImage } from "./image";
 import { produceVideo } from "./video";
+import { generateAgnesClip } from "./agnes";
 export const STUDIO_CAPABILITIES = [
   "image.studio",
   "audio.studio",
@@ -94,9 +95,12 @@ export async function runStudio(
       capability !== "audio.studio" ? await produceImage(request, dir) : null;
     const audio =
       capability !== "image.studio" ? await produceAudio(request, dir) : null;
+    const agnesClip = capability === "video.studio" && request.agnesClip
+      ? await generateAgnesClip(request.agnesClip, dir)
+      : null;
     const video =
       capability === "video.studio"
-        ? await produceVideo(request, dir, audio!)
+        ? await produceVideo(request, dir, audio!, Boolean(agnesClip))
         : null;
     const files = [];
     for (const filename of (await readdir(dir)).filter(
@@ -127,16 +131,17 @@ export async function runStudio(
       image,
       audio,
       video,
+      agnesClip,
       files,
       artifact,
       cost: {
         externalProviderCalls:
-          image?.provider === "mistral" || audio?.scriptProvider === "mistral"
+          image?.provider === "mistral" || audio?.scriptProvider === "mistral" || Boolean(agnesClip)
             ? null
             : 0,
         externalProviderGenerations:
           Number(image?.provider === "mistral") +
-          Number(audio?.scriptProvider === "mistral"),
+          Number(audio?.scriptProvider === "mistral") + Number(Boolean(agnesClip)),
         externalProviderCost:
           image?.provider === "mistral" || audio?.scriptProvider === "mistral"
             ? null
