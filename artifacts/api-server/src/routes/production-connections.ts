@@ -10,8 +10,10 @@ import {
 
 const router = Router();
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
-const SUPPORTED_TOOLKITS = new Set(["canva", "elevenlabs", "notion"]);
-const COMPOSIO_CONNECT_ERROR = "La connexion Canva n’a pas pu être ouverte. Le connecteur Composio doit être mis à jour.";
+const GERARD_COMPOSIO_USER_ID = process.env.GERARD_COMPOSIO_USER_ID?.trim() || "gerard-poulpe-fiction";
+const userIdFor = (toolkit: string) => toolkit === "gmail" ? GERARD_COMPOSIO_USER_ID : COMPOSIO_USER_ID;
+const SUPPORTED_TOOLKITS = new Set(["canva", "elevenlabs", "notion", "gmail"]);
+const COMPOSIO_CONNECT_ERROR = "La connexion Composio n’a pas pu être ouverte. Vérifier le connecteur et ses autorisations.";
 
 function normalizeToolkit(value: unknown): string {
   return String(value ?? "")
@@ -36,7 +38,7 @@ function safeError(error: unknown): string {
 }
 
 async function connectionState(toolkit: string) {
-  const accounts = await listComposioConnectedAccounts(COMPOSIO_USER_ID);
+  const accounts = await listComposioConnectedAccounts(userIdFor(toolkit));
   const account = accounts.find(
     (candidate) => candidate.toolkitSlug === toolkit && isActiveComposioStatus(candidate.status),
   );
@@ -73,7 +75,7 @@ async function initiate(toolkit: string) {
       body: {
         status: "connected",
         toolkit,
-        userId: COMPOSIO_USER_ID,
+        userId: userIdFor(toolkit),
         connectedAccountId: account.id,
         redirectUrl: null,
       },
@@ -82,7 +84,7 @@ async function initiate(toolkit: string) {
 
   const authConfigId = await findComposioAuthConfig(toolkit);
   const request = await initiateComposioConnection({
-    userId: COMPOSIO_USER_ID,
+    userId: userIdFor(toolkit),
     toolkitSlug: toolkit,
     authConfigId,
     callbackUrl: callbackUrl(),
@@ -94,7 +96,7 @@ async function initiate(toolkit: string) {
       body: {
         status: "failed",
         toolkit,
-        userId: COMPOSIO_USER_ID,
+        userId: userIdFor(toolkit),
         connectedAccountId: request.id,
         error: "Composio n'a pas retourné d'URL d'autorisation.",
       },
@@ -106,7 +108,7 @@ async function initiate(toolkit: string) {
     body: {
       status: "waiting-authorization",
       toolkit,
-      userId: COMPOSIO_USER_ID,
+      userId: userIdFor(toolkit),
       connectedAccountId: request.id,
       redirectUrl: request.redirectUrl,
       callbackUrl: callbackUrl(),
@@ -145,6 +147,18 @@ router.get("/connections", async (req: Request, res: Response) => {
   }
 });
 
+router.get("/connections/gerard-gmail", async (_req, res) => {
+  if (!isComposioConfigured()) return res.status(503).json({ toolkit: "gmail", connected: false, reason: "composio-unconfigured" });
+  try {
+    const { account } = await connectionState("gmail");
+    return res.json({ toolkit: "gmail", owner: "gerard-poulpe-fiction",
+      connected: Boolean(account), status: account ? "connected" : "authorization-required",
+      connectedAccountId: account?.id ?? null, sendingEnabled: false });
+  } catch {
+    return res.status(502).json({ toolkit: "gmail", connected: false, reason: "connection-check-unavailable", sendingEnabled: false });
+  }
+});
+
 router.post("/connections/:toolkit/connect", async (req, res) => {
   const toolkit = normalizeToolkit(req.params.toolkit);
   try {
@@ -155,7 +169,7 @@ router.post("/connections/:toolkit/connect", async (req, res) => {
     return res.status(502).json({
       status: "failed",
       toolkit,
-      userId: COMPOSIO_USER_ID,
+      userId: userIdFor(toolkit),
       error: COMPOSIO_CONNECT_ERROR,
     });
   }
@@ -175,7 +189,7 @@ router.get("/connections/:toolkit/authorize", async (req, res) => {
     return res.status(502).json({
       status: "failed",
       toolkit,
-      userId: COMPOSIO_USER_ID,
+      userId: userIdFor(toolkit),
       error: COMPOSIO_CONNECT_ERROR,
     });
   }
