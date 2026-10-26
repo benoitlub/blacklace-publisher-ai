@@ -1,0 +1,535 @@
+{
+  "version": 1,
+  "contract": "publisher-autonomous-gems-v1",
+  "source": "github-public-discovery",
+  "generatedDate": "2026-10-26",
+  "executable": false,
+  "policy": "discover-evaluate-adapt-test-before-execution",
+  "gems": [
+    {
+      "id": "1054512829",
+      "name": "vllm-project/vllm-omni",
+      "url": "https://github.com/vllm-project/vllm-omni",
+      "summary": "A framework for efficient model inference with omni-modality models",
+      "stars": 7363,
+      "updatedAt": "2026-10-26T13:22:50Z",
+      "license": "Apache-2.0",
+      "score": 100,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1333579278",
+      "name": "ZASENJC/dsh-plugins-store",
+      "url": "https://github.com/ZASENJC/dsh-plugins-store",
+      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
+      "stars": 73,
+      "updatedAt": "2026-10-26T13:17:03Z",
+      "license": "MIT",
+      "score": 83,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1312393328",
+      "name": "openagentemail/openagentemail",
+      "url": "https://github.com/openagentemail/openagentemail",
+      "summary": "Open communication and task handoffs for AI agents — self-hosted email, task threads, approvals, and webhooks over MCP and REST. Apache-2.0.",
+      "stars": 50,
+      "updatedAt": "2026-10-26T09:31:07Z",
+      "license": "Apache-2.0",
+      "score": 82,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1214395862",
+      "name": "kitepon/Caveat",
+      "url": "https://github.com/kitepon/Caveat",
+      "summary": "Long-term memory layer for Claude Code and Codex — markdown-in-git knowledge base, SQLite FTS5 retrieval, MCP, and native agent hooks.",
+      "stars": 3,
+      "updatedAt": "2026-10-26T12:02:03Z",
+      "license": "MIT",
+      "score": 76,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1401682958",
+      "name": "SandeepKomal/Git3D-Universe",
+      "url": "https://github.com/SandeepKomal/Git3D-Universe",
+      "summary": "",
+      "stars": 3,
+      "updatedAt": "2026-10-26T12:53:12Z",
+      "license": "MIT",
+      "score": 76,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1410639843",
+      "name": "bricef/narrate",
+      "url": "https://github.com/bricef/narrate",
+      "summary": "Local Markdown-to-video tool",
+      "stars": 0,
+      "updatedAt": "2026-10-26T13:29:07Z",
+      "license": "MIT",
+      "score": 72,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1309158860",
+      "name": "backenly/backenly",
+      "url": "https://github.com/backenly/backenly",
+      "summary": "Autonomous backend platform. Your coding agent builds it over MCP, Backenly keeps it running: Postgres, REST APIs, auth, storage, realtime, and functions, with every change governed, verified, and reversible.",
+      "stars": 94,
+      "updatedAt": "2026-10-26T12:53:41Z",
+      "license": "Apache-2.0",
+      "score": 70,
+      "capabilities": [
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1152014383",
+      "name": "ArcReel/ArcReel",
+      "url": "https://github.com/ArcReel/ArcReel",
+      "summary": "AI Agent 驱动的开源可自部署视频工作台：将小说与剧本转为角色、场景、道具资产、分镜、视频和剪映草稿，支持跨镜头一致性、多供应商与费用追踪 | Self-hosted AI video workspace for stories, storyboards and short-form video production",
+      "stars": 5743,
+      "updatedAt": "2026-10-26T13:27:50Z",
+      "license": "AGPL-3.0",
+      "score": 67,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1231135337",
+      "name": "strukto-ai/mirage",
+      "url": "https://github.com/strukto-ai/mirage",
+      "summary": "The World's First Virtual Terminal for AI Agents",
+      "stars": 3733,
+      "updatedAt": "2026-10-26T13:34:17Z",
+      "license": "Apache-2.0",
+      "score": 65,
+      "capabilities": [
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1339632835",
+      "name": "wang18678665352-lgtm/videohuman",
+      "url": "https://github.com/wang18678665352-lgtm/videohuman",
+      "summary": "CLI 优先的纯本地数字人口播视频流水线(下载→改写→TTS→数字人→后期→发布)",
+      "stars": 2,
+      "updatedAt": "2026-10-26T13:30:44Z",
+      "license": "Apache-2.0",
+      "score": 61,
+      "capabilities": [
+        "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1433266171",
+      "name": "SirwanAfifi/anatomy-atlas",
+      "url": "https://github.com/SirwanAfifi/anatomy-atlas",
+      "summary": "Interactive 3D human anatomy atlas: explore 126 muscle structures and discover exercises with demonstration photos. Built with Three.js.",
+      "stars": 0,
+      "updatedAt": "2026-10-25T15:00:01Z",
+      "license": "UNKNOWN",
+      "score": 59,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1384194030",
+      "name": "nazeeh111/LumaField",
+      "url": "https://github.com/nazeeh111/LumaField",
+      "summary": "Explore Gaussian splats in your browser, convert supported PLY files and navigate imported camera views.",
+      "stars": 0,
+      "updatedAt": "2026-10-26T01:39:48Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1357994828",
+      "name": "webkubor/cs-mcp",
+      "url": "https://github.com/webkubor/cs-mcp",
+      "summary": "把个人开源工具链接进 AI Agent 的 MCP 服务：按能力分组，装了哪个 CLI 就长出哪组工具。· An MCP server that strings a personal open-source toolchain into AI agents, per capability group.",
+      "stars": 0,
+      "updatedAt": "2026-10-26T13:14:12Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1335725435",
+      "name": "olekingkole28-dot/bridgepoint-live",
+      "url": "https://github.com/olekingkole28-dot/bridgepoint-live",
+      "summary": "Open-source global 3D digital twin 🌎 Geospatial intelligence, property data, 3D terrain and buildings, weather and hazard mapping. 412M+ reported canonical property records.",
+      "stars": 1,
+      "updatedAt": "2026-10-26T11:26:52Z",
+      "license": "NOASSERTION",
+      "score": 47,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1427827946",
+      "name": "wuyunjiegithub/shanhe-chengyi",
+      "url": "https://github.com/wuyunjiegithub/shanhe-chengyi",
+      "summary": "山河城邑 — 个人地方游玩知识库 + 3D 空间索引（Vite + React 19 + three.js + Tauri 2）",
+      "stars": 1,
+      "updatedAt": "2026-10-26T07:42:12Z",
+      "license": "MIT",
+      "score": 46,
+      "capabilities": [
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    }
+  ]
+}
