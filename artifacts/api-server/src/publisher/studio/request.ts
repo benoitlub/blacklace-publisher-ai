@@ -14,6 +14,7 @@ export interface StudioRequest {
   title: string;
   segments?: Segment[];
   knowledge?: string;
+  creativeFeedback?: { feedbackId: string; creativeGuidance: string[]; prohibitedActions: string[] }[];
   scriptRights?: { source: string; attribution: string };
   authorizedResources: string[];
   automaticPublication: false;
@@ -35,6 +36,7 @@ export function validateRequest(v: any): StudioRequest {
     "title",
     "segments",
     "knowledge",
+    "creativeFeedback",
     "scriptRights",
     "authorizedResources",
     "automaticPublication",
@@ -55,7 +57,17 @@ export function validateRequest(v: any): StudioRequest {
     v.durationSeconds > 60 ||
     (v.assetId !== undefined && !text(v.assetId, 100)) ||
     (v.imagePrompt !== undefined && !text(v.imagePrompt, 2000)) ||
-    (v.knowledge !== undefined && !text(v.knowledge, 15000))
+    (v.knowledge !== undefined && !text(v.knowledge, 15000)) ||
+    (v.creativeFeedback !== undefined && (
+      !Array.isArray(v.creativeFeedback) || v.creativeFeedback.length > 8 ||
+      v.creativeFeedback.some((f: any) => !f || typeof f !== 'object' ||
+        Object.keys(f).some((k) => !['feedbackId','creativeGuidance','prohibitedActions'].includes(k)) ||
+        !text(f.feedbackId, 120) || !Array.isArray(f.creativeGuidance) ||
+        f.creativeGuidance.length < 1 || f.creativeGuidance.length > 8 ||
+        !f.creativeGuidance.every((s: unknown) => text(s, 240)) ||
+        !Array.isArray(f.prohibitedActions) || f.prohibitedActions.length > 8 ||
+        !f.prohibitedActions.every((s: unknown) => text(s, 180)))
+    ))
   )
     throw new StudioError("INVALID_STUDIO_REQUEST");
   if (
