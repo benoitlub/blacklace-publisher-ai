@@ -1,0 +1,34 @@
+{
+  "segments": [
+    {
+      "text": "Trois dés. Trois essais.",
+      "caption": "Trois dés. Trois essais."
+    },
+    {
+      "text": "Gardez vos dés, relancez les autres.",
+      "caption": "Gardez vos dés. Relancez les autres."
+    },
+    {
+      "text": "Quatre, deux, zéro : décrochez le trophée.",
+      "caption": "4, 2, 0 : décrochez le trophée."
+    },
+    {
+      "text": "Pas de quatre, deux, zéro ?",
+      "caption": "Pas de 4, 2, 0 ?"
+    },
+    {
+      "text": "Découvrez le gage de votre pack.",
+      "caption": "Découvrez le gage de votre pack."
+    },
+    {
+      "text": "À vous de jouer à quatre cent vingt Dice !",
+      "caption": "À vous de jouer à 420 Dice !"
+    }
+  ],
+  "provider": "approved-parcel-script",
+  "provenance": {
+    "source": "https://github.com/benoitlub/420-dice-game-reboot/tree/bf315300db5c5ab580c6f86bb14ae56d884b6739 — règles également archivées dans public/knowledge-packs/420-dice.json",
+    "attribution": "Texte de démonstration préparé pour cette mission, d’après les règles du jeu de Benoît Lubert ; aucune génération Mistral revendiquée."
+  },
+  "externalCost": 0
+}

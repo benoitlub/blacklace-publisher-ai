@@ -1,4 +1,5 @@
 import { forwardComposioMission } from "./composio-forward";
+import { STUDIO_CAPABILITIES, executeStudioMission } from "./studio/engine";
 import { forwardMetricoolPublication } from "./metricool-forward";
 import { logger } from "../lib/logger";
 import { productionEngine, type ProductionRequest } from "./production-engine";
@@ -8,6 +9,7 @@ import { resolveKnowledgePackage } from "../services/knowledge-package-resolver"
 import { publishGitHubPage, type GitHubPagesPublication } from "../services/github-pages-publisher";
 
 export const PUBLISHER_ADAPTER_CAPABILITIES = [
+  ...STUDIO_CAPABILITIES,
   "content.generate",
   "copy.generate",
   "content.article.write",
@@ -285,6 +287,7 @@ export async function executePublisherAdapter(envelope: OctopusAdapterEnvelope) 
   if (!capability) {
     return { operationId: envelope.mission.operationId, status: "failed" as const, summary: "Publisher ne déclare aucune des capacités demandées.", output: { requestedCapabilities: envelope.mission.requiredCapabilities } };
   }
+  if (STUDIO_CAPABILITIES.includes(capability as any)) return executeStudioMission(envelope.mission);
   if (["tool.search","tool.execute","business.sources.search"].includes(capability)) return {
     operationId:envelope.mission.operationId,
     ...await forwardComposioMission(envelope,{workerUrl:process.env.PUBLISHER_URL||process.env.PUBLISHER_WORKER_URL||"https://blacklace-publisher-worker.benoitlubert.workers.dev"}),
