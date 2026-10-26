@@ -11,6 +11,7 @@ import {
   Database,
   Sprout,
   Bot,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/", label: "Vue technique", icon: LayoutDashboard },
       { href: "/observatory", label: "Observatoire", icon: Telescope },
+      { href: "/tool-inventory", label: "Inventaire des outils", icon: Wrench },
       { href: "/radar", label: "Radar", icon: Radar },
       { href: "/memory", label: "Mémoire", icon: Database },
       { href: "/greenhouse", label: "Serre", icon: Sprout },
