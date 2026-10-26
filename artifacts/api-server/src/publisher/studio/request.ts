@@ -11,6 +11,7 @@ export interface StudioRequest {
   durationSeconds: number;
   assetId?: string;
   imagePrompt?: string;
+  agnesClip?: { prompt: string; seconds: number };
   title: string;
   segments?: Segment[];
   knowledge?: string;
@@ -33,6 +34,7 @@ export function validateRequest(v: any): StudioRequest {
     "durationSeconds",
     "assetId",
     "imagePrompt",
+    "agnesClip",
     "title",
     "segments",
     "knowledge",
@@ -57,6 +59,7 @@ export function validateRequest(v: any): StudioRequest {
     v.durationSeconds > 60 ||
     (v.assetId !== undefined && !text(v.assetId, 100)) ||
     (v.imagePrompt !== undefined && !text(v.imagePrompt, 2000)) ||
+    (v.agnesClip !== undefined && (!v.agnesClip || typeof v.agnesClip !== "object" || Object.keys(v.agnesClip).some((k) => !["prompt", "seconds"].includes(k)) || !text(v.agnesClip.prompt, 1600) || !Number.isInteger(v.agnesClip.seconds) || v.agnesClip.seconds < 4 || v.agnesClip.seconds > 12)) ||
     (v.knowledge !== undefined && !text(v.knowledge, 15000)) ||
     (v.creativeFeedback !== undefined && (
       !Array.isArray(v.creativeFeedback) || v.creativeFeedback.length > 8 ||
@@ -85,6 +88,8 @@ export function validateRequest(v: any): StudioRequest {
     )
       throw new StudioError("SCRIPT_PROVENANCE_REQUIRED");
   }
+  if (v.agnesClip !== undefined && (!v.authorizedResources.includes("video.studio") || !v.authorizedResources.includes("agnes.video")))
+    throw new StudioError("AGNES_STUDIO_AUTHORIZATION_REQUIRED");
   return v;
 }
 export function validateSegments(v: any): asserts v is Segment[] {
