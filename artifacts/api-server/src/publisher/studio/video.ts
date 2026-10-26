@@ -1,8 +1,39 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { readFile, writeFile, copyFile } from "node:fs/promises";
 import path from "node:path";
-import { command, probe, decode, fontPath, StudioError } from "./runtime";
+import { command, probe, decode, fontPath, registeredAsset, StudioError } from "./runtime";
 import { measureAudio } from "./audio";
 import type { StudioRequest } from "./request";
+/**
+ * A registered, hash-checked, parcel-scoped video is the only accepted moving
+ * source. Never accept a raw user path, remote URL or a guessed provider result.
+ */
+export async function prepareGameplaySource(request: StudioRequest, dir: string) {
+  if (!request.videoAssetId) throw new StudioError("GAMEPLAY_VIDEO_ASSET_REQUIRED");
+  const asset = await registeredAsset(request.videoAssetId, request.parcelId);
+  const p = await probe(asset.file);
+  const v = p.streams.find((s) => s.codec_type === "video");
+  const duration = Number(p.format.duration);
+  if (!v || v.codec_name !== "h264" || v.width < 320 || v.height < 568 ||
+      v.height <= v.width || !Number.isFinite(duration) || duration < 3 || duration > 60)
+    throw new StudioError("GAMEPLAY_VIDEO_SOURCE_INVALID");
+  await decode(asset.file);
+  await copyFile(asset.file, path.join(dir, "source-video.mp4"));
+  await command("ffmpeg", [
+    "-v", "error", "-nostdin", "-y",
+    "-ss", String(Math.min(1, duration / 3)), "-i", "source-video.mp4",
+    "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0x0c0814,setsar=1",
+    "-frames:v", "1", "image.png",
+  ], dir);
+  return {
+    provider: "registered-gameplay-video",
+    assetId: asset.id,
+    sourceSha256: asset.sha256,
+    rights: asset.rights,
+    sourceDurationSeconds: duration,
+    sourceDimensions: { width: v.width, height: v.height },
+    imageDerivedFromVideo: true,
+  };
+}
 const stamp = (n: number, ass = false) => {
   const ms = Math.round(n * (ass ? 100 : 1000)),
     unit = ass ? 100 : 1000;
@@ -56,7 +87,12 @@ export async function produceVideo(
   );
   await writeFile(path.join(dir, "title.txt"), request.title);
   const font = await fontPath();
-  const filter = `zoompan=z='min(max(zoom,pzoom)+0.00007,1.045)':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1080x1920:fps=30,drawbox=x=0:y=130:w=iw:h=170:color=0x0c0814@0.92:t=fill,drawtext=fontfile='${font}':textfile=title.txt:expansion=none:fontcolor=white:fontsize=64:x=(w-text_w)/2:y=180,subtitles=captions.ass,format=yuv420p,setsar=1`;
+  const movingSource = !!request.videoAssetId;
+  const filter = `${movingSource
+    ? "fps=30,scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=0x0c0814,setsar=1"
+    : "zoompan=z='min(max(zoom,pzoom)+0.00007,1.045)':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1080x1920:fps=30"},drawbox=x=0:y=130:w=iw:h=170:color=0x0c0814@0.92:t=fill,drawtext=fontfile='${font}':textfile=title.txt:expansion=none:fontcolor=white:fontsize=64:x=(w-text_w)/2:y=180,subtitles=captions.ass,format=yuv420p,setsar=1`;
+  // Keep the legacy still-image path byte-for-byte equivalent in intent.
+  /* replaced legacy filter */ 
   await command(
     "ffmpeg",
     [
@@ -64,12 +100,7 @@ export async function produceVideo(
       "error",
       "-nostdin",
       "-y",
-      "-loop",
-      "1",
-      "-framerate",
-      "30",
-      "-i",
-      "image.png",
+      ...(movingSource ? ["-stream_loop", "-1", "-i", "source-video.mp4"] : ["-loop", "1", "-framerate", "30", "-i", "image.png"]),
       "-i",
       "audio.wav",
       "-filter_threads",
@@ -204,7 +235,7 @@ export async function produceVideo(
       Math.min(2, imageMotion.length) ||
     imageMotion.length === 0
   )
-    throw new StudioError("IMAGE_ZOOM_NOT_VERIFIED");
+    throw new StudioError(movingSource ? "GAMEPLAY_MOTION_NOT_VERIFIED" : "IMAGE_ZOOM_NOT_VERIFIED");
   return {
     verified: true,
     fullDecode: true,
@@ -221,7 +252,8 @@ export async function produceVideo(
     synchronizedCaptionCount: captions.length,
     subtitleTiming:
       "per-sentence measured TTS durations; no word-level alignment",
-    animation: "slow image zoom; no inferred character or gameplay animation",
+    animation: movingSource ? "verified source footage from the registered video asset" : "slow image zoom; no inferred character or gameplay animation",
+    sourceKind: movingSource ? "real-gameplay-video" : "still-image",
     distinctSampledFrames: new Set(frameHashes).size,
     imageMotionOutsideCaptions: imageMotion,
   };
