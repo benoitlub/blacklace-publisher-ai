@@ -16,7 +16,6 @@ export interface AgnesZeroCostGrant {
 export interface AgnesClip {
   prompt: string;
   seconds: number;
-  zeroCostGrant: AgnesZeroCostGrant;
 }
 const endpoint = "https://apihub.agnes-ai.com";
 const model = "agnes-video-2.5-flash";
@@ -25,7 +24,7 @@ export function checkAgnesZeroCost(clip: AgnesClip, now = Date.now()) {
     clip.prompt.length > 1600 || !Number.isInteger(clip.seconds) ||
     clip.seconds < 4 || clip.seconds > 12)
     throw new StudioError("AGNES_CLIP_INVALID");
-  const proof = clip.zeroCostGrant;
+  const proof: AgnesZeroCostGrant = { verifiedAt: process.env.AGNES_ZERO_COST_VERIFIED_AT ?? "", expiresAt: process.env.AGNES_ZERO_COST_EXPIRES_AT ?? "", usdPerSecond: Number(process.env.AGNES_ZERO_COST_USD_PER_SECOND) as 0 };
   const verified = Date.parse(proof?.verifiedAt);
   const expires = Date.parse(proof?.expiresAt);
   if (proof?.usdPerSecond !== 0 || !Number.isFinite(verified) ||
@@ -94,7 +93,7 @@ export async function generateAgnesClip(
         throw new StudioError("AGNES_VIDEO_FORMAT_INVALID");
       await decode(file);
       return { provider: "agnes", model, seconds: clip.seconds, videoId: id,
-        filename: "agnes-clip.mp4", priceVerifiedAt: clip.zeroCostGrant.verifiedAt,
+        filename: "agnes-clip.mp4", priceVerifiedAt: process.env.AGNES_ZERO_COST_VERIFIED_AT,
         declaredProviderCostUsd: 0, verification: "provider-promo-operator-attested" };
     }
     await new Promise((resolve) => setTimeout(resolve, 2000));
