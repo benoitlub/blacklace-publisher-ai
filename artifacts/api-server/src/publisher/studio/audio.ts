@@ -1,7 +1,14 @@
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { executeMistralText } from "../../services/mistral-text";
-import { command, probe, hash, StudioError } from "./runtime";
+import {
+  command,
+  probe,
+  hash,
+  StudioError,
+  verifyStudioMedia,
+  decode,
+} from "./runtime";
 import {
   requirePermission,
   validateSegments,
@@ -335,6 +342,12 @@ export async function produceAudio(
     ],
     dir,
   );
+  await verifyStudioMedia(
+    path.join(dir, "audio.wav"),
+    "audio.studio",
+    request.durationSeconds,
+  );
+  await decode(path.join(dir, "audio.wav"));
   const measured = await measureAudio(path.join(dir, "audio.wav"));
   if (Math.abs(measured.integratedLufs + 16) > 1 || measured.truePeakDbtp > -1)
     throw new StudioError("AUDIO_NORMALIZATION_FAILED");
