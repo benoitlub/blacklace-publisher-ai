@@ -8,6 +8,7 @@ import { artifactPath, hash, registeredAsset } from "./runtime";
 import { scriptFor, loudnessJson, originalSoundtrack } from "./audio";
 import { captionLines } from "./video";
 import { produceImage } from "./image";
+import { checkAgnesZeroCost, generateAgnesClip } from "./agnes";
 const input = {
   version: "studio-v1",
   operationId: "test",
@@ -35,6 +36,27 @@ afterEach(async () => {
   );
 });
 describe("studio authorization, provenance and meaningful failure states", () => {
+  it("fails closed before all Agnes network calls unless server grants recent zero-price proof", async () => {
+    const fetcher = vi.fn();
+    const clip = { prompt: "Three dice roll on a tabletop", seconds: 4 };
+    vi.stubEnv("AGNES_API_KEY", "test-only");
+    vi.stubEnv("AGNES_ZERO_COST_USD_PER_SECOND", "0");
+    await expect(generateAgnesClip(clip, "/tmp", fetcher as any)).rejects.toThrow("AGNES_ZERO_COST_NOT_VERIFIED");
+    expect(fetcher).not.toHaveBeenCalled();
+    const now = Date.now();
+    vi.stubEnv("AGNES_ZERO_COST_VERIFIED_AT", new Date(now - 60000).toISOString());
+    vi.stubEnv("AGNES_ZERO_COST_EXPIRES_AT", new Date(now + 60000).toISOString());
+    expect(() => checkAgnesZeroCost(clip, now)).not.toThrow();
+    vi.stubEnv("AGNES_ZERO_COST_USD_PER_SECOND", "0.025");
+    expect(() => checkAgnesZeroCost(clip, now)).toThrow("AGNES_ZERO_COST_NOT_VERIFIED");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+  it("requires an explicit Agnes permission and rejects spoofed clip properties", () => {
+    const valid = { ...input, agnesClip: { prompt: "Three dice visibly roll", seconds: 4 }, authorizedResources: ["video.studio", "agnes.video"] };
+    expect(validateRequest(valid).agnesClip?.seconds).toBe(4);
+    expect(() => validateRequest({ ...valid, authorizedResources: ["video.studio"] })).toThrow("AGNES_STUDIO_AUTHORIZATION_REQUIRED");
+    expect(() => validateRequest({ ...valid, agnesClip: { ...valid.agnesClip, url: "https://example.org" } })).toThrow("INVALID_STUDIO_REQUEST");
+  });
   it("a provider file identifier and image-like signature never prove a decodable image", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "studio-fake-image-"));
     dirs.push(dir);
