@@ -1,12 +1,12 @@
 {
   "contract": "publisher-studio-v1",
-  "id": "1bc94ef74860d0d33f8ccc1e329953c8ae627b30ab11a6fe8233171b0a52f2f2",
-  "fingerprint": "2bba019a7ad253597ace768d66164e06e58731b4aaae63a7ba8c61931613d413",
+  "id": "51221d40f05b93ba800aeee517961ebf7f117114c19cc1a2ad0ccb2379d7d5b2",
+  "fingerprint": "e566581207fc8deb55a60d85f9d873e6cde1a4ffed8b65cae517e5343787147d",
   "capability": "video.studio",
   "parcelId": "420-dice",
   "seedId": "420-dice-short-demo",
-  "operationId": "420-dice-short-demo-2026-10-26-v5",
-  "createdAt": "2026-10-26T18:37:05.634Z",
+  "operationId": "420-dice-short-demo-2026-10-26-v6",
+  "createdAt": "2026-10-26T18:53:30.375Z",
   "published": false,
   "publicationEnabled": false,
   "decisionOwner": "gerard",
@@ -14,22 +14,22 @@
     {
       "filename": "audio.wav",
       "bytes": 3456078,
-      "sha256": "f77124d9e3f23d6cb8bfb3c2025c92765a6b602a4ba068637c5c3a1861f31a78"
+      "sha256": "a994bfe510da64fc43a478aa3d51e0f5e1c12d975a0d4b1c113acdd826b8c0b5"
     },
     {
       "filename": "captions.ass",
       "bytes": 1014,
-      "sha256": "06d1e0d98f952545eddb31b6694b9e32df388e221e3dbf3f68b28f6010451692"
+      "sha256": "6305bd4d843bdb99346aba1fbc27f3ed7419ad97a6d53eb15883a5703131933e"
     },
     {
       "filename": "captions.srt",
       "bytes": 377,
-      "sha256": "7cf6f807547a8788cedf1da865bf3c58a0ccec41a5265115a1642f2386005129"
+      "sha256": "7620f74ab74d0d1d29e65ac4615bb8b8007e15ef8453fc7da8ea6c285ccd7604"
     },
     {
       "filename": "effects.wav",
       "bytes": 1728044,
-      "sha256": "cf6b3c996255f2d882e0027aae8bc950221a4a62aebd4962560019bb78fb9b37"
+      "sha256": "f78e3864169971dac721687e5ccbcf2c577d90fd70a6a2c7af42d8bf820a070b"
     },
     {
       "filename": "image.png",
@@ -39,7 +39,7 @@
     {
       "filename": "mix.wav",
       "bytes": 3456078,
-      "sha256": "bee434d7eacb53f12a7087b937b32c9963702f4797cabb56402d4c7a376868d1"
+      "sha256": "6d60fde98b3cd89cd52d9af23957d54f06e28c03a2fab5761b84414b7759c853"
     },
     {
       "filename": "music.wav",
@@ -48,13 +48,13 @@
     },
     {
       "filename": "poster.jpg",
-      "bytes": 45643,
-      "sha256": "692259194188dc176f1331feb066e692ca25cb8de123b5abb3acdd1c4a946eed"
+      "bytes": 44417,
+      "sha256": "6e5adaf12977339cf44dff56ae96e0f09633d9a5daecf593c602ddd1c2e0ed61"
     },
     {
       "filename": "request.json",
       "bytes": 1413,
-      "sha256": "754887136f8ed8b847bfd5c11154301d53a9cd73e3e6d2082cb29e7142557eef"
+      "sha256": "e6fbb05a200be3ec5bca144a384fa922a5d4f771d13460f39ecf3b246527e0b7"
     },
     {
       "filename": "script.json",
@@ -63,8 +63,8 @@
     },
     {
       "filename": "short.mp4",
-      "bytes": 622561,
-      "sha256": "3d0007be63fbd9ccb82faff5e83ee927cf58cea644d872a8b841471837b06ee5"
+      "bytes": 1536715,
+      "sha256": "875d9f20a6c3b1c938ca2d1043de2a76ea2c9bf5c4cac04d78f0fe51693dec49"
     },
     {
       "filename": "source-image",
@@ -83,8 +83,8 @@
     },
     {
       "filename": "voice-0.wav",
-      "bytes": 74456,
-      "sha256": "2c77257ceb0e2bd9b26ecb7f7d9b9e664e2dc2bcfeb95dabe70a794fab865b29"
+      "bytes": 70360,
+      "sha256": "4e416c1129f3e17fa75d2d4e116eb7a219c5fe9a675739d91b4c7818123b5b7a"
     },
     {
       "filename": "voice-1.txt",
@@ -93,8 +93,8 @@
     },
     {
       "filename": "voice-1.wav",
-      "bytes": 112172,
-      "sha256": "9fdc428ec100b50d5b1349484865e209b5147b495b1b4a3c8fe80bbcfe76ad6a"
+      "bytes": 113196,
+      "sha256": "03377720d5d4d5155d8324f6bafcb531b28797705e41ca33a3e0d7b551deeb72"
     },
     {
       "filename": "voice-2.txt",
@@ -103,8 +103,8 @@
     },
     {
       "filename": "voice-2.wav",
-      "bytes": 137772,
-      "sha256": "b61245820580ddea9535d96734e7f6ffbeb59810c8a1a6c9100f00ee386d3a5f"
+      "bytes": 147500,
+      "sha256": "27d6eac8fd837339ae499719a9536cb5a05302cc397a10f823deb86d9057731b"
     },
     {
       "filename": "voice-3.txt",
@@ -113,8 +113,8 @@
     },
     {
       "filename": "voice-3.wav",
-      "bytes": 96300,
-      "sha256": "834ca4e1b64f6d769d5a7a353ad6d2b943c03997c7baf32f82afed867eeed936"
+      "bytes": 98860,
+      "sha256": "f1e0a02d54734622d490fac773af3e96352e4e6ae439f091028fc9c434513a45"
     },
     {
       "filename": "voice-4.txt",
@@ -123,8 +123,8 @@
     },
     {
       "filename": "voice-4.wav",
-      "bytes": 83500,
-      "sha256": "d75b10d0a15210071b0e920ca835c990582e2d3e1b4cd181564256ea20545b99"
+      "bytes": 76844,
+      "sha256": "2bd056e42ea5a0c0f775026a971c105a6e782a33929828d568c5638646032e92"
     },
     {
       "filename": "voice-5.txt",
@@ -133,16 +133,16 @@
     },
     {
       "filename": "voice-5.wav",
-      "bytes": 89132,
-      "sha256": "7082dc07db720e3a54d621ae881e5f04d4eae34963d96b768cbd89ab7d407cc8"
+      "bytes": 88620,
+      "sha256": "fe62ee1bc1495711a33a60fe26c497a3895fd3a63632fbf2dfdfa2149c43d764"
     },
     {
       "filename": "voice.wav",
       "bytes": 3456078,
-      "sha256": "afe0581f6440c3e76fd487c8bf1c4e62aae2ebe0410bd6dad62a213bb3fc4cc0"
+      "sha256": "51c6c235c76d407eb3248d574cd717a8d77420d9451cbea7958e1b6b5f176cb4"
     }
   ],
-  "reportUrl": "/api/production/studio/artifacts/1bc94ef74860d0d33f8ccc1e329953c8ae627b30ab11a6fe8233171b0a52f2f2/report.json",
+  "reportUrl": "/api/production/studio/artifacts/51221d40f05b93ba800aeee517961ebf7f117114c19cc1a2ad0ccb2379d7d5b2/report.json",
   "status": "ready-for-review",
   "image": {
     "provider": "registered-media",
@@ -175,51 +175,51 @@
         "text": "Trois dés. Trois essais.",
         "caption": "Trois dés. Trois essais.",
         "start": 0.3,
-        "end": 1.987347,
-        "meanVolumeDb": -16.3
+        "end": 1.8944670000000001,
+        "meanVolumeDb": -16
       },
       {
         "text": "Gardez vos dés, relancez les autres.",
         "caption": "Gardez vos dés. Relancez les autres.",
-        "start": 2.167347,
-        "end": 4.709932,
-        "meanVolumeDb": -16.3
+        "start": 2.074467,
+        "end": 4.6402719999999995,
+        "meanVolumeDb": -14.4
       },
       {
         "text": "Quatre, deux, zéro : décrochez le trophée.",
         "caption": "4, 2, 0 : décrochez le trophée.",
-        "start": 4.889932,
-        "end": 8.013016,
-        "meanVolumeDb": -16.3
+        "start": 4.820272,
+        "end": 8.163945,
+        "meanVolumeDb": -16.8
       },
       {
         "text": "Pas de quatre, deux, zéro ?",
         "caption": "Pas de 4, 2, 0 ?",
-        "start": 8.193016,
-        "end": 10.375692,
-        "meanVolumeDb": -15.8
+        "start": 8.343945,
+        "end": 10.584671,
+        "meanVolumeDb": -16.3
       },
       {
         "text": "Découvrez le gage de votre pack.",
         "caption": "Découvrez le gage de votre pack.",
-        "start": 10.555692,
-        "end": 12.448118000000001,
-        "meanVolumeDb": -14.4
+        "start": 10.764671,
+        "end": 12.506168,
+        "meanVolumeDb": -13.3
       },
       {
         "text": "À vous de jouer à quatre cent vingt Dice !",
         "caption": "À vous de jouer à 420 Dice !",
-        "start": 12.628118,
-        "end": 14.648254000000001,
-        "meanVolumeDb": -14.6
+        "start": 12.686168,
+        "end": 14.694694,
+        "meanVolumeDb": -15.9
       }
     ],
     "durationSeconds": 18,
-    "speechEndSeconds": 14.648254000000001,
+    "speechEndSeconds": 14.694694,
     "loudness": {
       "integratedLufs": -15.99,
-      "truePeakDbtp": -3.22,
-      "lra": 2.1
+      "truePeakDbtp": -3.37,
+      "lra": 4.1
     },
     "voice": {
       "provider": "piper-local",
@@ -257,20 +257,26 @@
     "channels": 2,
     "loudness": {
       "integratedLufs": -16.01,
-      "truePeakDbtp": -3.15,
-      "lra": 2.2
+      "truePeakDbtp": -3.33,
+      "lra": 4.1
     },
     "synchronizedCaptionCount": 6,
     "subtitleTiming": "per-sentence measured TTS durations; no word-level alignment",
     "animation": "slow image zoom; no inferred character or gameplay animation",
-    "distinctSampledFrames": 5
+    "distinctSampledFrames": 5,
+    "imageMotionOutsideCaptions": [
+      1.58866,
+      1.62519,
+      1.64583,
+      1.75972
+    ]
   },
   "artifact": {
     "filename": "short.mp4",
-    "bytes": 622561,
-    "sha256": "3d0007be63fbd9ccb82faff5e83ee927cf58cea644d872a8b841471837b06ee5",
+    "bytes": 1536715,
+    "sha256": "875d9f20a6c3b1c938ca2d1043de2a76ea2c9bf5c4cac04d78f0fe51693dec49",
     "mimeType": "video/mp4",
-    "downloadUrl": "/api/production/studio/artifacts/1bc94ef74860d0d33f8ccc1e329953c8ae627b30ab11a6fe8233171b0a52f2f2/short.mp4"
+    "downloadUrl": "/api/production/studio/artifacts/51221d40f05b93ba800aeee517961ebf7f117114c19cc1a2ad0ccb2379d7d5b2/short.mp4"
   },
   "cost": {
     "externalProviderCalls": 0,
@@ -283,5 +289,5 @@
     "reviewRequired": true,
     "scope": "local-preview"
   },
-  "completedAt": "2026-10-26T18:37:46.533Z"
+  "completedAt": "2026-10-26T18:54:16.871Z"
 }

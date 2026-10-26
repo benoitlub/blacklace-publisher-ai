@@ -56,7 +56,7 @@ export async function produceVideo(
   );
   await writeFile(path.join(dir, "title.txt"), request.title);
   const font = await fontPath();
-  const filter = `zoompan=z='min(zoom+0.00007,1.045)':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1080x1920:fps=30,drawbox=x=0:y=130:w=iw:h=170:color=0x0c0814@0.92:t=fill,drawtext=fontfile='${font}':textfile=title.txt:expansion=none:fontcolor=white:fontsize=64:x=(w-text_w)/2:y=180,subtitles=captions.ass,format=yuv420p,setsar=1`;
+  const filter = `zoompan=z='min(max(zoom,pzoom)+0.00007,1.045)':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1080x1920:fps=30,drawbox=x=0:y=130:w=iw:h=170:color=0x0c0814@0.92:t=fill,drawtext=fontfile='${font}':textfile=title.txt:expansion=none:fontcolor=white:fontsize=64:x=(w-text_w)/2:y=180,subtitles=captions.ass,format=yuv420p,setsar=1`;
   await command(
     "ffmpeg",
     [
@@ -176,6 +176,35 @@ export async function produceVideo(
     .map((s) => s.split(",").at(-1)?.trim());
   if (new Set(frameHashes).size < 2)
     throw new StudioError("VIDEO_ANIMATION_UNVERIFIED");
+  // Caption changes alone cannot prove image animation. Measure a central
+  // crop outside the title/caption regions and above codec noise.
+  const motion = await command(
+    "ffmpeg",
+    [
+      "-v",
+      "error",
+      "-nostdin",
+      "-i",
+      "short.mp4",
+      "-an",
+      "-vf",
+      "fps=1/4,crop=720:480:180:600,scale=180:120,tblend=all_mode=difference,signalstats,metadata=mode=print:key=lavfi.signalstats.YAVG:file=-",
+      "-f",
+      "null",
+      "-",
+    ],
+    dir,
+  );
+  const imageMotion = Array.from(
+    motion.stdout.matchAll(/lavfi.signalstats.YAVG=([\d.]+)/g),
+    (m) => Number(m[1]),
+  );
+  if (
+    imageMotion.filter((n) => n > 0.35).length <
+      Math.min(2, imageMotion.length) ||
+    imageMotion.length === 0
+  )
+    throw new StudioError("IMAGE_ZOOM_NOT_VERIFIED");
   return {
     verified: true,
     fullDecode: true,
@@ -194,5 +223,6 @@ export async function produceVideo(
       "per-sentence measured TTS durations; no word-level alignment",
     animation: "slow image zoom; no inferred character or gameplay animation",
     distinctSampledFrames: new Set(frameHashes).size,
+    imageMotionOutsideCaptions: imageMotion,
   };
 }

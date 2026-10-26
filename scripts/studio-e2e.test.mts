@@ -221,6 +221,11 @@ test(
     assert.equal(result.report.cost.externalProviderCalls, 0);
     assert.equal(result.report.audio.voice.language, "fr_FR");
     assert.equal(result.report.video.synchronizedCaptionCount, 6);
+    assert.ok(
+      result.report.video.imageMotionOutsideCaptions.filter(
+        (n: number) => n > 0.35,
+      ).length >= 2,
+    );
     assert.equal(result.published, false);
     const mp4 = await readFile(path.join(archiveDir, "short.mp4"));
     if (process.env.STUDIO_ARTIFACT_DIR) {

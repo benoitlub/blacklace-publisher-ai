@@ -1,0 +1,41 @@
+{
+  "observedAt": "2026-10-26T18:52:59.484Z",
+  "mode": "metadata-only-no-provider-generation",
+  "checks": [
+    {
+      "endpoint": "/api/production/diagnostics",
+      "httpStatus": 200,
+      "mistralConfigured": true,
+      "canvaConnected": true,
+      "canvaStatus": "connected",
+      "canvaToolCount": 0,
+      "canvaCandidates": [],
+      "elevenLabsConnected": true,
+      "providerExecutions": 0
+    },
+    {
+      "endpoint": "/api/production/mistral-image-pack",
+      "httpStatus": 200,
+      "configured": true,
+      "status": "ready",
+      "providerExecutions": 0
+    },
+    {
+      "endpoint": "/api/adapter/health",
+      "httpStatus": 200,
+      "capabilities": [
+        "content.generate",
+        "copy.generate",
+        "content.article.write",
+        "content.social.write",
+        "social.publish",
+        "knowledge.search",
+        "tool.search",
+        "business.sources.search",
+        "tool.execute"
+      ],
+      "providerExecutions": 0
+    }
+  ],
+  "providerExecutions": 0
+}
