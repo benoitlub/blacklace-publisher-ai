@@ -10,7 +10,7 @@ import {
 } from "./runtime";
 import { produceAudio } from "./audio";
 import { produceImage } from "./image";
-import { produceVideo } from "./video";
+import { produceVideo, prepareGameplaySource } from "./video";
 export const STUDIO_CAPABILITIES = [
   "image.studio",
   "audio.studio",
@@ -91,7 +91,9 @@ export async function runStudio(
       JSON.stringify(request, null, 2) + "\n",
     );
     const image =
-      capability !== "audio.studio" ? await produceImage(request, dir) : null;
+      capability === "video.studio" && request.videoAssetId
+        ? await prepareGameplaySource(request, dir)
+        : capability !== "audio.studio" ? await produceImage(request, dir) : null;
     const audio =
       capability !== "image.studio" ? await produceAudio(request, dir) : null;
     const video =
