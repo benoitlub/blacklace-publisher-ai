@@ -53,11 +53,16 @@ jobs:
           ref: 0c1649bd7a8357e0b293f212d5a1a7778c7a5480
           path: _test/poulpe
       - name: Verify FFmpeg and fonts
-        timeout-minutes: 4
+        timeout-minutes: 6
         run: |
           if ! command -v ffmpeg >/dev/null || [ ! -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf ]; then
+            # The Azure mirror stalled on libcodec2 during the real CI run.
+            # Use the official signed Ubuntu archive on this ephemeral runner.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
             sudo apt-get update -qq -o Acquire::Retries=1 -o Acquire::http::Timeout=30
-            sudo apt-get install -y ffmpeg fonts-dejavu-core
+            sudo apt-get install -y --no-install-recommends -o Acquire::Retries=1 -o Acquire::http::Timeout=30 ffmpeg fonts-dejavu-core
           fi
           ffmpeg -version
       - name: Install local Piper
