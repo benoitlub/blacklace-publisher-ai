@@ -26,7 +26,7 @@ Le client ignorait aussi certaines options créatives et comparait la durée au 
 ## Tests exécutés
 
 - Avant correction : **2 échecs / 9 réussites** dans la suite ciblée du cache ; refus Mistral écrasé et fournisseur de voix ignoré reproduits séparément.
-- Après correction : **88 tests API réussis**, **156 tests Poulpe réussis**, builds/types Publisher et build Poulpe réussis.
+- Après correction : **88 tests API réussis**, **157 tests Poulpe réussis**, builds/types Publisher et build Poulpe réussis.
 - E2E réel : vrai cycle Gérard → Octopus existant → vraies routes Express → vrais Piper/FFmpeg → MP4 téléchargé et vérifié. Réutilisation du cache client et du cache serveur vérifiée, altération rejetée ; aucun moteur de rendu simulé ni appel fournisseur payant. [Preuve JSON](2026-10-26-studio-audit-proof.json).
 - Les tests de propagation des retours créatifs et de sélection `videoAssetId` restent verts. Les résultats CI définitifs sont joints aux PR.
 

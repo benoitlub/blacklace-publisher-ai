@@ -50,7 +50,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: benoitlub/poulpe-fiction
-          ref: bfac1fbe5847fe3a4508f5724f6cfd4bd165fb44
+          ref: 3b1e963242df086bae5475067eaae1fa986e1d07
           path: _test/poulpe
       - name: Verify FFmpeg and fonts
         timeout-minutes: 6
