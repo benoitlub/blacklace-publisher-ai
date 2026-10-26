@@ -26,6 +26,7 @@ export async function produceVideo(
   request: StudioRequest,
   dir: string,
   audio: { segments: { caption: string; start: number; end: number }[] },
+  useAgnesClip = false,
 ) {
   const captions = audio.segments.map((s, i) => ({
     ...s,
@@ -56,7 +57,8 @@ export async function produceVideo(
   );
   await writeFile(path.join(dir, "title.txt"), request.title);
   const font = await fontPath();
-  const filter = `zoompan=z='min(max(zoom,pzoom)+0.00007,1.045)':x='iw/2-iw/zoom/2':y='ih/2-ih/zoom/2':d=1:s=1080x1920:fps=30,drawbox=x=0:y=130:w=iw:h=170:color=0x0c0814@0.92:t=fill,drawtext=fontfile='${font}':textfile=title.txt:expansion=none:fontcolor=white:fontsize=64:x=(w-text_w)/2:y=180,subtitles=captions.ass,format=yuv420p,setsar=1`;
+  const filter = `${useAgnesClip ? "fps=30,scale=1080:1920" : "zoompan=z=\'min(max(zoom,pzoom)+0.00007,1.045)\':x=\'iw/2-iw/zoom/2\':y=\'ih/2-ih/zoom/2\':d=1:s=1080x1920:fps=30"},drawbox=x=0:y=130:w=iw:h=170:color=0x0c0814@0.92:t=fill,drawtext=fontfile=\'${font}\':textfile=title.txt:expansion=none:fontcolor=white:fontsize=64:x=(w-text_w)/2:y=180,subtitles=captions.ass,format=yuv420p,setsar=1`;
+  /* original image-only filter removed */
   await command(
     "ffmpeg",
     [
@@ -64,12 +66,7 @@ export async function produceVideo(
       "error",
       "-nostdin",
       "-y",
-      "-loop",
-      "1",
-      "-framerate",
-      "30",
-      "-i",
-      "image.png",
+      ...(useAgnesClip ? ["-stream_loop", "-1", "-i", "agnes-clip.mp4"] : ["-loop", "1", "-framerate", "30", "-i", "image.png"]),
       "-i",
       "audio.wav",
       "-filter_threads",
@@ -221,7 +218,7 @@ export async function produceVideo(
     synchronizedCaptionCount: captions.length,
     subtitleTiming:
       "per-sentence measured TTS durations; no word-level alignment",
-    animation: "slow image zoom; no inferred character or gameplay animation",
+    animation: useAgnesClip ? "agnes-video-2.5-flash generated motion loop; creative review required" : "slow image zoom; no inferred character or gameplay animation",
     distinctSampledFrames: new Set(frameHashes).size,
     imageMotionOutsideCaptions: imageMotion,
   };
