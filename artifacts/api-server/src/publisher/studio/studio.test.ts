@@ -81,6 +81,16 @@ describe("studio authorization, provenance and meaningful failure states", () =>
       Array.from({ length: 9 }, () => feedback[0]),
     ]) expect(() => validateRequest({ ...input, creativeFeedback: wrong })).toThrow("INVALID_STUDIO_REQUEST");
   });
+  it("accepts one catalog video identifier but forbids arbitrary sources or mixed image inputs", () => {
+    const request = validateRequest({ ...input, assetId: undefined, videoAssetId: "owner-420-dice-recording" });
+    expect(request.videoAssetId).toBe("owner-420-dice-recording");
+    for (const invalid of [
+      { ...input, videoAssetId: "video" }, // cannot mix a second image asset with a video
+      { ...input, assetId: undefined, videoAssetId: "owner-video", imagePrompt: "another provider" },
+      { ...input, assetId: undefined, videoAssetId: "" },
+      { ...input, assetId: undefined, videoAssetId: "video", url: "https://example.org/file.mp4" },
+    ]) expect(() => validateRequest(invalid)).toThrow("INVALID_STUDIO_REQUEST");
+  });
   it("rejects missing permission, unknown fields, publication and oversized scripts before rendering", async () => {
     const fetcher = vi.spyOn(globalThis, "fetch");
     await expect(
