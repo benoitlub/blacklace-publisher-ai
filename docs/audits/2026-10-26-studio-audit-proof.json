@@ -1,0 +1,54 @@
+{
+  "proof": "real-gerard-octopus-publisher-piper-ffmpeg",
+  "observedAt": "2026-10-26T23:14:57.732Z",
+  "providersSimulated": false,
+  "gerardCycleExecuted": true,
+  "cycleDecision": "studio-files-ready-for-review",
+  "externalCalls": 0,
+  "missions": 1,
+  "adapterExecutions": 2,
+  "artifact": {
+    "sha256": "ed23960211a0363a2f05f053badaf7310c63a62f1e37b7a242f255453a0205cc",
+    "bytes": 1539604
+  },
+  "video": {
+    "verified": true,
+    "fullDecode": true,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "durationSeconds": 18,
+    "videoCodec": "h264",
+    "pixelFormat": "yuv420p",
+    "audioCodec": "aac",
+    "sampleRate": 48000,
+    "channels": 2,
+    "loudness": {
+      "integratedLufs": -16.01,
+      "truePeakDbtp": -3.06,
+      "lra": 1.9
+    },
+    "synchronizedCaptionCount": 6,
+    "subtitleTiming": "per-sentence measured TTS durations; no word-level alignment",
+    "animation": "slow image zoom; no inferred character or gameplay animation",
+    "sourceKind": "still-image",
+    "distinctSampledFrames": 5,
+    "imageMotionOutsideCaptions": [
+      1.55991,
+      1.64199,
+      1.64306,
+      1.75806
+    ]
+  },
+  "cost": {
+    "externalProviderCalls": 0,
+    "externalProviderGenerations": 0,
+    "externalProviderCost": 0,
+    "localComputeCostNotMetered": true
+  },
+  "published": false,
+  "archiveVerified": true,
+  "repeatUsesVerifiedLocalArchive": true,
+  "repeatUsesVerifiedServerArchive": true,
+  "tamperingRejected": true
+}

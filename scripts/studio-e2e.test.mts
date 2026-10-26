@@ -247,6 +247,22 @@ test(
     assert.equal(missions, 1);
     assert.equal(adapterExecutions, 1);
     assert.equal(externalCalls, 0);
+    const serverRepeat = await fetch(base + "/api/octopus-adapter/execute", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contract: "octopus-adapter-execution-v1",
+        adapterId: "publisher",
+        mission: JSON.parse(
+          await readFile(path.join(archiveDir, "mission.json"), "utf8"),
+        ),
+      }),
+    });
+    const cached = await serverRepeat.json();
+    assert.equal(cached.status, "completed");
+    assert.equal(cached.output.reused, true);
+    assert.equal(adapterExecutions, 2);
+    assert.equal(missions, 1);
     await writeFile(
       path.join(archiveDir, "short.mp4"),
       Buffer.from("changed file"),
@@ -268,6 +284,7 @@ test(
       published: false,
       archiveVerified: true,
       repeatUsesVerifiedLocalArchive: true,
+      repeatUsesVerifiedServerArchive: true,
       tamperingRejected: true,
     };
     if (process.env.STUDIO_PROOF_PATH)

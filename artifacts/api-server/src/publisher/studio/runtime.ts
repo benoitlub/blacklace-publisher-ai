@@ -66,6 +66,44 @@ export async function decode(file: string) {
     "-",
   ]);
 }
+/** Check actual media properties against the request, never report claims. */
+export async function verifyStudioMedia(
+  file: string,
+  capability: string,
+  duration: number,
+) {
+  const p = await probe(file),
+    v = p.streams?.find((s) => s.codec_type === "video"),
+    a = p.streams?.find((s) => s.codec_type === "audio");
+  const seconds = Number(p.format?.duration);
+  if (capability === "image.studio") {
+    if (!v || v.codec_name !== "png" || v.width !== 1080 || v.height !== 1920)
+      throw new StudioError("STUDIO_MEDIA_FORMAT_INVALID");
+  } else {
+    if (
+      !Number.isFinite(seconds) ||
+      Math.abs(seconds - duration) > 0.1 ||
+      !a ||
+      Number(a.sample_rate) !== 48000 ||
+      a.channels !== 2
+    )
+      throw new StudioError("STUDIO_MEDIA_FORMAT_INVALID");
+    if (
+      capability === "video.studio" &&
+      (!v ||
+        v.codec_name !== "h264" ||
+        v.width !== 1080 ||
+        v.height !== 1920 ||
+        v.pix_fmt !== "yuv420p" ||
+        v.r_frame_rate !== "30/1" ||
+        a.codec_name !== "aac")
+    )
+      throw new StudioError("STUDIO_MEDIA_FORMAT_INVALID");
+    if (capability === "audio.studio" && a.codec_name !== "pcm_s16le")
+      throw new StudioError("STUDIO_MEDIA_FORMAT_INVALID");
+  }
+  return p;
+}
 export async function fontPath() {
   for (const p of [
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
