@@ -136,7 +136,7 @@ router.get("/trace", (_req, res) => {
 router.post("/execute", async (req, res) => {
   // The runtime's Octopus and Publisher run on loopback. Keep its credentialed
   // social executor inaccessible through the public Express adapter endpoint.
-  if (Array.isArray(req.body?.mission?.requiredCapabilities) && req.body.mission.requiredCapabilities.includes("social.publish") &&
+  if (Array.isArray(req.body?.mission?.requiredCapabilities) && req.body.mission.requiredCapabilities.some((c: string) => ["social.publish","image.studio","audio.studio","video.studio"].includes(c)) &&
       (!["127.0.0.1", "::1", "::ffff:127.0.0.1"].includes(req.socket.remoteAddress ?? "") || req.headers["x-forwarded-for"])) {
     res.status(403).json({ status: "failed", summary: "Local Octopus execution required.", output: { scheduled: false } });
     return;

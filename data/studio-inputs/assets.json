@@ -1,0 +1,16 @@
+{
+  "version": "studio-assets-v1",
+  "assets": [{
+    "id": "420-dice-official-game",
+    "parcelId": "420-dice",
+    "file": "420-dice/official-opengraph.jpg",
+    "sha256": "4c6ed4a2f17fbbef4439c59334472171ffe9e1e2db67887937a21c0c6ce8f41a",
+    "crop": {"x":380,"y":0,"width":520,"height":720},
+    "rights": {
+      "license": "LicenseRef-Owner-Authorized-Preview",
+      "scope": "local-preview",
+      "source": "https://github.com/benoitlub/420-dice-game-reboot/blob/bf315300db5c5ab580c6f86bb14ae56d884b6739/public/opengraph.jpg",
+      "attribution": "420 Dice Game — Benoît Lubert / Blacklace Studio. Réutilisation pour la démonstration demandée par le propriétaire ; aucune licence publique ni autorisation de diffusion inférée."
+    }
+  }]
+}

@@ -1,0 +1,293 @@
+{
+  "contract": "publisher-studio-v1",
+  "id": "51221d40f05b93ba800aeee517961ebf7f117114c19cc1a2ad0ccb2379d7d5b2",
+  "fingerprint": "e566581207fc8deb55a60d85f9d873e6cde1a4ffed8b65cae517e5343787147d",
+  "capability": "video.studio",
+  "parcelId": "420-dice",
+  "seedId": "420-dice-short-demo",
+  "operationId": "420-dice-short-demo-2026-10-26-v6",
+  "createdAt": "2026-10-26T18:53:30.375Z",
+  "published": false,
+  "publicationEnabled": false,
+  "decisionOwner": "gerard",
+  "files": [
+    {
+      "filename": "audio.wav",
+      "bytes": 3456078,
+      "sha256": "a994bfe510da64fc43a478aa3d51e0f5e1c12d975a0d4b1c113acdd826b8c0b5"
+    },
+    {
+      "filename": "captions.ass",
+      "bytes": 1014,
+      "sha256": "6305bd4d843bdb99346aba1fbc27f3ed7419ad97a6d53eb15883a5703131933e"
+    },
+    {
+      "filename": "captions.srt",
+      "bytes": 377,
+      "sha256": "7620f74ab74d0d1d29e65ac4615bb8b8007e15ef8453fc7da8ea6c285ccd7604"
+    },
+    {
+      "filename": "effects.wav",
+      "bytes": 1728044,
+      "sha256": "f78e3864169971dac721687e5ccbcf2c577d90fd70a6a2c7af42d8bf820a070b"
+    },
+    {
+      "filename": "image.png",
+      "bytes": 491313,
+      "sha256": "ff6168fc59da038eadd62c039992629fc0a36242dca68861d622bf42d92509fe"
+    },
+    {
+      "filename": "mix.wav",
+      "bytes": 3456078,
+      "sha256": "6d60fde98b3cd89cd52d9af23957d54f06e28c03a2fab5761b84414b7759c853"
+    },
+    {
+      "filename": "music.wav",
+      "bytes": 1728044,
+      "sha256": "6ac9b36daa4e03dc21b290f707f2129e67c6844f5f5f0267071211c524374a91"
+    },
+    {
+      "filename": "poster.jpg",
+      "bytes": 44417,
+      "sha256": "6e5adaf12977339cf44dff56ae96e0f09633d9a5daecf593c602ddd1c2e0ed61"
+    },
+    {
+      "filename": "request.json",
+      "bytes": 1413,
+      "sha256": "e6fbb05a200be3ec5bca144a384fa922a5d4f771d13460f39ecf3b246527e0b7"
+    },
+    {
+      "filename": "script.json",
+      "bytes": 1155,
+      "sha256": "3eab3b633a1e28499424ccc59a0a4e4d6565e2c55da159278e05d7428202a40b"
+    },
+    {
+      "filename": "short.mp4",
+      "bytes": 1536715,
+      "sha256": "875d9f20a6c3b1c938ca2d1043de2a76ea2c9bf5c4cac04d78f0fe51693dec49"
+    },
+    {
+      "filename": "source-image",
+      "bytes": 29930,
+      "sha256": "4c6ed4a2f17fbbef4439c59334472171ffe9e1e2db67887937a21c0c6ce8f41a"
+    },
+    {
+      "filename": "title.txt",
+      "bytes": 13,
+      "sha256": "78f0945d913f13ec243933cf9587ba6ab585212b71f4b8d1cda1e2b99a36e95f"
+    },
+    {
+      "filename": "voice-0.txt",
+      "bytes": 25,
+      "sha256": "61c9e027c3c84fcebd433bbc2e9eb4471b714e01006b85e1fbae441e53ed586e"
+    },
+    {
+      "filename": "voice-0.wav",
+      "bytes": 70360,
+      "sha256": "4e416c1129f3e17fa75d2d4e116eb7a219c5fe9a675739d91b4c7818123b5b7a"
+    },
+    {
+      "filename": "voice-1.txt",
+      "bytes": 37,
+      "sha256": "7746e2d374f399f3427e5c9b5b10bbd42311f721f1d1b370fe22c249a6179015"
+    },
+    {
+      "filename": "voice-1.wav",
+      "bytes": 113196,
+      "sha256": "03377720d5d4d5155d8324f6bafcb531b28797705e41ca33a3e0d7b551deeb72"
+    },
+    {
+      "filename": "voice-2.txt",
+      "bytes": 45,
+      "sha256": "dbdc049a3b1b587b6b8d20af44a47f66ae2aa01a154601fe1ab09b8de5eca776"
+    },
+    {
+      "filename": "voice-2.wav",
+      "bytes": 147500,
+      "sha256": "27d6eac8fd837339ae499719a9536cb5a05302cc397a10f823deb86d9057731b"
+    },
+    {
+      "filename": "voice-3.txt",
+      "bytes": 28,
+      "sha256": "94d26b67a19bbb6f3e03e2bdabc11f2181f95137cb6ec99995af8bab4a7b5212"
+    },
+    {
+      "filename": "voice-3.wav",
+      "bytes": 98860,
+      "sha256": "f1e0a02d54734622d490fac773af3e96352e4e6ae439f091028fc9c434513a45"
+    },
+    {
+      "filename": "voice-4.txt",
+      "bytes": 33,
+      "sha256": "7faa4613fba3dfcba84a6e26ce63b3264426867683d78c0b06d59279c871e50c"
+    },
+    {
+      "filename": "voice-4.wav",
+      "bytes": 76844,
+      "sha256": "2bd056e42ea5a0c0f775026a971c105a6e782a33929828d568c5638646032e92"
+    },
+    {
+      "filename": "voice-5.txt",
+      "bytes": 44,
+      "sha256": "eea1b5dd54eb5b766a519851b96faa29e8b6595b1dd25e447f5b9759593189af"
+    },
+    {
+      "filename": "voice-5.wav",
+      "bytes": 88620,
+      "sha256": "fe62ee1bc1495711a33a60fe26c497a3895fd3a63632fbf2dfdfa2149c43d764"
+    },
+    {
+      "filename": "voice.wav",
+      "bytes": 3456078,
+      "sha256": "51c6c235c76d407eb3248d574cd717a8d77420d9451cbea7958e1b6b5f176cb4"
+    }
+  ],
+  "reportUrl": "/api/production/studio/artifacts/51221d40f05b93ba800aeee517961ebf7f117114c19cc1a2ad0ccb2379d7d5b2/report.json",
+  "status": "ready-for-review",
+  "image": {
+    "provider": "registered-media",
+    "assetId": "420-dice-official-game",
+    "sourceSha256": "4c6ed4a2f17fbbef4439c59334472171ffe9e1e2db67887937a21c0c6ce8f41a",
+    "rights": {
+      "license": "LicenseRef-Owner-Authorized-Preview",
+      "scope": "local-preview",
+      "source": "https://github.com/benoitlub/420-dice-game-reboot/blob/bf315300db5c5ab580c6f86bb14ae56d884b6739/public/opengraph.jpg",
+      "attribution": "420 Dice Game — Benoît Lubert / Blacklace Studio. Réutilisation pour la démonstration demandée par le propriétaire ; aucune licence publique ni autorisation de diffusion inférée."
+    },
+    "sourceDimensions": {
+      "width": 1280,
+      "height": 720
+    },
+    "crop": {
+      "x": 380,
+      "y": 0,
+      "width": 520,
+      "height": 720
+    },
+    "verifiedFile": true,
+    "outputSha256": "ff6168fc59da038eadd62c039992629fc0a36242dca68861d622bf42d92509fe",
+    "width": 1080,
+    "height": 1920
+  },
+  "audio": {
+    "segments": [
+      {
+        "text": "Trois dés. Trois essais.",
+        "caption": "Trois dés. Trois essais.",
+        "start": 0.3,
+        "end": 1.8944670000000001,
+        "meanVolumeDb": -16
+      },
+      {
+        "text": "Gardez vos dés, relancez les autres.",
+        "caption": "Gardez vos dés. Relancez les autres.",
+        "start": 2.074467,
+        "end": 4.6402719999999995,
+        "meanVolumeDb": -14.4
+      },
+      {
+        "text": "Quatre, deux, zéro : décrochez le trophée.",
+        "caption": "4, 2, 0 : décrochez le trophée.",
+        "start": 4.820272,
+        "end": 8.163945,
+        "meanVolumeDb": -16.8
+      },
+      {
+        "text": "Pas de quatre, deux, zéro ?",
+        "caption": "Pas de 4, 2, 0 ?",
+        "start": 8.343945,
+        "end": 10.584671,
+        "meanVolumeDb": -16.3
+      },
+      {
+        "text": "Découvrez le gage de votre pack.",
+        "caption": "Découvrez le gage de votre pack.",
+        "start": 10.764671,
+        "end": 12.506168,
+        "meanVolumeDb": -13.3
+      },
+      {
+        "text": "À vous de jouer à quatre cent vingt Dice !",
+        "caption": "À vous de jouer à 420 Dice !",
+        "start": 12.686168,
+        "end": 14.694694,
+        "meanVolumeDb": -15.9
+      }
+    ],
+    "durationSeconds": 18,
+    "speechEndSeconds": 14.694694,
+    "loudness": {
+      "integratedLufs": -15.99,
+      "truePeakDbtp": -3.37,
+      "lra": 4.1
+    },
+    "voice": {
+      "provider": "piper-local",
+      "language": "fr_FR",
+      "modelSha256": "641d1ab097da2b81128c076810edb052b385decc8be3381814802a64a73baf99",
+      "rights": {
+        "license": "CC-BY-4.0",
+        "attribution": "SIWIS French Speech Synthesis Database, University of Edinburgh; Piper fr_FR-siwis-medium",
+        "source": "https://huggingface.co/rhasspy/piper-voices/blob/main/fr/fr_FR/siwis/medium/MODEL_CARD"
+      }
+    },
+    "music": {
+      "provider": "original-procedural",
+      "license": "CC0-1.0",
+      "attribution": "Publisher original procedural soundtrack; dedicated to the public domain"
+    },
+    "effects": {
+      "provider": "original-procedural",
+      "license": "CC0-1.0"
+    },
+    "scriptProvider": "approved-parcel-script",
+    "externalProviderCost": 0
+  },
+  "video": {
+    "verified": true,
+    "fullDecode": true,
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "durationSeconds": 18,
+    "videoCodec": "h264",
+    "pixelFormat": "yuv420p",
+    "audioCodec": "aac",
+    "sampleRate": 48000,
+    "channels": 2,
+    "loudness": {
+      "integratedLufs": -16.01,
+      "truePeakDbtp": -3.33,
+      "lra": 4.1
+    },
+    "synchronizedCaptionCount": 6,
+    "subtitleTiming": "per-sentence measured TTS durations; no word-level alignment",
+    "animation": "slow image zoom; no inferred character or gameplay animation",
+    "distinctSampledFrames": 5,
+    "imageMotionOutsideCaptions": [
+      1.58866,
+      1.62519,
+      1.64583,
+      1.75972
+    ]
+  },
+  "artifact": {
+    "filename": "short.mp4",
+    "bytes": 1536715,
+    "sha256": "875d9f20a6c3b1c938ca2d1043de2a76ea2c9bf5c4cac04d78f0fe51693dec49",
+    "mimeType": "video/mp4",
+    "downloadUrl": "/api/production/studio/artifacts/51221d40f05b93ba800aeee517961ebf7f117114c19cc1a2ad0ccb2379d7d5b2/short.mp4"
+  },
+  "cost": {
+    "externalProviderCalls": 0,
+    "externalProviderGenerations": 0,
+    "externalProviderCost": 0,
+    "localComputeCostNotMetered": true
+  },
+  "rights": {
+    "publicationApproved": false,
+    "reviewRequired": true,
+    "scope": "local-preview"
+  },
+  "completedAt": "2026-10-26T18:54:16.871Z"
+}

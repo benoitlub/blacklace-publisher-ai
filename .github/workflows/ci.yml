@@ -40,3 +40,62 @@ jobs:
 
       - name: Test Publisher
         run: pnpm --filter @workspace/blacklace-publisher test
+
+      # Extend this existing validation workflow; no scheduler or publishing.
+      - uses: actions/checkout@v4
+        with:
+          repository: benoitlub/octopus-engine
+          ref: a46822958afd017bf30cb07ef156781cc789d4d7
+          path: _test/octopus
+      - uses: actions/checkout@v4
+        with:
+          repository: benoitlub/poulpe-fiction
+          ref: 0c1649bd7a8357e0b293f212d5a1a7778c7a5480
+          path: _test/poulpe
+      - name: Verify FFmpeg and fonts
+        timeout-minutes: 6
+        run: |
+          if ! command -v ffmpeg >/dev/null || [ ! -f /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf ]; then
+            # The Azure mirror stalled on libcodec2 during the real CI run.
+            # Use the official signed Ubuntu archive on this ephemeral runner.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              printf '%s\n' 'https://archive.ubuntu.com/ubuntu' | sudo tee /etc/apt/apt-mirrors.txt >/dev/null
+            fi
+            sudo apt-get update -qq -o Acquire::Retries=1 -o Acquire::http::Timeout=30
+            sudo apt-get install -y --no-install-recommends -o Acquire::Retries=1 -o Acquire::http::Timeout=30 ffmpeg fonts-dejavu-core
+          fi
+          ffmpeg -version
+      - name: Install local Piper
+        timeout-minutes: 4
+        run: |
+          python3 -m venv .studio-venv
+          .studio-venv/bin/pip install --timeout 30 --retries 1 'piper-tts==1.8.0'
+      - name: Download and verify the French voice model
+        timeout-minutes: 4
+        run: |
+          python3 scripts/setup-studio-voice.py
+          echo "PIPER_BIN=$PWD/.studio-venv/bin/piper" >> "$GITHUB_ENV"
+          echo "PIPER_MODEL=$PWD/data/studio-models/fr_FR-siwis-medium.onnx" >> "$GITHUB_ENV"
+      - name: Build existing Octopus for audiovisual proof
+        working-directory: _test/octopus
+        run: npm install --ignore-scripts --no-audit --no-fund && npm run build
+      - name: Real audiovisual circuit without external generation or publication
+        env:
+          RUN_STUDIO_E2E: "true"
+          OCTOPUS_APP_PATH: ${{ github.workspace }}/_test/octopus/dist/app.js
+          GERARD_STUDIO_CLIENT: ${{ github.workspace }}/_test/poulpe/scripts/gerard-av-studio.mjs
+          STUDIO_PROOF_PATH: /tmp/studio-e2e-proof.json
+          STUDIO_ARTIFACT_DIR: /tmp/studio-e2e-files
+        run: pnpm --filter @workspace/scripts exec tsx --test ./studio-e2e.test.mts
+      - name: Read-only production provider metadata
+        env:
+          STUDIO_AUDIT_PATH: /tmp/studio-provider-audit.json
+        run: node scripts/studio-provider-audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audiovisual-production-proof
+          path: |
+            /tmp/studio-*.json
+            /tmp/studio-e2e-files/**
+          if-no-files-found: ignore

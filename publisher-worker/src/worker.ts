@@ -279,7 +279,8 @@ async function executeMistralImage(env: Env, prompt: string) {
 
 app.get("/api/production/mistral-image/test", async (c) => {
   try {
-    const prompt = String(c.req.query("prompt") || "Cinematic square promotional artwork for 420 Dice mobile game: three glossy dice in motion, premium dark gaming atmosphere, neon green and amber lighting, dynamic smartphone game advertising composition, no readable text, no logos, no cannabis leaves.").trim();
+    const prompt = String(c.req.query("prompt") || "").trim();
+    if (!prompt) return c.json({status:"rejected",error:"Explicit parcel image prompt required"},400);
     const result = await executeMistralImage(c.env, prompt);
     return c.json({ status: "generated", contract: "publisher-visual-generate-v1", prompt, result });
   } catch (error) {
@@ -302,7 +303,7 @@ app.get("/api/production/mistral-image/content", async (c) => {
       status: 200,
       headers: {
         "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="420-dice-generated.${extension}"`,
+        "Content-Disposition": `inline; filename="publisher-generated.${extension}"`,
         "Cache-Control": "public, max-age=86400",
       },
     });
