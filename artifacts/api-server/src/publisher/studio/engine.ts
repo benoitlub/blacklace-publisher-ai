@@ -66,6 +66,9 @@ export async function runStudio(
     createdAt: new Date().toISOString(),
     published: false,
     publicationEnabled: false,
+    creativeFeedback: request.creativeFeedback ?? [],
+    creativeDirectionStatus: request.creativeFeedback?.length
+      ? "received-for-review-not-proof-of-visual-compliance" : "no-owner-feedback",
     decisionOwner: "gerard",
     files: [] as Record<string, any>[],
     reportUrl: `/api/production/studio/artifacts/${id}/report.json`,
@@ -139,6 +142,12 @@ export async function runStudio(
             ? null
             : 0,
         localComputeCostNotMetered: true,
+      },
+      creativeReview: {
+        feedbackIds: (request.creativeFeedback ?? []).map((f) => f.feedbackId),
+        notes: (request.creativeFeedback ?? []).flatMap((f) => f.creativeGuidance),
+        status: request.creativeFeedback?.length ? "human-review-required" : "none",
+        visualComplianceVerified: false,
       },
       rights: {
         publicationApproved: false,

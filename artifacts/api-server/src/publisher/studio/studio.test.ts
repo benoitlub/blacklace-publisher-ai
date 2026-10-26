@@ -65,6 +65,22 @@ describe("studio authorization, provenance and meaningful failure states", () =>
     ).rejects.toThrow(/FF(PROBE|MPEG)_COMMAND_FAILED/);
     expect(count).toBe(2);
   });
+  it("accepts bounded owner creative guidance but rejects cross-contract or oversized instructions", () => {
+    const feedback = [{
+      feedbackId: "benoit-420-dice-short-2026-10-26",
+      creativeGuidance: ["Animate the dice and vary the shots", "Keep the French voice"],
+      prohibitedActions: ["Do not publish"],
+    }];
+    const valid = validateRequest({ ...input, creativeFeedback: feedback });
+    expect(valid.creativeFeedback).toEqual(feedback);
+    expect(valid.automaticPublication).toBe(false);
+    for (const wrong of [
+      [{ ...feedback[0], parcelId: "other" }],
+      [{ ...feedback[0], creativeGuidance: ["x".repeat(241)] }],
+      [{ ...feedback[0], prohibitedActions: "publish" }],
+      Array.from({ length: 9 }, () => feedback[0]),
+    ]) expect(() => validateRequest({ ...input, creativeFeedback: wrong })).toThrow("INVALID_STUDIO_REQUEST");
+  });
   it("rejects missing permission, unknown fields, publication and oversized scripts before rendering", async () => {
     const fetcher = vi.spyOn(globalThis, "fetch");
     await expect(
