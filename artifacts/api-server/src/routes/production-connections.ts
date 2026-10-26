@@ -13,7 +13,7 @@ const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert"
 const GERARD_COMPOSIO_USER_ID = process.env.GERARD_COMPOSIO_USER_ID?.trim() || "gerard-poulpe-fiction";
 const userIdFor = (toolkit: string) => toolkit === "gmail" ? GERARD_COMPOSIO_USER_ID : COMPOSIO_USER_ID;
 const SUPPORTED_TOOLKITS = new Set(["canva", "elevenlabs", "notion", "gmail"]);
-const COMPOSIO_CONNECT_ERROR = "La connexion Canva n’a pas pu être ouverte. Le connecteur Composio doit être mis à jour.";
+const COMPOSIO_CONNECT_ERROR = "La connexion Composio n’a pas pu être ouverte. Vérifier le connecteur et ses autorisations.";
 
 function normalizeToolkit(value: unknown): string {
   return String(value ?? "")
@@ -189,7 +189,7 @@ router.get("/connections/:toolkit/authorize", async (req, res) => {
     return res.status(502).json({
       status: "failed",
       toolkit,
-      userId: COMPOSIO_USER_ID,
+      userId: userIdFor(toolkit),
       error: COMPOSIO_CONNECT_ERROR,
     });
   }
