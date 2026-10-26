@@ -10,6 +10,7 @@ export interface StudioRequest {
   operationId: string;
   durationSeconds: number;
   assetId?: string;
+  videoAssetId?: string;
   imagePrompt?: string;
   title: string;
   segments?: Segment[];
@@ -32,6 +33,7 @@ export function validateRequest(v: any): StudioRequest {
     "operationId",
     "durationSeconds",
     "assetId",
+    "videoAssetId",
     "imagePrompt",
     "title",
     "segments",
@@ -56,6 +58,9 @@ export function validateRequest(v: any): StudioRequest {
     v.durationSeconds < 8 ||
     v.durationSeconds > 60 ||
     (v.assetId !== undefined && !text(v.assetId, 100)) ||
+    (v.videoAssetId !== undefined && !text(v.videoAssetId, 100)) ||
+    (v.videoAssetId !== undefined && v.assetId !== undefined) ||
+    (v.videoAssetId !== undefined && v.imagePrompt !== undefined) ||
     (v.imagePrompt !== undefined && !text(v.imagePrompt, 2000)) ||
     (v.knowledge !== undefined && !text(v.knowledge, 15000)) ||
     (v.creativeFeedback !== undefined && (
