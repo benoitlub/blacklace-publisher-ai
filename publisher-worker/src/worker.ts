@@ -1,4 +1,5 @@
 import { readGarden } from "./garden-readonly";
+import { writeAcquisitionReview } from "./notion-client-acquisition";
 import { discoverBusinessTools, executeBusinessSearch } from "./composio-discovery";
 import { composioOperationStore } from "./composio-operation-state";
 import { createMetricoolProvider } from "./metricool-composio";
@@ -87,6 +88,9 @@ type Env = {
   NOTION_API_KEY?: string | SecretsStoreSecret;
   NOTION_DATABASE_ID?: string;
   NOTION_PAGE_ID?: string;
+  NOTION_BENOIT_PROSPECTS_DATABASE_ID?: string;
+  NOTION_YAEBALI_PROSPECTS_DATABASE_ID?: string;
+  PUBLISHER_NOTION_WRITE_TOKEN?: string | SecretsStoreSecret;
   /** Public origin of this Worker, announced to Octopus as the adapter base. */
   PUBLISHER_PUBLIC_URL?: string;
   OCTOPUS_ENGINE_URL?: string;
@@ -112,6 +116,27 @@ async function mistralApiKey(env: Env): Promise<string> {
 
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", cors());
+
+// Explicitly authenticated, opt-in Notion writing. It only creates research-only
+// review records in a fixed client-specific database; it never sends outreach.
+app.post('/api/client-acquisition/notion/review', async (c) => {
+  const expected = await resolveSecret(c.env.PUBLISHER_NOTION_WRITE_TOKEN);
+  const provided = c.req.header('Authorization')?.replace(/^Bearer\s+/i, '') ?? '';
+  if (!expected || !provided || expected !== provided) return c.json({ status: 'unauthorized' }, 401);
+  const token = await resolveSecret(c.env.NOTION_API_KEY);
+  let payload: unknown;
+  try { payload = await c.req.json(); } catch { return c.json({ status: 'invalid-json' }, 400); }
+  try {
+    const result = await writeAcquisitionReview(payload, {
+      NOTION_API_KEY: token,
+      NOTION_BENOIT_PROSPECTS_DATABASE_ID: c.env.NOTION_BENOIT_PROSPECTS_DATABASE_ID,
+      NOTION_YAEBALI_PROSPECTS_DATABASE_ID: c.env.NOTION_YAEBALI_PROSPECTS_DATABASE_ID,
+    });
+    return c.json(result, result.status === 'created-for-review' || result.status === 'already-exists' ? 200 : 503);
+  } catch (error) {
+    return c.json({ status: 'invalid-request', reason: String(error instanceof Error ? error.message : error).slice(0, 100) }, 400);
+  }
+});
 
 // Observational metadata only: no schema creation, registration, AI or publishing.
 app.all("/api/garden/v1/snapshot", (c) => readGarden(c.req.raw, c.env));
