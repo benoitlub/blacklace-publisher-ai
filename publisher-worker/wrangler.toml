@@ -7,6 +7,9 @@ compatibility_date = "2024-11-01"
 [vars]
 PUBLISHER_PUBLIC_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev"
 OCTOPUS_ENGINE_URL = "https://octopus-engine-app.benoitlubert.workers.dev"
+# Gérard's book publishing is authorized by Benoît. Declare it here so
+# subsequent Wrangler deployments do not overwrite the dashboard setting.
+BUFFER_PUBLISHING_ENABLED = "true"
 
 # Bound from the account-wide Cloudflare Secrets Store (not the classic
 # per-Worker "Variables and Secrets" tab). worker.ts resolves this via
