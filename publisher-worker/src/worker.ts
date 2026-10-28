@@ -1070,7 +1070,7 @@ app.post("/api/gerard/gmail/owner-test", async (c) => {
   const expected = await resolveSecret(c.env.PUBLISHER_NOTION_WRITE_TOKEN);
   const provided = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   if (!expected || !provided || provided !== expected) return c.json({ status: "unauthorized" }, 401);
-  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const body: Record<string, unknown> = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const operationId = String(body.operationId ?? "");
   if (!/^gerard-owner-[a-zA-Z0-9_-]{8,80}$/.test(operationId)) return c.json({ status: "invalid-operation-id" }, 400);
   const sender = "gerardpoulpefiction@gmail.com";
@@ -1085,7 +1085,7 @@ app.post("/api/gerard/gmail/owner-test", async (c) => {
       toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id,
       arguments: { user_id: "me" }, timeoutMs: 15000,
     }));
-    const identity = stringValue(asRecord(profile.data).emailAddress ?? asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress).toLowerCase();
+    const identity = String(stringValue(asRecord(profile.data).emailAddress ?? asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
     if (identity !== sender) return c.json({ status: "blocked", reason: "sender-identity-mismatch" }, 409);
   } catch (error) {
     return c.json({ status: "blocked", reason: "composio-profile-unavailable" }, 503);
