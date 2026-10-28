@@ -31,7 +31,10 @@ test("Gerard -> existing Octopus -> Publisher -> Buffer draft -> queue -> read s
       if (/CREATE (TABLE|INDEX)|ALTER TABLE buffer_draft_reservations ADD COLUMN/.test(query)) return sqlResponse([]);
       if (/UPDATE buffer_draft_reservations\s+SET status='retry-authorized'/.test(query)) return sqlResponse([]);
       if (/SELECT \* FROM garden_harvests/.test(query)) return sqlResponse([harvest]);
-      if (/SELECT fingerprint,status,post_id FROM buffer_draft_reservations/.test(query)) return sqlResponse(row ? [{ ...row }] : []);
+      if (/SELECT fingerprint,status,post_id FROM buffer_draft_reservations/.test(query)) {
+        assert.doesNotMatch(query, /WHERE harvest_id=/, "new creative angles must not inherit old book reservations");
+        return sqlResponse(row ? [{ ...row }] : []);
+      }
       if (/INSERT INTO buffer_draft_reservations/.test(query)) {
         if (row) return sqlResponse([]); row = { fingerprint: params[0], status: "pending", post_id: null }; return sqlResponse([{ fingerprint: row.fingerprint }]);
       }
