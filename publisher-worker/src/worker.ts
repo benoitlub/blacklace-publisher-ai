@@ -1092,6 +1092,73 @@ app.post("/api/gerard/gmail/connect-link", async (c) => {
   }
 });
 
+// Gérard's autonomous outreach transport. GitHub OIDC binds this route to the
+// scheduled Gérard runtime on main. Every message includes Benoît in CC;
+// the database reservation is permanent even if the provider times out.
+app.post("/api/gerard/gmail/send", async (c) => {
+  const provided = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!(await verifyGerardGithubOidc(provided, "runtime-send"))) return c.json({ status: "unauthorized" }, 401);
+  const input = asRecord(await c.req.json().catch(() => ({})));
+  const operationId = stringValue(input.operationId) ?? "";
+  const recipient = (stringValue(input.recipientEmail) ?? "").toLowerCase();
+  const subject = stringValue(input.subject) ?? "";
+  const body = stringValue(input.body) ?? "";
+  const sender = "gerardpoulpefiction@gmail.com";
+  const ownerCc = "benoitlubert@gmail.com";
+  if (!/^gerard-mail-[a-zA-Z0-9_-]{8,100}$/.test(operationId) ||
+      !/^[^@\s<>]+@[^@\s<>]+\.[a-zA-Z]{2,}$/.test(recipient) ||
+      subject.length < 3 || subject.length > 250 ||
+      body.length < 10 || body.length > 30000) {
+    return c.json({ status: "invalid-mail", reason: "operation-id-recipient-subject-or-body" }, 400);
+  }
+  const userId = await composioUserId(c.env);
+  if (userId !== "benoit-lubert") return c.json({ status: "blocked", reason: "unexpected-composio-user" }, 409);
+  let account: ComposioConnectedAccount;
+  try {
+    const candidates = (await discoverComposioAccounts(userId, path => composioRequest(c.env, path)))
+      .filter(a => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status));
+    if (candidates.length !== 1) return c.json({
+      status: "blocked", reason: "gmail-connection-not-unique", count: candidates.length,
+    }, 409);
+    account = candidates[0];
+    const profile = asRecord(await executeComposioTool(c.env, {
+      toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id,
+      userId, arguments: { user_id: "me" }, timeoutMs: 15000,
+    }));
+    const identity = String(stringValue(asRecord(profile.data).emailAddress ??
+      asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
+    if (identity !== sender) return c.json({ status: "blocked", reason: "unexpected-sender-identity" }, 409);
+  } catch {
+    return c.json({ status: "blocked", reason: "gmail-profile-unavailable" }, 503);
+  }
+  let sql: Awaited<ReturnType<typeof getSql>>;
+  try {
+    sql = await getSql(c.env);
+    const reserved = await sql`INSERT INTO publisher_global_state (namespace,key,value,version,updated_at)
+      VALUES ('gerard-autonomous-mail',${operationId},${JSON.stringify({ status: "sending", recipient, cc: ownerCc })}::jsonb,1,NOW())
+      ON CONFLICT (namespace,key) DO NOTHING RETURNING version`;
+    if (!reserved.length) return c.json({ status: "blocked", reason: "operation-already-reserved", operationId }, 409);
+  } catch {
+    return c.json({ status: "blocked", reason: "reservation-unavailable" }, 503);
+  }
+  try {
+    const result = asRecord(await executeComposioTool(c.env, {
+      toolSlug: "GMAIL_SEND_EMAIL", connectedAccountId: account.id,
+      userId, arguments: { user_id: "me", recipient_email: recipient, cc: [ownerCc], subject, body, is_html: false },
+      timeoutMs: 20000,
+    }));
+    if (result.successful === false || asRecord(result.data).successful === false) throw new Error("PROVIDER_REJECTED");
+    await sql`UPDATE publisher_global_state SET
+      value=${JSON.stringify({ status: "sent", recipient, cc: ownerCc, sender, subject })}::jsonb,
+      version=version+1,updated_at=NOW()
+      WHERE namespace='gerard-autonomous-mail' AND key=${operationId}`;
+    return c.json({ status: "sent", recipient, cc: ownerCc, sender, operationId });
+  } catch {
+    return c.json({ status: "unknown", reason: "provider-result-unconfirmed",
+      operationId, retryAllowed: false }, 502);
+  }
+});
+
 // Owner-only Composio mail transport: requires the existing Publisher write token.
 // Never sends to leads; a durable reservation prevents duplicate sends after
 // timeouts and uncertain provider responses.
