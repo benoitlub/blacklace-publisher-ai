@@ -1104,6 +1104,7 @@ app.get("/api/production/diagnostics", async (c) => {
     const canvaCreationTools = selectCanvaCreateTools(canvaTools);
     const canvaGenerativeTools = selectCanvaGenerativeTools(canvaTools);
     return c.json({
+      gerardGmail: { status: accounts.filter((a) => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status)).length === 1 ? "connection-visible-for-configured-user" : "connection-not-uniquely-visible", runtimeDeliveryVerified: false, senderIdentityVerified: false, sendEnabled: false },
       composio: { configured: true, canvaConnected: Boolean(canva), elevenLabsConnected: Boolean(elevenLabs), metricoolConnected: Boolean(metricool), connectedAccounts: accounts.filter((a) => isActiveComposioStatus(a.status)).map((a) => ({ id: a.id, toolkitSlug: a.toolkitSlug, status: a.status })) },
       canva: { status: canvaGenerativeTools.length ? "generative-candidates-found" : canvaCreationTools.length ? "design-container-tools-only" : canva ? "connected" : "not-connected", connected: Boolean(canva), provider: "composio", executable: false, discoveredToolCount: canvaTools.length, generativeCandidates: canvaGenerativeTools.slice(0, 12).map((tool) => ({ slug: tool.slug, required: schemaRequired(tool), propertyNames: Object.keys(schemaProperties(tool)) })) },
       elevenLabs: { status: elevenLabs ? "connected" : "not-connected", connected: Boolean(elevenLabs), provider: "composio", executable: false },
