@@ -5,14 +5,15 @@
 const ISSUER = "https://token.actions.githubusercontent.com";
 const AUDIENCE = "blacklace-publisher-gerard-owner-test";
 const REPOSITORY = "benoitlub/poulpe-fiction";
-const WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-owner-publisher-mail-test.yml@refs/heads/main";
+const OWNER_TEST_WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-owner-publisher-mail-test.yml@refs/heads/main";
+const GMAIL_CONNECT_WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-composio-gmail-connect.yml@refs/heads/main";
 
 function decodeBase64Url(input: string): Uint8Array {
   const binary = atob(input.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(input.length / 4) * 4, "="));
   return Uint8Array.from(binary, char => char.charCodeAt(0));
 }
 
-export async function verifyGerardGithubOidc(jwt: string): Promise<boolean> {
+export async function verifyGerardGithubOidc(jwt: string, purpose: "owner-test" | "gmail-connect" = "owner-test"): Promise<boolean> {
   if (!jwt || jwt.length > 16000) return false;
   const sections = jwt.split(".");
   if (sections.length !== 3) return false;
@@ -21,9 +22,11 @@ export async function verifyGerardGithubOidc(jwt: string): Promise<boolean> {
     const claims = JSON.parse(new TextDecoder().decode(decodeBase64Url(sections[1]))) as Record<string, unknown>;
     const now = Math.floor(Date.now() / 1000);
     if (header.alg !== "RS256" || typeof header.kid !== "string") return false;
+    const expectedWorkflow = purpose === "gmail-connect" ? GMAIL_CONNECT_WORKFLOW : OWNER_TEST_WORKFLOW;
+    const allowedEvent = purpose === "gmail-connect" ? ["push", "workflow_dispatch"] : ["push"];
     if (claims.iss !== ISSUER || claims.aud !== AUDIENCE ||
         claims.repository !== REPOSITORY || claims.ref !== "refs/heads/main" ||
-        claims.workflow_ref !== WORKFLOW || claims.event_name !== "push" ||
+        claims.workflow_ref !== expectedWorkflow || !allowedEvent.includes(String(claims.event_name)) ||
         claims.sub !== "repo:benoitlub/poulpe-fiction:ref:refs/heads/main" ||
         typeof claims.exp !== "number" || claims.exp <= now ||
         typeof claims.iat !== "number" || claims.iat > now + 60 ||
