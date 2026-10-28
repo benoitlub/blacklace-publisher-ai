@@ -1063,6 +1063,58 @@ async function buildOctopusHealth(env: Env): Promise<Record<string, unknown>> {
   }
 }
 
+// Owner-only Composio mail transport: requires the existing Publisher write token.
+// Never sends to leads; a durable reservation prevents duplicate sends after
+// timeouts and uncertain provider responses.
+app.post("/api/gerard/gmail/owner-test", async (c) => {
+  const expected = await resolveSecret(c.env.PUBLISHER_NOTION_WRITE_TOKEN);
+  const provided = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!expected || !provided || provided !== expected) return c.json({ status: "unauthorized" }, 401);
+  const body: Record<string, unknown> = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const operationId = String(body.operationId ?? "");
+  if (!/^gerard-owner-[a-zA-Z0-9_-]{8,80}$/.test(operationId)) return c.json({ status: "invalid-operation-id" }, 400);
+  const sender = "gerardpoulpefiction@gmail.com";
+  const recipient = "benoitlubert@gmail.com";
+  let account: ComposioConnectedAccount;
+  try {
+    const candidates = (await listComposioConnectedAccounts(c.env))
+      .filter(a => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status));
+    if (candidates.length !== 1) return c.json({ status: "blocked", reason: "gmail-connection-not-unique", count: candidates.length }, 409);
+    account = candidates[0];
+    const profile = asRecord(await executeComposioTool(c.env, {
+      toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id,
+      arguments: { user_id: "me" }, timeoutMs: 15000,
+    }));
+    const identity = String(stringValue(asRecord(profile.data).emailAddress ?? asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
+    if (identity !== sender) return c.json({ status: "blocked", reason: "sender-identity-mismatch" }, 409);
+  } catch (error) {
+    return c.json({ status: "blocked", reason: "composio-profile-unavailable" }, 503);
+  }
+  const sql = await getSql(c.env);
+  const reserved = await sql`INSERT INTO publisher_global_state (namespace,key,value,version,updated_at)
+    VALUES ('gerard-gmail-owner-send',${operationId},'{"status":"sending"}'::jsonb,1,NOW())
+    ON CONFLICT (namespace,key) DO NOTHING RETURNING version`;
+  if (!reserved.length) return c.json({ status: "blocked", reason: "operation-already-reserved" }, 409);
+  const subject = "[TEST GÉRARD] Envoi Composio depuis Publisher";
+  const message = "Bonjour Benoît,\n\nCeci est le test unique de la liaison Publisher → Composio → Gmail de Gérard. Aucun prospect n'a été contacté.\n\nOpération : " + operationId + "\n\nGérard";
+  try {
+    const sent = asRecord(await executeComposioTool(c.env, {
+      toolSlug: "GMAIL_SEND_EMAIL", connectedAccountId: account.id,
+      arguments: { user_id: "me", recipient_email: recipient, subject, body: message, is_html: false },
+      timeoutMs: 20000,
+    }));
+    const data = asRecord(sent.data);
+    if (sent.successful === false || data.successful === false) throw new Error("PROVIDER_REJECTED");
+    // Reservation stays permanently blocked even on uncertain outcomes.
+    await sql`UPDATE publisher_global_state
+      SET value=${JSON.stringify({ status: "sent", recipient, sender })}::jsonb,version=version+1,updated_at=NOW()
+      WHERE namespace='gerard-gmail-owner-send' AND key=${operationId}`;
+    return c.json({ status: "sent", recipient, sender, operationId });
+  } catch {
+    return c.json({ status: "unknown", reason: "provider-result-unconfirmed", operationId, retryAllowed: false }, 502);
+  }
+});
+
 app.get("/api/octopus-adapter/health", async (c) => {
   if (octopusHealthCache && Date.now() - octopusHealthCache.fetchedAt < OCTOPUS_HEALTH_CACHE_MS) {
     return c.json(octopusHealthCache.body);
