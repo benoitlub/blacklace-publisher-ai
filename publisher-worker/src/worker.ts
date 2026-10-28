@@ -1088,7 +1088,7 @@ app.post("/api/gerard/gmail/connect-link", async (c) => {
     return c.json({ status: "link-ready", redirectUrl, expiresAt: response.expires_at ?? null, userId });
   } catch (error) {
     const status = error instanceof ComposioHttpError ? error.status : 502;
-    return c.json({ status: "blocked", reason: error instanceof Error ? error.message.slice(0, 200) : "composio-link-failed" }, status >= 400 && status <= 599 ? status : 502);
+    return c.json({ status: "blocked", reason: error instanceof Error ? error.message.slice(0, 200) : "composio-link-failed" }, 502);
   }
 });
 
