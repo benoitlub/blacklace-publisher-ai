@@ -1103,9 +1103,59 @@ app.post("/api/gerard/gmail/owner-test", async (c) => {
         }
       }
     }
+    // One-time owner-authorized project audit, opt-in only. Composio documents
+    // this project-level Gmail filter; we inspect metadata and validate the
+    // exact Gmail profile before any message can leave the Worker.
+    let projectGmailCount = 0;
+    if (!account && body.allowProjectGmailLookup === true) {
+      const seen = new Set<string>();
+      const cursors = new Set<string>();
+      let cursor = "";
+      for (let page = 0; page < 20; page++) {
+        const payload = asRecord(await composioRequest(c.env,
+          `/connected_accounts?toolkit_slugs=gmail&limit=100${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`));
+        const data = asRecord(payload.data);
+        const items = [payload.items, payload.connected_accounts, data.items, data.connected_accounts]
+          .find(Array.isArray) as Array<unknown> | undefined;
+        if (!items) throw new Error("COMPOSIO_GMAIL_PROJECT_LIST_INVALID");
+        for (const value of items) {
+          const item = asRecord(value);
+          const id = String(item.id ?? "");
+          const owner = String(item.user_id ?? item.userId ?? "");
+          const slug = String(asRecord(item.toolkit).slug ?? item.toolkit_slug ?? "").toLowerCase();
+          const status = String(item.status ?? "");
+          if (!id || !owner || slug !== "gmail" || !isActiveComposioStatus(status) || seen.has(id)) continue;
+          seen.add(id);
+          projectGmailCount++;
+          try {
+            const profile = asRecord(await executeComposioTool(c.env, {
+              toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: id, userId: owner,
+              arguments: { user_id: "me" }, timeoutMs: 15000,
+            }));
+            const identity = String(stringValue(asRecord(profile.data).emailAddress ??
+              asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
+            if (identity !== sender) continue;
+            if (account && account.id !== id) return c.json({
+              status: "blocked", reason: "multiple-gerard-gmail-connections",
+            }, 409);
+            account = { id, toolkitSlug: "gmail", status };
+            gmailUserId = owner;
+          } catch {
+            // Unrelated or inaccessible accounts are never selected.
+          }
+        }
+        const next = String(payload.next_cursor ?? data.next_cursor ?? "");
+        if (!next) break;
+        if (cursors.has(next)) throw new Error("COMPOSIO_GMAIL_CURSOR_LOOP");
+        cursors.add(next);
+        cursor = next;
+        if (page === 19) throw new Error("COMPOSIO_GMAIL_PAGE_LIMIT");
+      }
+    }
     if (!account) return c.json({
       status: "blocked", reason: "gerard-gmail-not-visible",
       count: totalVisible, checkedUserCount: scopedIds.length,
+      ...(body.allowProjectGmailLookup === true ? { projectGmailCount } : {}),
     }, 409);
   } catch {
     return c.json({ status: "blocked", reason: "composio-profile-unavailable" }, 503);
