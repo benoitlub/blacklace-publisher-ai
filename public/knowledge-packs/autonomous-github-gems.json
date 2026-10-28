@@ -2,91 +2,127 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-10-27",
+  "generatedDate": "2026-10-28",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1321544757",
-      "name": "openvetta/open-vetta",
-      "url": "https://github.com/openvetta/open-vetta",
-      "summary": "Open-source, local-first AI agent for coding and real work. BYOK models, MCP, skills, plugins, workflows, and private knowledge bases.",
-      "stars": 301,
-      "updatedAt": "2026-10-27T10:06:39Z",
-      "license": "Apache-2.0",
-      "score": 100,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1054512829",
-      "name": "vllm-project/vllm-omni",
-      "url": "https://github.com/vllm-project/vllm-omni",
-      "summary": "A framework for efficient model inference with omni-modality models",
-      "stars": 7383,
-      "updatedAt": "2026-10-27T12:18:57Z",
-      "license": "Apache-2.0",
-      "score": 100,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1333579278",
-      "name": "ZASENJC/dsh-plugins-store",
-      "url": "https://github.com/ZASENJC/dsh-plugins-store",
-      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
-      "stars": 74,
-      "updatedAt": "2026-10-27T10:47:52Z",
+      "id": "1178503769",
+      "name": "guaardvark/guaardvark",
+      "url": "https://github.com/guaardvark/guaardvark",
+      "summary": "Self-hosted AI studio on your own GPU: chat with your files (RAG), screen and browser agents, coding swarms, LoRA training, an MCP server for Claude Code and Cursor, and local video, image, music and voice generation. No telemetry.",
+      "stars": 292,
+      "updatedAt": "2026-10-28T12:59:47Z",
       "license": "MIT",
-      "score": 83,
+      "score": 100,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1291468384",
+      "name": "buildinternet/uploads",
+      "url": "https://github.com/buildinternet/uploads",
+      "summary": "Lightweight file host and upload tools for coding agents to add artifacts to pull requests. Add CI checks for screenshots. Cloud and self-host options.",
+      "stars": 19,
+      "updatedAt": "2026-10-28T13:27:44Z",
+      "license": "Apache-2.0",
+      "score": 94,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1435139535",
+      "name": "stevenguyenbt/mega-shot",
+      "url": "https://github.com/stevenguyenbt/mega-shot",
+      "summary": "🎬 Type an idea, get a finished video. Claude researches the topic, writes and fact-checks the script, narrates with a cloned voice, builds real-footage, 3D or cartoon visuals, adds karaoke subtitles and music, makes the thumbnail and checks every cut. Free & open source.",
+      "stars": 9,
+      "updatedAt": "2026-10-28T13:30:31Z",
+      "license": "MIT",
+      "score": 92,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1181761989",
+      "name": "gaopengbin/cesium-mcp",
+      "url": "https://github.com/gaopengbin/cesium-mcp",
+      "summary": "Protocol-agnostic CesiumJS AI control runtime for MCP, WebMCP, function calling, and browser agents.",
+      "stars": 147,
+      "updatedAt": "2026-10-28T03:25:59Z",
+      "license": "MIT",
+      "score": 85,
       "capabilities": [
         "visual.generate",
         "tool.search",
@@ -119,7 +155,7 @@
       "url": "https://github.com/SandeepKomal/Git3D-Universe",
       "summary": "",
       "stars": 3,
-      "updatedAt": "2026-10-27T07:46:10Z",
+      "updatedAt": "2026-10-28T12:45:20Z",
       "license": "MIT",
       "score": 76,
       "capabilities": [
@@ -149,52 +185,17 @@
       }
     },
     {
-      "id": "1344913636",
-      "name": "theinfluencecompany/realtime-avatar-sdk",
-      "url": "https://github.com/theinfluencecompany/realtime-avatar-sdk",
-      "summary": "Live voice and video characters you can interrupt. Full-duplex realtime avatars for web, React and React Native.",
-      "stars": 4,
-      "updatedAt": "2026-10-27T09:53:14Z",
+      "id": "1389382283",
+      "name": "jjongguet/gjc-plugin",
+      "url": "https://github.com/jjongguet/gjc-plugin",
+      "summary": "Plugins for gajae-code (gjc) that make an agent's work checkable: test receipts, loopback UI assertions, plan validation, advisory delegation checks and a self-improvement ledger.",
+      "stars": 2,
+      "updatedAt": "2026-10-28T13:12:27Z",
       "license": "MIT",
-      "score": 76,
+      "score": 75,
       "capabilities": [
-        "video.generate",
         "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1282572605",
-      "name": "Wh0mever/EsAI",
-      "url": "https://github.com/Wh0mever/EsAI",
-      "summary": "EsAI — all AI in one place: chat with leading LLMs, image & video generation, Video Studio and Cartoon Studio. Next.js 16 · Django 5 · Celery · OpenRouter",
-      "stars": 1,
-      "updatedAt": "2026-10-27T11:58:08Z",
-      "license": "MIT",
-      "score": 74,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
+        "tool.search",
         "knowledge.search"
       ],
       "riskFlags": [],
@@ -202,7 +203,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -219,24 +220,25 @@
       }
     },
     {
-      "id": "1278326592",
-      "name": "instruktlabs/kiln",
-      "url": "https://github.com/instruktlabs/kiln",
-      "summary": "Build and revise procedural 3D assets with your coding agent. Local MCP server, CLI and TypeScript engine with rendered review, editable source and GLB export.",
-      "stars": 299,
-      "updatedAt": "2026-10-27T12:19:27Z",
-      "license": "MIT",
-      "score": 73,
+      "id": "1176237747",
+      "name": "Voyagier-Travel/voyagier-cli",
+      "url": "https://github.com/Voyagier-Travel/voyagier-cli",
+      "summary": "Search, plan, and book real travel from the command line or any AI agent. Flights, hotels, activities — price-gated booking, quotes, MCP server built in.",
+      "stars": 1,
+      "updatedAt": "2026-10-28T13:32:20Z",
+      "license": "Apache-2.0",
+      "score": 74,
       "capabilities": [
         "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -253,12 +255,12 @@
       }
     },
     {
-      "id": "1435356271",
-      "name": "arian262785-cell/biba-v1.1",
-      "url": "https://github.com/arian262785-cell/biba-v1.1",
-      "summary": "BIBA v1.1 - 100% Local Apple Silicon Video and 48 kHz Cinema Audio Synthesis Engine (Metal 4 / MLX / Zero Cloud)",
+      "id": "1427405856",
+      "name": "muhammad-ahmed-ghani/social-explainer-reel-skill",
+      "url": "https://github.com/muhammad-ahmed-ghani/social-explainer-reel-skill",
+      "summary": "Agent skill that directs 9:16 social videos (Reels, TikTok, Shorts) by giving each beat to the layer that is reliable for it.",
       "stars": 0,
-      "updatedAt": "2026-10-27T12:32:13Z",
+      "updatedAt": "2026-10-28T13:08:03Z",
       "license": "MIT",
       "score": 72,
       "capabilities": [
@@ -292,10 +294,10 @@
       "name": "maomaochong-ai/open-astravia",
       "url": "https://github.com/maomaochong-ai/open-astravia",
       "summary": "开源 · 本地优先的 AI 智能体：编程与实干兼备。 自带模型密钥，内置 MCP、技能、插件、工作流、知识库以及数据库。",
-      "stars": 37,
-      "updatedAt": "2026-10-27T12:32:15Z",
+      "stars": 38,
+      "updatedAt": "2026-10-28T13:01:36Z",
       "license": "Apache-2.0",
-      "score": 67,
+      "score": 68,
       "capabilities": [
         "visual.generate",
         "tool.search"
@@ -326,8 +328,8 @@
       "name": "codepawl/viz3d",
       "url": "https://github.com/codepawl/viz3d",
       "summary": "A skill that turns hard-to-picture places, systems and events into live 3D worlds, dashboards and films.",
-      "stars": 13,
-      "updatedAt": "2026-10-26T16:34:31Z",
+      "stars": 14,
+      "updatedAt": "2026-10-27T16:59:41Z",
       "license": "MIT",
       "score": 65,
       "capabilities": [
@@ -356,23 +358,24 @@
       }
     },
     {
-      "id": "1231135337",
-      "name": "strukto-ai/mirage",
-      "url": "https://github.com/strukto-ai/mirage",
-      "summary": "The World's First Virtual Terminal for AI Agents",
-      "stars": 3741,
-      "updatedAt": "2026-10-27T11:48:09Z",
+      "id": "1250872384",
+      "name": "ai-decentralized/Difflet",
+      "url": "https://github.com/ai-decentralized/Difflet",
+      "summary": "Fast diffusion-transformer inference across accelerators — AWS Trainium, TPU, and more. CLI, Python API, OpenAI-compatible server.",
+      "stars": 9,
+      "updatedAt": "2026-10-28T13:33:12Z",
       "license": "Apache-2.0",
-      "score": 65,
+      "score": 64,
       "capabilities": [
-        "tool.search"
+        "video.generate",
+        "visual.generate"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -389,14 +392,14 @@
       }
     },
     {
-      "id": "1205266622",
-      "name": "LanNguyenSi/agent-memory",
-      "url": "https://github.com/LanNguyenSi/agent-memory",
-      "summary": "Memory management tools for AI agents: sync, weave, digest, and store.",
-      "stars": 2,
-      "updatedAt": "2026-10-27T11:14:09Z",
+      "id": "1431958479",
+      "name": "ZhangShurong/dsh-vista",
+      "url": "https://github.com/ZhangShurong/dsh-vista",
+      "summary": "Visual memory and active inspection for DeepSeek Harness: revisit any image, inspect any region, read exact pixels.",
+      "stars": 1,
+      "updatedAt": "2026-10-28T13:09:02Z",
       "license": "MIT",
-      "score": 61,
+      "score": 60,
       "capabilities": [
         "visual.generate",
         "tool.search"
@@ -423,13 +426,13 @@
       }
     },
     {
-      "id": "1433266171",
-      "name": "SirwanAfifi/anatomy-atlas",
-      "url": "https://github.com/SirwanAfifi/anatomy-atlas",
-      "summary": "Interactive 3D human anatomy atlas: explore 126 muscle structures and discover exercises with demonstration photos. Built with Three.js.",
+      "id": "1435863402",
+      "name": "Daydremr/drawn-films-plugin",
+      "url": "https://github.com/Daydremr/drawn-films-plugin",
+      "summary": "Hand-drawn animated films from your own stories, made with your own Claude. A Claude Code plugin with the whole engine: two looks, a cast, voices, music and 1080p renders on your own computer. Free for any use; just don't resell it.",
       "stars": 0,
-      "updatedAt": "2026-10-25T15:00:01Z",
-      "license": "UNKNOWN",
+      "updatedAt": "2026-10-28T12:47:31Z",
+      "license": "NOASSERTION",
       "score": 59,
       "capabilities": [
         "video.generate",
@@ -461,24 +464,28 @@
       }
     },
     {
-      "id": "1384194030",
-      "name": "nazeeh111/LumaField",
-      "url": "https://github.com/nazeeh111/LumaField",
-      "summary": "Explore Gaussian splats in your browser, convert supported PLY files and navigate imported camera views.",
+      "id": "864843654",
+      "name": "grazianoEnzoMarchesani/EnviReader",
+      "url": "https://github.com/grazianoEnzoMarchesani/EnviReader",
+      "summary": "Web-based solution for advanced 2D/3D analysis and visualization of ENVI-met simulation results and area models (EDX/EDT, INX, SIMX, FOX)",
       "stars": 0,
-      "updatedAt": "2026-10-26T21:53:05Z",
-      "license": "MIT",
-      "score": 58,
+      "updatedAt": "2026-10-28T11:19:39Z",
+      "license": "GPL-3.0",
+      "score": 59,
       "capabilities": [
+        "video.generate",
         "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
-      "riskFlags": [],
-      "decision": "candidate",
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -495,23 +502,24 @@
       }
     },
     {
-      "id": "1429568686",
-      "name": "THhapp/AIchat-graph",
-      "url": "https://github.com/THhapp/AIchat-graph",
-      "summary": "以 Markdown 为源的本地协作思考图：外部 Agent 持续整理，实时可视化与独立 HTML 回顾。",
-      "stars": 4,
-      "updatedAt": "2026-10-27T10:03:19Z",
+      "id": "1332685892",
+      "name": "777marvin/ext-broke",
+      "url": "https://github.com/777marvin/ext-broke",
+      "summary": "Token budget extension for AiderDesk: progressive input compression (structural/truncate/summarize) with local Ollama summarization offload",
+      "stars": 0,
+      "updatedAt": "2026-10-28T11:41:47Z",
       "license": "MIT",
-      "score": 48,
+      "score": 58,
       "capabilities": [
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
