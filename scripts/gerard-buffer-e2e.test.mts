@@ -44,7 +44,7 @@ test("Gerard -> existing Octopus -> Publisher -> Buffer draft -> queue -> read s
       }
       throw new Error(`Unplanned SQL in Buffer simulation: ${query}`);
     }
-    if (url.href === candidate.media.url) { assert.equal(req.method, "HEAD"); trace.push("media:HEAD"); return new Response(null, { headers: { "Content-Type": "image/jpeg" } }); }
+    if (url.href === candidate.media.url) { assert.equal(req.method, "GET"); trace.push("media:GET"); return new Response(new Uint8Array([0xff,0xd8,0xff,0xe0,0x00,0x10]), { headers: { "Content-Type": "application/octet-stream" } }); }
     if (url.origin === "https://api.buffer.com") {
       assert.equal(req.headers.get("Authorization"), "Bearer simulated-buffer-key"); const { query } = await req.json() as any;
       if (query.includes("query { channel(")) return Response.json({ data: { channel: { id: candidate.transport.channelId, service: "instagram", isDisconnected: false, isLocked: false, isQueuePaused: false } } });
