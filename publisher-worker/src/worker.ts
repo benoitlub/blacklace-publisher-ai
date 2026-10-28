@@ -1069,7 +1069,7 @@ async function buildOctopusHealth(env: Env): Promise<Record<string, unknown>> {
 // static token, or project key is exposed. Links expire after 10 minutes.
 app.post("/api/gerard/gmail/connect-link", async (c) => {
   const provided = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (!(await verifyGerardGithubOidc(provided))) return c.json({ status: "unauthorized" }, 401);
+  if (!(await verifyGerardGithubOidc(provided, "gmail-connect"))) return c.json({ status: "unauthorized" }, 401);
   const userId = await composioUserId(c.env);
   if (userId !== "benoit-lubert") return c.json({ status: "blocked", reason: "unexpected-composio-user" }, 409);
   try {
