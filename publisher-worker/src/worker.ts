@@ -2432,7 +2432,9 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
       if ((Array.isArray(payload.errors) ? payload.errors.length > 0 : Boolean(payload.errors)) || !payload.data) throw new BufferTransportError("BUFFER_GRAPHQL_ERROR");
       return payload;
     },
-    load: async () => (await sql`SELECT fingerprint,status,post_id FROM buffer_draft_reservations WHERE harvest_id=${harvestId} OR fingerprint=${fingerprint}`).map(row => ({fingerprint:String(row.fingerprint),status:String(row.status),post_id:typeof row.post_id === "string" ? row.post_id : null})),
+    // Idempotency is per exact copy + official artwork + channel, not per book.
+    // Gérard may test another angle for a book already queued previously.
+    load: async () => (await sql`SELECT fingerprint,status,post_id FROM buffer_draft_reservations WHERE fingerprint=${fingerprint}`).map(row => ({fingerprint:String(row.fingerprint),status:String(row.status),post_id:typeof row.post_id === "string" ? row.post_id : null})),
     claim: async () => {
       const rows = await sql`INSERT INTO buffer_draft_reservations (fingerprint,harvest_id,status) VALUES (${fingerprint},${harvestId},'pending') ON CONFLICT (fingerprint) DO UPDATE SET status='pending' WHERE buffer_draft_reservations.status='retry-authorized' RETURNING fingerprint`;
       return rows.length === 1 ? {fingerprint,status:"pending",post_id:null} : null;
