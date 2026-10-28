@@ -1,3 +1,4 @@
+import { verifyGerardGithubOidc } from "./gerard-github-oidc";
 import { readGarden } from "./garden-readonly";
 import { writeAcquisitionReview } from "./notion-client-acquisition";
 import { discoverBusinessTools, executeBusinessSearch } from "./composio-discovery";
@@ -1067,9 +1068,8 @@ async function buildOctopusHealth(env: Env): Promise<Record<string, unknown>> {
 // Never sends to leads; a durable reservation prevents duplicate sends after
 // timeouts and uncertain provider responses.
 app.post("/api/gerard/gmail/owner-test", async (c) => {
-  const expected = await resolveSecret(c.env.PUBLISHER_NOTION_WRITE_TOKEN);
   const provided = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (!expected || !provided || provided !== expected) return c.json({ status: "unauthorized" }, 401);
+  if (!(await verifyGerardGithubOidc(provided))) return c.json({ status: "unauthorized" }, 401);
   const body: Record<string, unknown> = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const operationId = String(body.operationId ?? "");
   if (!/^gerard-owner-[a-zA-Z0-9_-]{8,80}$/.test(operationId)) return c.json({ status: "invalid-operation-id" }, 400);
