@@ -2406,7 +2406,24 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const digest = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(JSON.stringify({channelId,text,mediaUrl})));
   const fingerprint = Array.from(new Uint8Array(digest)).map((b)=>b.toString(16).padStart(2,"0")).join("");
   const sql = await getSql(c.env);
-  if (!dryRun) await sql`CREATE TABLE IF NOT EXISTS buffer_draft_reservations (fingerprint TEXT PRIMARY KEY, harvest_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+  if (!dryRun) {
+    await sql`CREATE TABLE IF NOT EXISTS buffer_draft_reservations (fingerprint TEXT PRIMARY KEY, harvest_id TEXT NOT NULL, status TEXT NOT NULL, post_id TEXT, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())`;
+    // One uncertain network response should not require Benoît to unlock Gérard.
+    // Preserve the reservation and its retry counter; never release a known post ID.
+    await sql`ALTER TABLE buffer_draft_reservations ADD COLUMN IF NOT EXISTS autonomous_retry_count INTEGER NOT NULL DEFAULT 0`;
+    await sql`ALTER TABLE buffer_draft_reservations ADD COLUMN IF NOT EXISTS last_autonomous_retry_at TIMESTAMPTZ`;
+    if (publish) {
+      const released = await sql`UPDATE buffer_draft_reservations
+        SET status='retry-authorized', autonomous_retry_count=autonomous_retry_count+1,
+            last_autonomous_retry_at=NOW()
+        WHERE fingerprint=${fingerprint} AND status='pending' AND post_id IS NULL
+          AND COALESCE(last_autonomous_retry_at,created_at) < NOW() - INTERVAL '10 minutes'
+          AND autonomous_retry_count < 2
+        RETURNING fingerprint,autonomous_retry_count`;
+      if (released.length) console.log(JSON.stringify({event:"buffer.autonomous-retry-authorized",harvestId,
+        attempt:Number(released[0].autonomous_retry_count)+1}));
+    }
+  }
   const outcome = await executeBufferBookPost({harvestId,text,mediaUrl,channelId,publish,dryRun}, {
     request: async query => {
       const response = await fetch("https://api.buffer.com",{method:"POST",headers:{Authorization:"Bearer "+bufferKey,"Content-Type":"application/json"},body:JSON.stringify({query}),signal:AbortSignal.timeout(12000)});
