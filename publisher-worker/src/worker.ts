@@ -1064,6 +1064,34 @@ async function buildOctopusHealth(env: Env): Promise<Record<string, unknown>> {
   }
 }
 
+// Owner-only OAuth bootstrap for the existing blacklace project user. The
+// GitHub OIDC caller must be benoitlub/poulpe-fiction; no public endpoint,
+// static token, or project key is exposed. Links expire after 10 minutes.
+app.post("/api/gerard/gmail/connect-link", async (c) => {
+  const provided = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (!(await verifyGerardGithubOidc(provided))) return c.json({ status: "unauthorized" }, 401);
+  const userId = await composioUserId(c.env);
+  if (userId !== "benoit-lubert") return c.json({ status: "blocked", reason: "unexpected-composio-user" }, 409);
+  try {
+    const response = asRecord(await composioRequest(c.env, "/connected_accounts/link", {
+      method: "POST",
+      body: JSON.stringify({
+        auth_config_id: "ac_8AbPvmQEu8iS",
+        user_id: "benoit-lubert",
+      }),
+      signal: AbortSignal.timeout(15000),
+    }));
+    const redirectUrl = stringValue(response.redirect_url ?? asRecord(response.data).redirect_url);
+    if (!redirectUrl || !redirectUrl.startsWith("https://connect.composio.dev/")) {
+      return c.json({ status: "blocked", reason: "invalid-composio-redirect" }, 502);
+    }
+    return c.json({ status: "link-ready", redirectUrl, expiresAt: response.expires_at ?? null, userId });
+  } catch (error) {
+    const status = error instanceof ComposioHttpError ? error.status : 502;
+    return c.json({ status: "blocked", reason: error instanceof Error ? error.message.slice(0, 200) : "composio-link-failed" }, status >= 400 && status <= 599 ? status : 502);
+  }
+});
+
 // Owner-only Composio mail transport: requires the existing Publisher write token.
 // Never sends to leads; a durable reservation prevents duplicate sends after
 // timeouts and uncertain provider responses.
