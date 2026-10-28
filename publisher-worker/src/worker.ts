@@ -2444,8 +2444,38 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
       return changed.length === 1;
     },
     verifyMedia: async () => {
-      const checked = await fetch(mediaUrl,{method:"HEAD",redirect:"error",signal:AbortSignal.timeout(10000)});
-      if (!checked.ok || !/^image\/(jpeg|png|webp)(;|$)/i.test(checked.headers.get("Content-Type") ?? "")) throw new Error("Unverified image");
+      const media = new URL(mediaUrl);
+      // GitHub's raw asset delivery may redirect or reject HEAD; fetch and
+      // identify actual image bytes for the official Blacklace book covers.
+      const githubCover = media.protocol === "https:" && media.hostname === "raw.githubusercontent.com" &&
+        media.pathname.startsWith("/benoitlub/blacklace-publisher-ai/");
+      let checked: Response;
+      try {
+        checked = await fetch(mediaUrl,{method:githubCover ? "GET" : "HEAD",
+          redirect:githubCover ? "follow" : "error",signal:AbortSignal.timeout(10000)});
+      } catch {
+        throw new BufferTransportError("BUFFER_MEDIA_FETCH_FAILED");
+      }
+      if (!checked.ok) throw new BufferTransportError("BUFFER_MEDIA_HTTP_ERROR",checked.status);
+      if (githubCover) {
+        const destination = new URL(checked.url || mediaUrl);
+        if (destination.protocol !== "https:" || !(
+          destination.hostname === "raw.githubusercontent.com" ||
+          destination.hostname.endsWith(".githubusercontent.com")
+        )) throw new BufferTransportError("BUFFER_MEDIA_UNTRUSTED_REDIRECT");
+        const reader = checked.body?.getReader();
+        if (!reader) throw new BufferTransportError("BUFFER_MEDIA_EMPTY");
+        const first = await reader.read();
+        await reader.cancel();
+        const bytes = first.value ?? new Uint8Array();
+        const jpeg = bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+        const png = bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+        const webp = bytes.length >= 12 && String.fromCharCode(...bytes.slice(0,4)) === "RIFF" &&
+          String.fromCharCode(...bytes.slice(8,12)) === "WEBP";
+        if (!jpeg && !png && !webp) throw new BufferTransportError("BUFFER_MEDIA_NOT_IMAGE");
+      } else if (!/^image\/(jpeg|png|webp)(;|$)/i.test(checked.headers.get("Content-Type") ?? "")) {
+        throw new BufferTransportError("BUFFER_MEDIA_CONTENT_TYPE_INVALID");
+      }
     },
   });
   return c.json({contract:"publisher-buffer-book-draft-v1",...outcome},outcome.status === "confirmation-required" ? 409 : 200);
