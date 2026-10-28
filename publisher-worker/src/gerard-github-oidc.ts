@@ -35,7 +35,7 @@ export async function verifyGerardGithubOidc(jwt: string): Promise<boolean> {
     const payload = await response.json() as { keys?: Array<Record<string, unknown>> };
     const jwk = payload.keys?.find(key => key.kid === header.kid && key.kty === "RSA" && key.use === "sig");
     if (!jwk) return false;
-    const key = await crypto.subtle.importKey("jwk", jwk as JsonWebKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+    const key = await crypto.subtle.importKey("jwk", jwk as unknown as JsonWebKey, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
     return crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, decodeBase64Url(sections[2]), new TextEncoder().encode(sections[0] + "." + sections[1]));
   } catch {
     return false;
