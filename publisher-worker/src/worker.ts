@@ -506,12 +506,12 @@ async function listComposioTools(env: Env, toolkitSlug: string, timeoutMs?: numb
   throw new Error("COMPOSIO_TOOLS_UNAVAILABLE");
 }
 
-async function executeComposioTool(env: Env, input: { toolSlug: string; connectedAccountId: string; arguments: Record<string, unknown>; timeoutMs?: number; toolVersion?: string }): Promise<unknown> {
+async function executeComposioTool(env: Env, input: { toolSlug: string; connectedAccountId: string; arguments: Record<string, unknown>; timeoutMs?: number; toolVersion?: string; userId?: string }): Promise<unknown> {
   // Composio 400s ("ActionExecute_ConnectedAccountEntityIdRequired") without
   // entity_id alongside connected_account_id — confirmed live.
   return composioRequest(env, `/tools/execute/${encodeURIComponent(input.toolSlug)}`, {
     method: "POST",
-    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId, entity_id: await composioUserId(env), ...(input.toolVersion ? { version: input.toolVersion } : {}) }),
+    body: JSON.stringify({ arguments: input.arguments, connected_account_id: input.connectedAccountId, entity_id: input.userId ?? await composioUserId(env), ...(input.toolVersion ? { version: input.toolVersion } : {}) }),
     ...(input.timeoutMs ? { signal: AbortSignal.timeout(input.timeoutMs) } : {}),
   });
 }
@@ -1075,21 +1075,42 @@ app.post("/api/gerard/gmail/owner-test", async (c) => {
   if (!/^gerard-owner-[a-zA-Z0-9_-]{8,80}$/.test(operationId)) return c.json({ status: "invalid-operation-id" }, 400);
   const sender = "gerardpoulpefiction@gmail.com";
   const recipient = "benoitlubert@gmail.com";
-  let account: ComposioConnectedAccount;
+  let account: ComposioConnectedAccount | null = null;
+  let gmailUserId = "";
   try {
-    const candidates = (await listComposioConnectedAccounts(c.env))
-      .filter(a => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status));
-    if (candidates.length !== 1) return c.json({ status: "blocked", reason: "gmail-connection-not-unique", count: candidates.length }, 409);
-    account = candidates[0];
-    const profile = asRecord(await executeComposioTool(c.env, {
-      toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id,
-      arguments: { user_id: "me" }, timeoutMs: 15000,
-    }));
-    const identity = String(stringValue(asRecord(profile.data).emailAddress ?? asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
-    if (identity !== sender) return c.json({ status: "blocked", reason: "sender-identity-mismatch" }, 409);
-  } catch (error) {
+    // Existing account-scoped lookup first; only probe two explicitly known
+    // user identities if Publisher's general ID has no Gérard Gmail.
+    const scopedIds = [...new Set([await composioUserId(c.env), sender, recipient])];
+    let totalVisible = 0;
+    for (const userId of scopedIds) {
+      const candidates = (await discoverComposioAccounts(userId,
+        path => composioRequest(c.env, path)))
+        .filter(a => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status));
+      totalVisible += candidates.length;
+      for (const candidate of candidates) {
+        const profile = asRecord(await executeComposioTool(c.env, {
+          toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: candidate.id,
+          userId, arguments: { user_id: "me" }, timeoutMs: 15000,
+        }));
+        const identity = String(stringValue(asRecord(profile.data).emailAddress ??
+          asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
+        if (identity === sender) {
+          if (account && account.id !== candidate.id) return c.json({
+            status: "blocked", reason: "multiple-gerard-gmail-connections",
+          }, 409);
+          account = candidate;
+          gmailUserId = userId;
+        }
+      }
+    }
+    if (!account) return c.json({
+      status: "blocked", reason: "gerard-gmail-not-visible",
+      count: totalVisible, checkedUserCount: scopedIds.length,
+    }, 409);
+  } catch {
     return c.json({ status: "blocked", reason: "composio-profile-unavailable" }, 503);
   }
+  if (!account) return c.json({ status: "blocked", reason: "gerard-gmail-not-visible" }, 409);
   const sql = await getSql(c.env);
   const reserved = await sql`INSERT INTO publisher_global_state (namespace,key,value,version,updated_at)
     VALUES ('gerard-gmail-owner-send',${operationId},'{"status":"sending"}'::jsonb,1,NOW())
@@ -1100,7 +1121,7 @@ app.post("/api/gerard/gmail/owner-test", async (c) => {
   try {
     const sent = asRecord(await executeComposioTool(c.env, {
       toolSlug: "GMAIL_SEND_EMAIL", connectedAccountId: account.id,
-      arguments: { user_id: "me", recipient_email: recipient, subject, body: message, is_html: false },
+      userId: gmailUserId, arguments: { user_id: "me", recipient_email: recipient, subject, body: message, is_html: false },
       timeoutMs: 20000,
     }));
     const data = asRecord(sent.data);
