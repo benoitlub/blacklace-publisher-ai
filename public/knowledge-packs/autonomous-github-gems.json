@@ -2,18 +2,18 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-10-28",
+  "generatedDate": "2026-10-29",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1178503769",
-      "name": "guaardvark/guaardvark",
-      "url": "https://github.com/guaardvark/guaardvark",
-      "summary": "Self-hosted AI studio on your own GPU: chat with your files (RAG), screen and browser agents, coding swarms, LoRA training, an MCP server for Claude Code and Cursor, and local video, image, music and voice generation. No telemetry.",
-      "stars": 292,
-      "updatedAt": "2026-10-28T12:59:47Z",
-      "license": "MIT",
+      "id": "1321544757",
+      "name": "openvetta/open-vetta",
+      "url": "https://github.com/openvetta/open-vetta",
+      "summary": "Open-source, local-first AI agent for coding and real work. BYOK models, MCP, skills, plugins, workflows, and private knowledge bases.",
+      "stars": 302,
+      "updatedAt": "2026-10-29T10:39:12Z",
+      "license": "Apache-2.0",
       "score": 100,
       "capabilities": [
         "video.generate",
@@ -43,14 +43,14 @@
       }
     },
     {
-      "id": "1291468384",
-      "name": "buildinternet/uploads",
-      "url": "https://github.com/buildinternet/uploads",
-      "summary": "Lightweight file host and upload tools for coding agents to add artifacts to pull requests. Add CI checks for screenshots. Cloud and self-host options.",
-      "stars": 19,
-      "updatedAt": "2026-10-28T13:27:44Z",
+      "id": "1054512829",
+      "name": "vllm-project/vllm-omni",
+      "url": "https://github.com/vllm-project/vllm-omni",
+      "summary": "A framework for efficient model inference with omni-modality models",
+      "stars": 7409,
+      "updatedAt": "2026-10-29T13:39:27Z",
       "license": "Apache-2.0",
-      "score": 94,
+      "score": 100,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -79,14 +79,85 @@
       }
     },
     {
-      "id": "1435139535",
-      "name": "stevenguyenbt/mega-shot",
-      "url": "https://github.com/stevenguyenbt/mega-shot",
-      "summary": "🎬 Type an idea, get a finished video. Claude researches the topic, writes and fact-checks the script, narrates with a cloned voice, builds real-footage, 3D or cartoon visuals, adds karaoke subtitles and music, makes the thumbnail and checks every cut. Free & open source.",
-      "stars": 9,
-      "updatedAt": "2026-10-28T13:30:31Z",
+      "id": "1331882604",
+      "name": "scenario-labs/skills",
+      "url": "https://github.com/scenario-labs/skills",
+      "summary": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
+      "stars": 1191,
+      "updatedAt": "2026-10-29T12:29:44Z",
       "license": "MIT",
-      "score": 92,
+      "score": 90,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1397753114",
+      "name": "R0zumnik/memglow",
+      "url": "https://github.com/R0zumnik/memglow",
+      "summary": "Watch your AI's memory come alive — a live 3D brain of your Markdown notes that lights up as Claude Code, Cursor & other agents read, search and write.",
+      "stars": 2,
+      "updatedAt": "2026-10-28T20:12:01Z",
+      "license": "MIT",
+      "score": 89,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1434577491",
+      "name": "Omar-Tnzxo/ice-motion-director",
+      "url": "https://github.com/Omar-Tnzxo/ice-motion-director",
+      "summary": "Motion design and video editing director for coding agents: one prompt or step by step, from brief to rendered film. Agent Skills for Claude Code, Codex, Cursor, Gemini and 40+ agents.",
+      "stars": 0,
+      "updatedAt": "2026-10-29T13:38:22Z",
+      "license": "Apache-2.0",
+      "score": 86,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -119,8 +190,8 @@
       "name": "gaopengbin/cesium-mcp",
       "url": "https://github.com/gaopengbin/cesium-mcp",
       "summary": "Protocol-agnostic CesiumJS AI control runtime for MCP, WebMCP, function calling, and browser agents.",
-      "stars": 147,
-      "updatedAt": "2026-10-28T03:25:59Z",
+      "stars": 148,
+      "updatedAt": "2026-10-29T03:26:17Z",
       "license": "MIT",
       "score": 85,
       "capabilities": [
@@ -150,12 +221,80 @@
       }
     },
     {
+      "id": "953945624",
+      "name": "ModelTC/LightX2V",
+      "url": "https://github.com/ModelTC/LightX2V",
+      "summary": "Lightweight Image Video Action Generation Inference Framework",
+      "stars": 2969,
+      "updatedAt": "2026-10-29T13:11:59Z",
+      "license": "Apache-2.0",
+      "score": 79,
+      "capabilities": [
+        "video.generate",
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1231135337",
+      "name": "strukto-ai/mirage",
+      "url": "https://github.com/strukto-ai/mirage",
+      "summary": "The World's First Virtual Terminal for AI Agents",
+      "stars": 3753,
+      "updatedAt": "2026-10-29T13:43:41Z",
+      "license": "Apache-2.0",
+      "score": 79,
+      "capabilities": [
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
       "id": "1401682958",
       "name": "SandeepKomal/Git3D-Universe",
       "url": "https://github.com/SandeepKomal/Git3D-Universe",
       "summary": "",
       "stars": 3,
-      "updatedAt": "2026-10-28T12:45:20Z",
+      "updatedAt": "2026-10-29T02:23:56Z",
       "license": "MIT",
       "score": 76,
       "capabilities": [
@@ -190,7 +329,7 @@
       "url": "https://github.com/jjongguet/gjc-plugin",
       "summary": "Plugins for gajae-code (gjc) that make an agent's work checkable: test receipts, loopback UI assertions, plan validation, advisory delegation checks and a self-improvement ledger.",
       "stars": 2,
-      "updatedAt": "2026-10-28T13:12:27Z",
+      "updatedAt": "2026-10-29T12:45:41Z",
       "license": "MIT",
       "score": 75,
       "capabilities": [
@@ -220,17 +359,17 @@
       }
     },
     {
-      "id": "1176237747",
-      "name": "Voyagier-Travel/voyagier-cli",
-      "url": "https://github.com/Voyagier-Travel/voyagier-cli",
-      "summary": "Search, plan, and book real travel from the command line or any AI agent. Flights, hotels, activities — price-gated booking, quotes, MCP server built in.",
+      "id": "1390606053",
+      "name": "RetroNyym/tubelens",
+      "url": "https://github.com/RetroNyym/tubelens",
+      "summary": "YouTube AI gorunurluk + affiliate / YouTube Shopping audit - anahtarsiz video uretim kiti (Bing web gorsel aramasi, LTX AI video, klip, avatar, TTS, altyazi) + keyless CLI with local 5-tab dashboard",
       "stars": 1,
-      "updatedAt": "2026-10-28T13:32:20Z",
-      "license": "Apache-2.0",
+      "updatedAt": "2026-10-29T13:20:36Z",
+      "license": "MIT",
       "score": 74,
       "capabilities": [
+        "video.generate",
         "visual.generate",
-        "tool.search",
         "knowledge.search"
       ],
       "riskFlags": [],
@@ -238,7 +377,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -255,48 +394,13 @@
       }
     },
     {
-      "id": "1427405856",
-      "name": "muhammad-ahmed-ghani/social-explainer-reel-skill",
-      "url": "https://github.com/muhammad-ahmed-ghani/social-explainer-reel-skill",
-      "summary": "Agent skill that directs 9:16 social videos (Reels, TikTok, Shorts) by giving each beat to the layer that is reliable for it.",
-      "stars": 0,
-      "updatedAt": "2026-10-28T13:08:03Z",
+      "id": "1190322268",
+      "name": "oomol-lab/oo-cli",
+      "url": "https://github.com/oomol-lab/oo-cli",
+      "summary": "oo is OOMOL's CLI toolkit. Everything can be done in the CLI.",
+      "stars": 43,
+      "updatedAt": "2026-10-29T12:35:40Z",
       "license": "MIT",
-      "score": 72,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1351166934",
-      "name": "maomaochong-ai/open-astravia",
-      "url": "https://github.com/maomaochong-ai/open-astravia",
-      "summary": "开源 · 本地优先的 AI 智能体：编程与实干兼备。 自带模型密钥，内置 MCP、技能、插件、工作流、知识库以及数据库。",
-      "stars": 38,
-      "updatedAt": "2026-10-28T13:01:36Z",
-      "license": "Apache-2.0",
       "score": 68,
       "capabilities": [
         "visual.generate",
@@ -324,12 +428,86 @@
       }
     },
     {
+      "id": "1152014383",
+      "name": "ArcReel/ArcReel",
+      "url": "https://github.com/ArcReel/ArcReel",
+      "summary": "AI Agent 驱动的开源可自部署视频工作台：将小说与剧本转为角色、场景、道具资产、分镜、视频和剪映草稿，支持跨镜头一致性、多供应商与费用追踪 | Self-hosted AI video workspace for stories, storyboards and short-form video production",
+      "stars": 5882,
+      "updatedAt": "2026-10-29T13:30:41Z",
+      "license": "AGPL-3.0",
+      "score": 67,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1193300953",
+      "name": "dramaclaw/dramaclaw",
+      "url": "https://github.com/dramaclaw/dramaclaw",
+      "summary": "A general-purpose AIGC video engine: script to finished film in one pipeline — dramas, ads, product videos, otome games, and more. | 通用 AIGC 视频引擎 —— 从剧本到成片一条流水线，漫剧、广告、电商、乙游皆可",
+      "stars": 6571,
+      "updatedAt": "2026-10-29T12:51:16Z",
+      "license": "NOASSERTION",
+      "score": 67,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
       "id": "1427814588",
       "name": "codepawl/viz3d",
       "url": "https://github.com/codepawl/viz3d",
       "summary": "A skill that turns hard-to-picture places, systems and events into live 3D worlds, dashboards and films.",
       "stars": 14,
-      "updatedAt": "2026-10-27T16:59:41Z",
+      "updatedAt": "2026-10-28T17:02:45Z",
       "license": "MIT",
       "score": 65,
       "capabilities": [
@@ -342,184 +520,6 @@
       "adaptation": {
         "mode": "pattern-first",
         "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1250872384",
-      "name": "ai-decentralized/Difflet",
-      "url": "https://github.com/ai-decentralized/Difflet",
-      "summary": "Fast diffusion-transformer inference across accelerators — AWS Trainium, TPU, and more. CLI, Python API, OpenAI-compatible server.",
-      "stars": 9,
-      "updatedAt": "2026-10-28T13:33:12Z",
-      "license": "Apache-2.0",
-      "score": 64,
-      "capabilities": [
-        "video.generate",
-        "visual.generate"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1431958479",
-      "name": "ZhangShurong/dsh-vista",
-      "url": "https://github.com/ZhangShurong/dsh-vista",
-      "summary": "Visual memory and active inspection for DeepSeek Harness: revisit any image, inspect any region, read exact pixels.",
-      "stars": 1,
-      "updatedAt": "2026-10-28T13:09:02Z",
-      "license": "MIT",
-      "score": 60,
-      "capabilities": [
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1435863402",
-      "name": "Daydremr/drawn-films-plugin",
-      "url": "https://github.com/Daydremr/drawn-films-plugin",
-      "summary": "Hand-drawn animated films from your own stories, made with your own Claude. A Claude Code plugin with the whole engine: two looks, a cast, voices, music and 1080p renders on your own computer. Free for any use; just don't resell it.",
-      "stars": 0,
-      "updatedAt": "2026-10-28T12:47:31Z",
-      "license": "NOASSERTION",
-      "score": 59,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "864843654",
-      "name": "grazianoEnzoMarchesani/EnviReader",
-      "url": "https://github.com/grazianoEnzoMarchesani/EnviReader",
-      "summary": "Web-based solution for advanced 2D/3D analysis and visualization of ENVI-met simulation results and area models (EDX/EDT, INX, SIMX, FOX)",
-      "stars": 0,
-      "updatedAt": "2026-10-28T11:19:39Z",
-      "license": "GPL-3.0",
-      "score": 59,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1332685892",
-      "name": "777marvin/ext-broke",
-      "url": "https://github.com/777marvin/ext-broke",
-      "summary": "Token budget extension for AiderDesk: progressive input compression (structural/truncate/summarize) with local Ollama summarization offload",
-      "stars": 0,
-      "updatedAt": "2026-10-28T11:41:47Z",
-      "license": "MIT",
-      "score": 58,
-      "capabilities": [
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
