@@ -2,19 +2,19 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-10-30",
+  "generatedDate": "2026-10-31",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1397753114",
-      "name": "R0zumnik/memglow",
-      "url": "https://github.com/R0zumnik/memglow",
-      "summary": "Watch your AI's memory come alive — a live 3D brain of your Markdown notes that lights up as Claude Code, Cursor & other agents read, search and write.",
-      "stars": 2,
-      "updatedAt": "2026-10-30T07:56:23Z",
-      "license": "MIT",
-      "score": 89,
+      "id": "1291468384",
+      "name": "buildinternet/uploads",
+      "url": "https://github.com/buildinternet/uploads",
+      "summary": "Lightweight file host and upload tools for coding agents to add artifacts to pull requests. Add CI checks for screenshots. Cloud and self-host options.",
+      "stars": 19,
+      "updatedAt": "2026-10-31T12:32:58Z",
+      "license": "Apache-2.0",
+      "score": 94,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -43,25 +43,26 @@
       }
     },
     {
-      "id": "1334954277",
-      "name": "hasso5703/dgx-spark-qwen38",
-      "url": "https://github.com/hasso5703/dgx-spark-qwen38",
-      "summary": "dgx-spark-qwen38 is an open-source installer that turns an NVIDIA DGX Spark, or any GB10 machine (ASUS, Dell, HP, Lenovo, MSI, GIGABYTE, Acer), into a private AI server in one command: measured model lanes, OpenAI and Anthropic APIs, and a local cockpit.",
-      "stars": 243,
-      "updatedAt": "2026-10-30T13:35:07Z",
+      "id": "1440387737",
+      "name": "AbdulDevHub/Claude-Code-Second-Brain",
+      "url": "https://github.com/AbdulDevHub/Claude-Code-Second-Brain",
+      "summary": "See everything Claude Code knows about you: a 3D knowledge-graph visualizer for ~/.claude (CLAUDE.md, memories, skills, plugins, MCP servers, agents). Vanilla JS, zero dependencies.",
+      "stars": 0,
+      "updatedAt": "2026-10-31T01:55:42Z",
       "license": "MIT",
       "score": 86,
       "capabilities": [
         "video.generate",
         "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -78,14 +79,50 @@
       }
     },
     {
-      "id": "1181761989",
-      "name": "gaopengbin/cesium-mcp",
-      "url": "https://github.com/gaopengbin/cesium-mcp",
-      "summary": "Protocol-agnostic CesiumJS AI control runtime for MCP, WebMCP, function calling, and browser agents.",
-      "stars": 149,
-      "updatedAt": "2026-10-30T03:26:04Z",
+      "id": "1399722792",
+      "name": "zhiyuan-lei/Alysia",
+      "url": "https://github.com/zhiyuan-lei/Alysia",
+      "summary": "Alysia — 面向 B 站的自主创作者系统：可恢复的内容流水线，带人工审核与发布闸门",
+      "stars": 0,
+      "updatedAt": "2026-10-31T13:05:08Z",
       "license": "MIT",
-      "score": 85,
+      "score": 86,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1333579278",
+      "name": "ZASENJC/dsh-plugins-store",
+      "url": "https://github.com/ZASENJC/dsh-plugins-store",
+      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
+      "stars": 74,
+      "updatedAt": "2026-10-31T12:44:35Z",
+      "license": "MIT",
+      "score": 83,
       "capabilities": [
         "visual.generate",
         "tool.search",
@@ -118,7 +155,7 @@
       "url": "https://github.com/strukto-ai/mirage",
       "summary": "The World's First Virtual Terminal for AI Agents",
       "stars": 3756,
-      "updatedAt": "2026-10-30T13:33:19Z",
+      "updatedAt": "2026-10-31T13:05:41Z",
       "license": "Apache-2.0",
       "score": 79,
       "capabilities": [
@@ -147,25 +184,25 @@
       }
     },
     {
-      "id": "1299395003",
-      "name": "ZenRows/cli",
-      "url": "https://github.com/ZenRows/cli",
-      "summary": "Zero-config CLI that gives AI agents reliable access to protected web data through Zenrows — Fetch, Extract, Batch, and Browser Sessions, plus MCP setup and agent skills. No API key needed to start.",
-      "stars": 16,
-      "updatedAt": "2026-10-30T11:29:08Z",
-      "license": "MIT",
-      "score": 79,
+      "id": "1421410153",
+      "name": "hodgemann/mondo-music-video",
+      "url": "https://github.com/hodgemann/mondo-music-video",
+      "summary": "Turn a song into a music video. Beat-aware shot planning, LLM-written prompts, local or hosted rendering, actors that dance, lip-sync and play instruments, Worlds, storyboards, and frame-exact assembly with your original audio. Agent-installable, with MCP tools and Open Actor/Prop Protocols.",
+      "stars": 11,
+      "updatedAt": "2026-10-31T12:31:57Z",
+      "license": "Apache-2.0",
+      "score": 78,
       "capabilities": [
+        "video.generate",
         "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -187,7 +224,7 @@
       "url": "https://github.com/kitepon/Caveat",
       "summary": "Long-term memory layer for Claude Code and Codex — markdown-in-git knowledge base, SQLite FTS5 retrieval, MCP, and native agent hooks.",
       "stars": 3,
-      "updatedAt": "2026-10-30T11:48:31Z",
+      "updatedAt": "2026-10-31T12:59:20Z",
       "license": "MIT",
       "score": 76,
       "capabilities": [
@@ -222,44 +259,9 @@
       "url": "https://github.com/SandeepKomal/Git3D-Universe",
       "summary": "",
       "stars": 3,
-      "updatedAt": "2026-10-30T08:34:07Z",
+      "updatedAt": "2026-10-31T06:57:07Z",
       "license": "MIT",
       "score": 76,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1427136446",
-      "name": "IsraelWebDev/funkbox",
-      "url": "https://github.com/IsraelWebDev/funkbox",
-      "summary": "Make funky shader loops, posters, FastSD images and 9:16 product video ads with Claude, on your own computer. One MCP server + Claude Code plugin. No cloud, no accounts, no NVIDIA GPU.",
-      "stars": 0,
-      "updatedAt": "2026-10-30T13:28:43Z",
-      "license": "MIT",
-      "score": 72,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -292,7 +294,7 @@
       "url": "https://github.com/oomol-lab/oo-cli",
       "summary": "oo is OOMOL's CLI toolkit. Everything can be done in the CLI.",
       "stars": 43,
-      "updatedAt": "2026-10-30T10:45:57Z",
+      "updatedAt": "2026-10-31T12:42:19Z",
       "license": "MIT",
       "score": 68,
       "capabilities": [
@@ -326,7 +328,7 @@
       "url": "https://github.com/codepawl/viz3d",
       "summary": "A skill that turns hard-to-picture places, systems and events into live 3D worlds, dashboards and films.",
       "stars": 14,
-      "updatedAt": "2026-10-29T16:53:17Z",
+      "updatedAt": "2026-10-30T16:58:48Z",
       "license": "MIT",
       "score": 65,
       "capabilities": [
@@ -355,48 +357,14 @@
       }
     },
     {
-      "id": "1205267694",
-      "name": "LanNguyenSi/agent-dx",
-      "url": "https://github.com/LanNguyenSi/agent-dx",
-      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
-      "stars": 6,
-      "updatedAt": "2026-10-30T13:20:15Z",
+      "id": "1377406441",
+      "name": "wlsdml1114/omg-runpod-media",
+      "url": "https://github.com/wlsdml1114/omg-runpod-media",
+      "summary": "OhMyGPU Runpod image and video generation recipes",
+      "stars": 1,
+      "updatedAt": "2026-10-31T12:34:50Z",
       "license": "MIT",
-      "score": 63,
-      "capabilities": [
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1439625727",
-      "name": "AliShovk/qantcore-video-generator",
-      "url": "https://github.com/AliShovk/qantcore-video-generator",
-      "summary": "Генератор вертикальных роликов 1080x1920 для обзоров и гайдов: minibot, HTML/Chrome, Manim, whiteboard + Silero TTS",
-      "stars": 0,
-      "updatedAt": "2026-10-30T13:04:35Z",
-      "license": "MIT",
-      "score": 58,
+      "score": 60,
       "capabilities": [
         "video.generate",
         "visual.generate"
@@ -423,46 +391,12 @@
       }
     },
     {
-      "id": "1231389281",
-      "name": "autoworks-ai/autovault-website",
-      "url": "https://github.com/autoworks-ai/autovault-website",
-      "summary": "AutoVault documentation and product website",
+      "id": "1371086022",
+      "name": "35iter-cn/pi-bg-tasks",
+      "url": "https://github.com/35iter-cn/pi-bg-tasks",
+      "summary": "Background task tools for the pi coding agent — run long commands with bg_run, auto-pushed results, log tails, timeout kill. Two tools, ~330 tokens of context overhead.",
       "stars": 0,
-      "updatedAt": "2026-10-30T11:13:10Z",
-      "license": "MIT",
-      "score": 58,
-      "capabilities": [
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1431829992",
-      "name": "engramdev/orbital",
-      "url": "https://github.com/engramdev/orbital",
-      "summary": "Real-time 3D mission-control for an agent operation — sessions, agents, pipelines, memory and tools as a live particle graph. Local-first, MIT.",
-      "stars": 0,
-      "updatedAt": "2026-10-29T04:22:56Z",
+      "updatedAt": "2026-10-31T12:06:21Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
@@ -496,9 +430,83 @@
       "url": "https://github.com/apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
       "summary": "리버스 Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-ko.",
       "stars": 66,
-      "updatedAt": "2026-10-30T13:02:06Z",
+      "updatedAt": "2026-10-31T12:40:38Z",
       "license": "NOASSERTION",
       "score": 56,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1393181875",
+      "name": "apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-pt",
+      "url": "https://github.com/apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-pt",
+      "summary": "engenharia reversa Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-pt.",
+      "stars": 39,
+      "updatedAt": "2026-10-31T12:38:16Z",
+      "license": "NOASSERTION",
+      "score": 55,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1393183720",
+      "name": "apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-ru",
+      "url": "https://github.com/apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-ru",
+      "summary": "реверс-инжиниринг Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-ru.",
+      "stars": 35,
+      "updatedAt": "2026-10-31T12:38:02Z",
+      "license": "NOASSERTION",
+      "score": 54,
       "capabilities": [
         "video.generate",
         "visual.generate",
