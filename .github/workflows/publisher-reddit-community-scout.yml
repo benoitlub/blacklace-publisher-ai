@@ -15,9 +15,13 @@ jobs:
       - uses: actions/checkout@v4
       - name: Generate read-only community discovery report
         run: node scripts/reddit-community-scout.mjs reddit-community-opportunities.json
+      - name: Qualify candidate communities using public read-only endpoints
+        run: node scripts/reddit-community-qualify.mjs reddit-community-qualification.json
       - name: Upload report for Publisher review
         uses: actions/upload-artifact@v4
         with:
           name: publisher-reddit-community-opportunities
-          path: reddit-community-opportunities.json
+          path: |
+            reddit-community-opportunities.json
+            reddit-community-qualification.json
           retention-days: 14
