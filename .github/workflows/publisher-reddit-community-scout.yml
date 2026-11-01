@@ -1,0 +1,23 @@
+name: Publisher Reddit community scout
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 9 * * 2"
+
+permissions:
+  contents: read
+
+jobs:
+  reddit-community-research:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate read-only community discovery report
+        run: node scripts/reddit-community-scout.mjs reddit-community-opportunities.json
+      - name: Upload report for Publisher review
+        uses: actions/upload-artifact@v4
+        with:
+          name: publisher-reddit-community-opportunities
+          path: reddit-community-opportunities.json
+          retention-days: 14
