@@ -35,6 +35,77 @@ afterEach(async () => {
   );
 });
 describe("studio authorization, provenance and meaningful failure states", () => {
+  it("cannot replay an empty success manifest as a verified production", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "studio-empty-success-"));
+    dirs.push(dir);
+    vi.stubEnv("PUBLISHER_STUDIO_DIR", dir);
+    const id = hash(
+      JSON.stringify([input.parcelId, input.seedId, input.operationId]),
+    );
+    await mkdir(path.dirname(artifactPath(id, "report.json")), {
+      recursive: true,
+    });
+    await writeFile(
+      artifactPath(id, "report.json"),
+      JSON.stringify({
+        status: "ready-for-review",
+        fingerprint: hash(
+          JSON.stringify({
+            profile: "studio-v1",
+            capability: "video.studio",
+            request: input,
+          }),
+        ),
+        files: [],
+      }),
+    );
+    await expect(runStudio(input)).rejects.toThrow(
+      "STUDIO_CACHED_REPORT_INVALID",
+    );
+  });
+  it("does not confuse matching hashes of arbitrary bytes with a valid cached MP4", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "studio-invalid-success-"));
+    dirs.push(dir);
+    vi.stubEnv("PUBLISHER_STUDIO_DIR", dir);
+    const id = hash(
+        JSON.stringify([input.parcelId, input.seedId, input.operationId]),
+      ),
+      bytes = Buffer.from("This is not a media file");
+    await mkdir(path.dirname(artifactPath(id, "report.json")), {
+      recursive: true,
+    });
+    await writeFile(artifactPath(id, "short.mp4"), bytes);
+    const artifact = {
+      filename: "short.mp4",
+      sha256: hash(bytes),
+      bytes: bytes.length,
+    };
+    await writeFile(
+      artifactPath(id, "report.json"),
+      JSON.stringify({
+        id,
+        capability: "video.studio",
+        parcelId: input.parcelId,
+        seedId: input.seedId,
+        operationId: input.operationId,
+        published: false,
+        publicationEnabled: false,
+        status: "ready-for-review",
+        fingerprint: hash(
+          JSON.stringify({
+            profile: "studio-v1",
+            capability: "video.studio",
+            request: input,
+          }),
+        ),
+        files: [artifact],
+        artifact,
+      }),
+    );
+    await expect(runStudio(input)).rejects.toThrow(
+      "STUDIO_CACHED_ARTIFACT_INVALID",
+    );
+  });
   it("a provider file identifier and image-like signature never prove a decodable image", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "studio-fake-image-"));
     dirs.push(dir);
@@ -66,11 +137,16 @@ describe("studio authorization, provenance and meaningful failure states", () =>
     expect(count).toBe(2);
   });
   it("accepts bounded owner creative guidance but rejects cross-contract or oversized instructions", () => {
-    const feedback = [{
-      feedbackId: "benoit-420-dice-short-2026-10-26",
-      creativeGuidance: ["Animate the dice and vary the shots", "Keep the French voice"],
-      prohibitedActions: ["Do not publish"],
-    }];
+    const feedback = [
+      {
+        feedbackId: "benoit-420-dice-short-2026-10-26",
+        creativeGuidance: [
+          "Animate the dice and vary the shots",
+          "Keep the French voice",
+        ],
+        prohibitedActions: ["Do not publish"],
+      },
+    ];
     const valid = validateRequest({ ...input, creativeFeedback: feedback });
     expect(valid.creativeFeedback).toEqual(feedback);
     expect(valid.automaticPublication).toBe(false);
@@ -79,17 +155,35 @@ describe("studio authorization, provenance and meaningful failure states", () =>
       [{ ...feedback[0], creativeGuidance: ["x".repeat(241)] }],
       [{ ...feedback[0], prohibitedActions: "publish" }],
       Array.from({ length: 9 }, () => feedback[0]),
-    ]) expect(() => validateRequest({ ...input, creativeFeedback: wrong })).toThrow("INVALID_STUDIO_REQUEST");
+    ])
+      expect(() =>
+        validateRequest({ ...input, creativeFeedback: wrong }),
+      ).toThrow("INVALID_STUDIO_REQUEST");
   });
   it("accepts one catalog video identifier but forbids arbitrary sources or mixed image inputs", () => {
-    const request = validateRequest({ ...input, assetId: undefined, videoAssetId: "owner-420-dice-recording" });
+    const request = validateRequest({
+      ...input,
+      assetId: undefined,
+      videoAssetId: "owner-420-dice-recording",
+    });
     expect(request.videoAssetId).toBe("owner-420-dice-recording");
     for (const invalid of [
       { ...input, videoAssetId: "video" }, // cannot mix a second image asset with a video
-      { ...input, assetId: undefined, videoAssetId: "owner-video", imagePrompt: "another provider" },
+      {
+        ...input,
+        assetId: undefined,
+        videoAssetId: "owner-video",
+        imagePrompt: "another provider",
+      },
       { ...input, assetId: undefined, videoAssetId: "" },
-      { ...input, assetId: undefined, videoAssetId: "video", url: "https://example.org/file.mp4" },
-    ]) expect(() => validateRequest(invalid)).toThrow("INVALID_STUDIO_REQUEST");
+      {
+        ...input,
+        assetId: undefined,
+        videoAssetId: "video",
+        url: "https://example.org/file.mp4",
+      },
+    ])
+      expect(() => validateRequest(invalid)).toThrow("INVALID_STUDIO_REQUEST");
   });
   it("rejects missing permission, unknown fields, publication and oversized scripts before rendering", async () => {
     const fetcher = vi.spyOn(globalThis, "fetch");
