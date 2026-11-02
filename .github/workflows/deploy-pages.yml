@@ -41,7 +41,7 @@ jobs:
           node-version: 24
 
       - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       # Gate: never publish from a tree that does not typecheck. This workflow
       # used to build and deploy on every push to main regardless of CI, so a
