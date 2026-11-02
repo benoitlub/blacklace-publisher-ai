@@ -1,0 +1,19 @@
+name: Publisher site agent audit
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 8 * * 1"
+permissions:
+  contents: read
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit public portal (read-only)
+        run: node scripts/site-agent-audit.mjs https://benoitlub.github.io/prohibited-portal/ --out=publisher-site-agent-audit.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: publisher-site-agent-audit
+          path: publisher-site-agent-audit.json
+          retention-days: 14
