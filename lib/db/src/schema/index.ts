@@ -5,3 +5,4 @@ export * from "./settings";
 export * from "./curator-signals";
 export * from "./observatory-sources";
 export * from "./poulpe-life";
+export * from "./gerard-private-runtime";
