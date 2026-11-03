@@ -157,7 +157,7 @@ export async function createMetricoolProvider(deps: {
     async brand() {
       const identity = await inspectBrand();
       const networks = identity.networks;
-      if (!networks.length || networks.some(n => !["facebook", "instagram", "youtube"].includes(n))) blocked("METRICOOL_BRAND_QUOTA_COVERAGE_UNSUPPORTED", "verified-budget");
+      if (!networks.length || networks.some(n => !["facebook", "instagram", "youtube", "tiktok"].includes(n))) blocked("METRICOOL_BRAND_QUOTA_COVERAGE_UNSUPPORTED", "verified-budget");
       return identity;
     },
     async published(start, end, networks) {
@@ -167,6 +167,9 @@ export async function createMetricoolProvider(deps: {
         facebook: ["get_facebook_posts", "get_facebook_reels", "get_facebook_stories"],
         instagram: ["get_instagram_posts", "get_instagram_reels", "get_instagram_stories"],
         youtube: ["get_youtube_videos"],
+        // Require a real Composio schema and full provider history; missing
+        // TikTok read support blocks safely before any scheduling write.
+        tiktok: ["get_tiktok_videos"],
       };
       const result: ProviderPost[] = [];
       for (const network of networks) {
