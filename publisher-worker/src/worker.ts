@@ -601,8 +601,8 @@ export function evaluateInnovationCandidate(tool: ComposioTool, connected: boole
 }
 
 
-type SocialNetwork = "instagram" | "facebook" | "youtube";
-const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube"]);
+type SocialNetwork = "instagram" | "facebook" | "youtube" | "tiktok";
+const SOCIAL_NETWORKS = new Set<SocialNetwork>(["instagram", "facebook", "youtube", "tiktok"]);
 const METRICOOL_MONTHLY_PUBLICATION_LIMIT = 20;
 
 // Route every prepared publication to the existing brand until a second
@@ -611,14 +611,15 @@ const DEFAULT_METRICOOL_BRAND_ID = "3350145";
 const DEFAULT_METRICOOL_TIMEZONE = "Europe/Madrid";
 export function resolveMetricoolDestination(input: Record<string, unknown>, brands: Record<string, string> = {}) {
   const category = String(input.category ?? input.editorialCategory ?? "").trim().toLowerCase();
+  const tiktokBlacklace = Array.isArray(input.networks) && input.networks.length === 1 && String(input.networks[0]).toLowerCase().trim() === "tiktok";
   const configured = category && Object.prototype.hasOwnProperty.call(brands, category)
     ? String(brands[category] ?? "").trim()
     : "";
   return {
     category: category || "unspecified",
-    brandId: configured || DEFAULT_METRICOOL_BRAND_ID,
+    brandId: tiktokBlacklace ? "7653100" : configured || DEFAULT_METRICOOL_BRAND_ID,
     timezone: DEFAULT_METRICOOL_TIMEZONE,
-    routing: configured ? "configured-category" : "default-brand",
+    routing: tiktokBlacklace ? "explicit-tiktok-blacklace" : configured ? "configured-category" : "default-brand",
   };
 }
 
@@ -671,9 +672,10 @@ export function prepareSocialPublication(input: Record<string, unknown>) {
   const publicationDate = String(input.publicationDate ?? "").trim() || null;
   const errors: string[] = [];
 
-  if (!networks.length) errors.push("Au moins un réseau supporté est requis : instagram, facebook ou youtube.");
+  if (!networks.length) errors.push("Au moins un réseau supporté est requis : instagram, facebook, youtube ou tiktok.");
   if (!text && !networks.every((network) => network === "instagram" || network === "facebook")) errors.push("Un texte est requis pour cette combinaison de réseaux.");
   if (networks.includes("instagram") && media.length === 0) errors.push("Instagram exige au moins un média.");
+  if (networks.includes("tiktok") && (networks.length !== 1 || media.length !== 1 || !/\\.mp4(?:[?#]|$)/i.test(media[0]))) errors.push("TikTok Blacklace exige une seule vidéo MP4 et aucun autre réseau.");
   if (networks.includes("youtube") && media.length === 0) errors.push("YouTube exige une vidéo.");
   if (networks.includes("youtube") && !String(input.youtubeTitle ?? "").trim()) errors.push("YouTube exige un titre.");
   if (networks.includes("youtube") && typeof input.madeForKids !== "boolean") errors.push("YouTube exige madeForKids=true ou false.");
