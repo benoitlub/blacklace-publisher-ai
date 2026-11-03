@@ -4755,7 +4755,7 @@ async function studioReport(parcelId: string, operationId: string) {
     return { report, artifact, url: STUDIO_RAW_BASE + "/" + encodeURIComponent(parcelId) + "/" + encodeURIComponent(operationId) + "/short.mp4" };
   } catch { return null; }
 }
-async function verifiedStudioMediaForHarvest(env: Env, mediaUrl: string, harvest: Record<string, unknown>): Promise<boolean> {
+async function verifiedStudioMediaForHarvest(env: Env, mediaUrl: string, harvest: { seed_id?: unknown; parcel_id?: unknown }): Promise<boolean> {
   try {
     const url = new URL(mediaUrl);
     const publicOrigin = new URL(env.PUBLISHER_PUBLIC_URL || "https://blacklace-publisher-worker.benoitlubert.workers.dev").origin;
