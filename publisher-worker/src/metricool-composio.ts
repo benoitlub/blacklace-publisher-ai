@@ -157,7 +157,9 @@ export async function createMetricoolProvider(deps: {
     async brand() {
       const identity = await inspectBrand();
       const networks = identity.networks;
-      if (!networks.length || networks.some(n => !["facebook", "instagram", "youtube", "tiktok"].includes(n))) blocked("METRICOOL_BRAND_QUOTA_COVERAGE_UNSUPPORTED", "verified-budget");
+      if (!networks.length || networks.some(n => !["facebook", "instagram", "youtube", "tiktok"].includes(n)) ||
+        (networks.includes("tiktok") && !tools.some(t => ["get_tiktok_videos", "metricool_get_tiktok_videos"].includes(norm(t.slug)) && !!t.inputSchema)))
+        blocked("METRICOOL_BRAND_QUOTA_COVERAGE_UNSUPPORTED", "verified-budget");
       return identity;
     },
     async published(start, end, networks) {
