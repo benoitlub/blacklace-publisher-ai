@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-02",
+  "generatedDate": "2026-11-03",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
@@ -11,8 +11,8 @@
       "name": "vllm-project/vllm-omni",
       "url": "https://github.com/vllm-project/vllm-omni",
       "summary": "A framework for efficient model inference with omni-modality models",
-      "stars": 7489,
-      "updatedAt": "2026-11-02T16:23:45Z",
+      "stars": 7510,
+      "updatedAt": "2026-11-03T14:26:55Z",
       "license": "Apache-2.0",
       "score": 100,
       "capabilities": [
@@ -43,14 +43,14 @@
       }
     },
     {
-      "id": "1220477132",
-      "name": "waseemnasir2k26/reborn-forge",
-      "url": "https://github.com/waseemnasir2k26/reborn-forge",
-      "summary": "Meta-prompt generator for AI video: give it a niche and a reference YouTube URL and it returns a reusable 33-section master prompt (variation engine, stages, audio, lighting, scene JSON, anti-fail rules).",
-      "stars": 7,
-      "updatedAt": "2026-11-02T16:21:11Z",
+      "id": "1397753114",
+      "name": "R0zumnik/memglow",
+      "url": "https://github.com/R0zumnik/memglow",
+      "summary": "Watch your AI's memory come alive — a live 3D brain of your Markdown notes that lights up as Claude Code, Cursor & other agents read, search and write.",
+      "stars": 2,
+      "updatedAt": "2026-11-03T10:08:47Z",
       "license": "MIT",
-      "score": 91,
+      "score": 89,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -79,85 +79,48 @@
       }
     },
     {
-      "id": "1190257697",
-      "name": "Ylsssq926/clawclip",
-      "url": "https://github.com/Ylsssq926/clawclip",
-      "summary": "Cut your OpenClaw / ZeroClaw token bill. Find which model earns its cost. Prove whether optimizations actually work. Local, no upload.",
-      "stars": 3,
-      "updatedAt": "2026-11-02T15:43:57Z",
-      "license": "MIT",
-      "score": 90,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1333579278",
-      "name": "ZASENJC/dsh-plugins-store",
-      "url": "https://github.com/ZASENJC/dsh-plugins-store",
-      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
-      "stars": 74,
-      "updatedAt": "2026-11-02T16:17:04Z",
-      "license": "MIT",
-      "score": 83,
-      "capabilities": [
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1350708026",
-      "name": "sandpies/ComfyUI-Hand-Tie-Clips",
-      "url": "https://github.com/sandpies/ComfyUI-Hand-Tie-Clips",
-      "summary": "ComfyUI node pack for MiniMax H3 — chains generations into one continuous clip with held identity",
-      "stars": 12,
-      "updatedAt": "2026-11-02T16:05:58Z",
-      "license": "MIT",
+      "id": "1231135337",
+      "name": "strukto-ai/mirage",
+      "url": "https://github.com/strukto-ai/mirage",
+      "summary": "The World's First Virtual Terminal for AI Agents",
+      "stars": 3762,
+      "updatedAt": "2026-11-03T14:07:49Z",
+      "license": "Apache-2.0",
       "score": 79,
+      "capabilities": [
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1427581754",
+      "name": "NeoMarcoPolo/marcostudio",
+      "url": "https://github.com/NeoMarcoPolo/marcostudio",
+      "summary": "13 image and video tools that run on your own ComfyUI with open-weight models. Use the hosted app or run it locally.",
+      "stars": 5,
+      "updatedAt": "2026-11-03T14:26:02Z",
+      "license": "MIT",
+      "score": 77,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -220,12 +183,46 @@
       }
     },
     {
-      "id": "1234936379",
-      "name": "rogerchappel/cistamp",
-      "url": "https://github.com/rogerchappel/cistamp",
-      "summary": "Local CI receipt generator for reproducible command evidence.",
+      "id": "1107485386",
+      "name": "SandAI-org/MagiCompiler",
+      "url": "https://github.com/SandAI-org/MagiCompiler",
+      "summary": "A plug-and-play compiler that delivers free-lunch optimizations for both inference and training.",
+      "stars": 336,
+      "updatedAt": "2026-11-03T14:38:18Z",
+      "license": "Apache-2.0",
+      "score": 73,
+      "capabilities": [
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1440201757",
+      "name": "kappa77/manim-math-video-studio",
+      "url": "https://github.com/kappa77/manim-math-video-studio",
+      "summary": "Manim math video studio — storyboarded, narrated animated videos with subtitles",
       "stars": 0,
-      "updatedAt": "2026-11-02T15:56:05Z",
+      "updatedAt": "2026-11-03T14:28:00Z",
       "license": "MIT",
       "score": 72,
       "capabilities": [
@@ -255,24 +252,25 @@
       }
     },
     {
-      "id": "1250872384",
-      "name": "ai-decentralized/Difflet",
-      "url": "https://github.com/ai-decentralized/Difflet",
-      "summary": "Fast diffusion-transformer inference across accelerators — AWS Trainium, TPU, and more. CLI, Python API, OpenAI-compatible server.",
-      "stars": 9,
-      "updatedAt": "2026-11-02T16:16:33Z",
-      "license": "Apache-2.0",
-      "score": 64,
+      "id": "1421715920",
+      "name": "scar8969/prompt-layer",
+      "url": "https://github.com/scar8969/prompt-layer",
+      "summary": "See what a model provider adds to your prompt before you pay — per-endpoint rewrites, expansions, canned negative prompts and safety screens, with the switch that turns each one off. 20 hosted image, video and chat endpoints, every claim sourced.",
+      "stars": 0,
+      "updatedAt": "2026-11-03T14:41:02Z",
+      "license": "MIT",
+      "score": 72,
       "capabilities": [
         "video.generate",
-        "visual.generate"
+        "visual.generate",
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -294,7 +292,7 @@
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 6,
-      "updatedAt": "2026-11-02T16:06:52Z",
+      "updatedAt": "2026-11-03T14:28:04Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
@@ -323,28 +321,23 @@
       }
     },
     {
-      "id": "1198501567",
-      "name": "talahareb/AugmentedReality_LocationBased_Sensors",
-      "url": "https://github.com/talahareb/AugmentedReality_LocationBased_Sensors",
-      "summary": "Usage of augmented reality, real GPS location based, to find soil sensors  ",
-      "stars": 0,
-      "updatedAt": "2026-11-01T22:41:39Z",
-      "license": "UNKNOWN",
-      "score": 59,
+      "id": "1367044972",
+      "name": "Qiuner/birdview",
+      "url": "https://github.com/Qiuner/birdview",
+      "summary": "Stop letting AI code blind. Map the architecture before every change with Birdview.",
+      "stars": 672,
+      "updatedAt": "2026-11-03T13:22:58Z",
+      "license": "MIT",
+      "score": 61,
       "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "tool.search"
       ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
+      "riskFlags": [],
+      "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -361,12 +354,12 @@
       }
     },
     {
-      "id": "1230972042",
-      "name": "Haven16262/bili-progress-pwa",
-      "url": "https://github.com/Haven16262/bili-progress-pwa",
-      "summary": "Bilibili 多 P 视频观看进度 3D 可视化 PWA，自动同步观看历史并可视化追踪进度",
+      "id": "1188321332",
+      "name": "LanNguyenSi/agent-planforge",
+      "url": "https://github.com/LanNguyenSi/agent-planforge",
+      "summary": "Planning bootstrap for AI agents: architecture, ADRs, backlog generation.",
       "stars": 0,
-      "updatedAt": "2026-11-02T05:18:46Z",
+      "updatedAt": "2026-11-03T12:41:08Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
@@ -395,58 +388,24 @@
       }
     },
     {
-      "id": "1443169419",
-      "name": "Rehanasharmin/REA-optimized-for-arena-agent-",
-      "url": "https://github.com/Rehanasharmin/REA-optimized-for-arena-agent-",
-      "summary": "REA (Reverse Engineer Anything) adapted for headless Arena agent sandboxes: one-command bootstrap, machine-checked capability verifier, agent runbook. Upstream: https://github.com/morluto/rea",
+      "id": "1126839162",
+      "name": "nostitos/utxo-timelapse",
+      "url": "https://github.com/nostitos/utxo-timelapse",
+      "summary": "Every unspent Bitcoin output since 2009, as a 3D landscape you can fly through and a 4K timelapse you can pause and inspect. Exact block-by-block replay, full output history and the whole open pipeline.",
       "stars": 0,
-      "updatedAt": "2026-11-02T16:10:16Z",
+      "updatedAt": "2026-11-03T12:04:27Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
-        "tool.search",
-        "knowledge.search"
+        "video.generate",
+        "visual.generate"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1440080400",
-      "name": "Rhuthvija/exoplanet_explorer",
-      "url": "https://github.com/Rhuthvija/exoplanet_explorer",
-      "summary": "SOLICE: an AI-powered 3D explorer for 6,000+ real exoplanets from NASA's Exoplanet Archive, with a grounded AI astronomer, habitability dashboard and cinematic WebGL intro.",
-      "stars": 0,
-      "updatedAt": "2026-11-01T19:20:57Z",
-      "license": "MIT",
-      "score": 58,
-      "capabilities": [
-        "visual.generate",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -468,7 +427,7 @@
       "url": "https://github.com/visotalk/visotalk",
       "summary": "An open-source agent skill for explainer videos: a narration-driven motion engine and a library of built-in styles, ready out of the box.",
       "stars": 0,
-      "updatedAt": "2026-11-02T16:11:39Z",
+      "updatedAt": "2026-11-03T12:14:15Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
@@ -518,6 +477,43 @@
       "adaptation": {
         "mode": "pattern-first",
         "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1393126659",
+      "name": "apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
+      "url": "https://github.com/apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
+      "summary": "리버스 Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-ko.",
+      "stars": 66,
+      "updatedAt": "2026-11-03T14:23:58Z",
+      "license": "NOASSERTION",
+      "score": 56,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
