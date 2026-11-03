@@ -1507,11 +1507,11 @@ async function finalizeMetricoolPublication(env: Env, input: Record<string, unkn
     if (!prior) {
       stage = "provenance";
       const harvest = await getGardenHarvestById(sql, handoff.harvestId);
-      if (!harvest || !classifyHarvestForSocial(harvest).eligible || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection") {
-        return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_INELIGIBLE" };
+      // Editorial readiness and preferred transport are advisory for Gérard.
+      // Private-prospect material and nonexistent sources remain excluded.
+      if (!harvest || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection") {
+        return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_UNAVAILABLE_OR_PRIVATE" };
       }
-      const route = chooseEditorialDestination(classifyEditorialTopic({ seedId: harvest.seed_id ?? "", title: harvest.title, text: handoff.prepared.text }));
-      if (route.preferredProvider !== "metricool") return { ...base, status: "rejected", stage: "destination", reason: "EDITORIAL_PROVIDER_MISMATCH" };
       const sourceMedia = harvest.download_url || harvest.url;
       if (handoff.prepared.media.some(url => url !== sourceMedia)) return { ...base, status: "rejected", stage: "provenance", reason: "MEDIA_NOT_FROM_SOURCE_HARVEST" };
     }
