@@ -1431,9 +1431,24 @@ app.get("/api/production/canva-tool-schema", async (c) => {
 });
 
 async function metricoolProvider(env: Env, brandId: string) {
-  // The two brands use independent Composio projects; no implicit credential fallback.
+  // Prefer the explicit second connected account in the shared Composio project.
+  // Older Blacklace installations used the separate Composio2 project. Reuse it
+  // only when its own user and account ID are configured; never fall back to the
+  // Pro.Hibited account or discover arbitrary accounts across users.
   let selectedEnv: Env;
-  try { selectedEnv = metricoolCredentialsForBrand(env, brandId); }
+  try {
+    if (brandId === "7653100" && !env.METRICOOL_BLACKLACE_CONNECTED_ACCOUNT_ID?.trim() &&
+        env.Composio2 && env.COMPOSIO2_USER_ID && env.COMPOSIO2_METRICOOL_CONNECTED_ACCOUNT_ID?.trim()) {
+      selectedEnv = {
+        ...env,
+        COMPOSIO_API_KEY: env.Composio2,
+        COMPOSIO_USER_ID: env.COMPOSIO2_USER_ID,
+        METRICOOL_CONNECTED_ACCOUNT_ID: env.COMPOSIO2_METRICOOL_CONNECTED_ACCOUNT_ID,
+      };
+    } else {
+      selectedEnv = metricoolCredentialsForBrand(env, brandId);
+    }
+  }
   catch (error) {
     const code = error instanceof Error ? error.message : "METRICOOL_ROUTING_FAILED";
     if (["BLACKLACE_METRICOOL_ACCOUNT_NOT_CONFIGURED", "METRICOOL_ACCOUNT_DESTINATION_COLLISION"].includes(code)) {
