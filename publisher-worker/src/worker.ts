@@ -615,11 +615,15 @@ export function resolveMetricoolDestination(input: Record<string, unknown>, bran
   const configured = category && Object.prototype.hasOwnProperty.call(brands, category)
     ? String(brands[category] ?? "").trim()
     : "";
+  // Gérard may explicitly select either of the owner's known Metricool brands.
+  // The provider still verifies actual access before any write.
+  const requestedBrand = String(input.brandId ?? "").trim();
+  const explicitBrand = ["3350145", "7653100"].includes(requestedBrand) ? requestedBrand : "";
   return {
     category: category || "unspecified",
-    brandId: tiktokBlacklace ? "7653100" : configured || DEFAULT_METRICOOL_BRAND_ID,
+    brandId: explicitBrand || (tiktokBlacklace ? "7653100" : configured || DEFAULT_METRICOOL_BRAND_ID),
     timezone: DEFAULT_METRICOOL_TIMEZONE,
-    routing: tiktokBlacklace ? "explicit-tiktok-blacklace" : configured ? "configured-category" : "default-brand",
+    routing: explicitBrand ? "gerard-explicit-brand" : tiktokBlacklace ? "explicit-tiktok-blacklace" : configured ? "configured-category" : "default-brand",
   };
 }
 
