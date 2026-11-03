@@ -1554,9 +1554,10 @@ async function finalizeSocialPublication(env: Env, input: Record<string, unknown
     return { ...base, status: "rejected", stage: "editorial-validation", reason: "INVALID_BUFFER_HANDOFF" };
   try {
     const harvest = await getGardenHarvestById(await getSql(env), String(input.harvestId ?? ""));
-    if (!harvest || !classifyHarvestForSocial(harvest).eligible || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection" ||
-        classifyEditorialTopic({ seedId: harvest.seed_id ?? "", title: harvest.title, text: String(input.text ?? "") }) !== "book")
-      return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_INELIGIBLE" };
+    // Gérard owns editorial readiness and topic selection; Publisher only
+    // enforces source existence and private-prospect confidentiality.
+    if (!harvest || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection")
+      return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_UNAVAILABLE_OR_PRIVATE" };
     // Reuse the existing authenticated Buffer route, reservation table and
     // channel binding. No second scheduler or fallback transport is created.
     const response = await app.fetch(new Request("https://publisher.internal/api/social/transports/buffer/book-draft", {
