@@ -1,6 +1,6 @@
 // Metricool's execution path, invoked by the existing Octopus adapter. The
 // provider and existing global-state persistence are injected at their boundaries.
-export type Network = "facebook" | "instagram" | "youtube";
+export type Network = "facebook" | "instagram" | "youtube" | "tiktok";
 export interface Publication {
   operationId: string; harvestId: string; text: string; media: string[];
   networks: Network[]; brandId: string; timezone: string; youtube?: Record<string, unknown> | null;
@@ -116,13 +116,14 @@ export async function executeMetricoolPublication(input: Publication, deps: {
   let stage = "authorization";
   try {
     if (!deps.dryRun && (!deps.enabled || !deps.authorized)) blocked("METRICOOL_EXECUTION_DISABLED_OR_UNAUTHORIZED", stage);
-    if (!input.operationId || !input.harvestId || !input.networks.length || input.networks.some(n => !["facebook", "instagram", "youtube"].includes(n)) ||
+    if (!input.operationId || !input.harvestId || !input.networks.length || input.networks.some(n => !["facebook", "instagram", "youtube", "tiktok"].includes(n)) ||
       (!input.text.trim() && !input.media.length)) blocked("INVALID_PUBLICATION", "editorial-validation");
-    if ((input.networks.includes("instagram") || input.networks.includes("youtube")) && !input.media.length) blocked("MEDIA_REQUIRED", "media");
+    if ((input.networks.includes("instagram") || input.networks.includes("youtube") || input.networks.includes("tiktok")) && !input.media.length) blocked("MEDIA_REQUIRED", "media");
     if (input.networks.includes("youtube") && (!input.youtube?.title || typeof input.youtube.madeForKids !== "boolean")) blocked("YOUTUBE_METADATA_REQUIRED", "media");
+    if (input.networks.includes("tiktok") && (input.networks.length !== 1 || input.brandId !== "7653100" || input.media.length !== 1)) blocked("TIKTOK_BLACKLACE_VIDEO_REQUIRED", "editorial-validation");
     stage = "connection";
     const brand = await deps.provider.brand();
-    if (brand.id !== input.brandId || brand.timezone !== input.timezone || !["pro-hbtd", "prohbtd"].includes(brand.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""))) blocked("BRAND_IDENTITY_MISMATCH", "destination");
+    if (brand.id !== input.brandId || brand.timezone !== input.timezone || !(input.brandId === "7653100" ? brand.label.toLowerCase().includes("blacklace") : ["pro-hbtd", "prohbtd"].includes(brand.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")))) blocked("BRAND_IDENTITY_MISMATCH", "destination");
     if (input.networks.some(n => !brand.networks.includes(n))) blocked("NETWORK_NOT_CONNECTED", "destination");
     const now = deps.now ?? new Date();
     const window = monthWindow(now, brand.timezone);
@@ -153,7 +154,7 @@ export async function executeMetricoolPublication(input: Publication, deps: {
     for (const url of input.media) {
       if (!isPublicMediaUrl(url)) blocked("INVALID_MEDIA_URL", stage);
       const mime = (await deps.verifyMedia(url)).split(";")[0].trim().toLowerCase();
-      if (!/^(image\/(png|jpeg|webp)|video\/(mp4|quicktime|webm))$/.test(mime) || (input.networks.includes("youtube") && !mime.startsWith("video/"))) blocked("MEDIA_TYPE_UNSUPPORTED", stage);
+      if (!/^(image\/(png|jpeg|webp)|video\/(mp4|quicktime|webm))$/.test(mime) || ((input.networks.includes("youtube") || input.networks.includes("tiktok")) && !mime.startsWith("video/"))) blocked("MEDIA_TYPE_UNSUPPORTED", stage);
     }
     stage = "best-time";
     const start = localDateTime(now, brand.timezone).slice(0, 10);
