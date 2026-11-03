@@ -1433,37 +1433,12 @@ app.get("/api/production/canva-tool-schema", async (c) => {
 });
 
 async function metricoolProvider(env: Env, brandId: string) {
-  // Prefer the explicit second connected account in the shared Composio project.
-  // Older Blacklace installations used the separate Composio2 project. Reuse it
-  // only when its own user and account ID are configured; never fall back to the
-  // Pro.Hibited account or discover arbitrary accounts across users.
-  let selectedEnv: Env;
-  try {
-    if (brandId === "7653100" && !env.METRICOOL_BLACKLACE_CONNECTED_ACCOUNT_ID?.trim() &&
-        env.Composio2 && env.COMPOSIO2_USER_ID && env.COMPOSIO2_METRICOOL_CONNECTED_ACCOUNT_ID?.trim()) {
-      selectedEnv = {
-        ...env,
-        COMPOSIO_API_KEY: env.Composio2,
-        COMPOSIO_USER_ID: env.COMPOSIO2_USER_ID,
-        METRICOOL_CONNECTED_ACCOUNT_ID: env.COMPOSIO2_METRICOOL_CONNECTED_ACCOUNT_ID,
-      };
-    } else {
-      selectedEnv = metricoolCredentialsForBrand(env, brandId);
-    }
-  }
-  catch (error) {
-    const code = error instanceof Error ? error.message : "METRICOOL_ROUTING_FAILED";
-    if (["BLACKLACE_METRICOOL_ACCOUNT_NOT_CONFIGURED", "METRICOOL_ACCOUNT_DESTINATION_COLLISION"].includes(code)) {
-      throw new MetricoolBlocked(code, "connection");
-    }
-    throw new MetricoolBlocked("METRICOOL_BRAND_NOT_ALLOWLISTED", "destination");
-  }
-  if (!(await isComposioConfigured(selectedEnv))) throw new MetricoolBlocked(brandId === "7653100" ? "BLACKLACE_COMPOSIO_NOT_CONFIGURED" : "COMPOSIO_NOT_CONFIGURED", "connection");
+  if (!(await isComposioConfigured(env))) throw new MetricoolBlocked("COMPOSIO_NOT_CONFIGURED", "connection");
   return createMetricoolProvider({
-    accounts: async () => discoverComposioAccounts(await composioUserId(selectedEnv), path => composioRequest(selectedEnv, path, { signal: AbortSignal.timeout(15000) })),
-    tools: (toolkit) => listComposioTools(selectedEnv, toolkit, 15000),
-    execute: (input) => executeComposioTool(selectedEnv, { ...input, timeoutMs: 20000, toolVersion: "latest" }),
-    connectedAccountId: selectedEnv.METRICOOL_CONNECTED_ACCOUNT_ID,
+    accounts: async () => discoverComposioAccounts(await composioUserId(env), path => composioRequest(env, path, { signal: AbortSignal.timeout(15000) })),
+    tools: (toolkit) => listComposioTools(env, toolkit, 15000),
+    execute: (input) => executeComposioTool(env, { ...input, timeoutMs: 20000, toolVersion: "latest" }),
+    connectedAccountId: env.METRICOOL_CONNECTED_ACCOUNT_ID,
     brandId,
   });
 }
