@@ -1496,7 +1496,12 @@ async function finalizeMetricoolPublication(env: Env, input: Record<string, unkn
       const route = chooseEditorialDestination(classifyEditorialTopic({ seedId: harvest.seed_id ?? "", title: harvest.title, text: handoff.prepared.text }));
       if (route.preferredProvider !== "metricool") return { ...base, status: "rejected", stage: "destination", reason: "EDITORIAL_PROVIDER_MISMATCH" };
       const sourceMedia = harvest.download_url || harvest.url;
-      if (handoff.prepared.media.some(url => url !== sourceMedia)) return { ...base, status: "rejected", stage: "provenance", reason: "MEDIA_NOT_FROM_SOURCE_HARVEST" };
+      for (const url of handoff.prepared.media) {
+        if (url === sourceMedia) continue;
+        if (!(await verifiedStudioMediaForHarvest(env, url, harvest))) {
+          return { ...base, status: "rejected", stage: "provenance", reason: "MEDIA_NOT_FROM_SOURCE_HARVEST" };
+        }
+      }
     }
     const publication: Publication = { operationId, harvestId: handoff.harvestId, text: handoff.prepared.text,
       media: handoff.prepared.media, networks: handoff.prepared.networks, brandId: handoff.prepared.brandId,
@@ -4726,6 +4731,63 @@ app.post("/api/observatory/sources/mark-processed", async (c) => {
   }
 });
 
+// Serve only a verified Studio MP4 committed by Gérard's workflow. The asset
+// already lives in this public repository; this endpoint supplies the video MIME
+// type Metricool requires and rejects arbitrary proxy targets.
+const STUDIO_RAW_BASE = "https://raw.githubusercontent.com/benoitlub/poulpe-fiction/main/garden/studio";
+function safeStudioSegment(value: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]{0,149}$/.test(value) && value !== "." && value !== "..";
+}
+async function studioReport(parcelId: string, operationId: string) {
+  if (!safeStudioSegment(parcelId) || !safeStudioSegment(operationId)) return null;
+  try {
+    const url = STUDIO_RAW_BASE + "/" + encodeURIComponent(parcelId) + "/" + encodeURIComponent(operationId) + "/report.json";
+    const response = await fetch(url, { redirect: "error", signal: AbortSignal.timeout(10000) });
+    if (!response.ok) return null;
+    const report = await response.json() as Record<string, unknown>;
+    const artifact = report.artifact as Record<string, unknown> | undefined;
+    const files = Array.isArray(report.files) ? report.files as Array<Record<string, unknown>> : [];
+    const file = files.find((item) => item.filename === "short.mp4");
+    if (report.status !== "ready-for-review" || report.parcelId !== parcelId || report.operationId !== operationId ||
+        report.published !== false || artifact?.filename !== "short.mp4" ||
+        !/^[a-f0-9]{64}$/.test(String(artifact?.sha256 ?? "")) || !Number.isSafeInteger(artifact?.bytes) || Number(artifact?.bytes) <= 0 ||
+        file?.sha256 !== artifact.sha256 || file?.bytes !== artifact.bytes) return null;
+    return { report, artifact, url: STUDIO_RAW_BASE + "/" + encodeURIComponent(parcelId) + "/" + encodeURIComponent(operationId) + "/short.mp4" };
+  } catch { return null; }
+}
+async function verifiedStudioMediaForHarvest(env: Env, mediaUrl: string, harvest: Record<string, unknown>): Promise<boolean> {
+  try {
+    const url = new URL(mediaUrl);
+    const publicOrigin = new URL(env.PUBLISHER_PUBLIC_URL || "https://blacklace-publisher-worker.benoitlubert.workers.dev").origin;
+    if (url.origin !== publicOrigin) return false;
+    const match = url.pathname.match(/^\/api\/production\/studio-media\/([^/]+)\/([^/]+)\/short\.mp4$/);
+    if (!match) return false;
+    const parcelId = decodeURIComponent(match[1]);
+    const operationId = decodeURIComponent(match[2]);
+    const verified = await studioReport(parcelId, operationId);
+    return Boolean(verified && verified.report.seedId === harvest.seed_id &&
+      (!harvest.parcel_id || verified.report.parcelId === harvest.parcel_id));
+  } catch { return false; }
+}
+app.on(["GET", "HEAD"], "/api/production/studio-media/:parcelId/:operationId/short.mp4", async (c) => {
+  const parcelId = c.req.param("parcelId");
+  const operationId = c.req.param("operationId");
+  const verified = await studioReport(parcelId, operationId);
+  if (!verified) return c.text("Studio video unavailable", 404);
+  try {
+    const headers = new Headers();
+    const range = c.req.header("Range");
+    if (range) headers.set("Range", range);
+    const upstream = await fetch(verified.url, { method: c.req.method, headers, redirect: "error", signal: AbortSignal.timeout(15000) });
+    if (!upstream.ok || (c.req.method !== "HEAD" && !upstream.body)) return c.text("Studio video unavailable", 502);
+    const out = new Headers({ "Content-Type": "video/mp4", "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff" });
+    for (const key of ["Content-Length", "Content-Range", "Accept-Ranges", "ETag", "Last-Modified"]) {
+      const value = upstream.headers.get(key);
+      if (value) out.set(key, value);
+    }
+    return new Response(c.req.method === "HEAD" ? null : upstream.body, { status: upstream.status, headers: out });
+  } catch { return c.text("Studio video unavailable", 502); }
+});
 // Public, fixed-asset video delivery for the author-supplied TERRA teaser.
 // GitHub Raw serves MP4 files as application/octet-stream; social publishers
 // require a video content type. This endpoint cannot proxy arbitrary URLs.
