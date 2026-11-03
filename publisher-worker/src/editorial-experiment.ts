@@ -16,7 +16,8 @@ export function editorialMix(assets: EditorialAsset[] = []) {
     const id = asset?.originalId ?? asset?.id;
     if (!id || seen.has(id)) continue;
     seen.add(id);
-    if (typeof asset.category === 'string' && Object.prototype.hasOwnProperty.call(counts, asset.category)) counts[asset.category as EditorialCategory]++;
+    const category = asset.category;
+    if (typeof category === 'string' && Object.prototype.hasOwnProperty.call(counts, category)) counts[category as EditorialCategory]++;
   }
   const measured = Object.values(counts).reduce((a, b) => a + b, 0);
   return {
