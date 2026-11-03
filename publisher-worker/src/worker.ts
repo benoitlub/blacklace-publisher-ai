@@ -615,11 +615,15 @@ export function resolveMetricoolDestination(input: Record<string, unknown>, bran
   const configured = category && Object.prototype.hasOwnProperty.call(brands, category)
     ? String(brands[category] ?? "").trim()
     : "";
+  // Gérard may explicitly select either of the owner's known Metricool brands.
+  // The provider still verifies actual access before any write.
+  const requestedBrand = String(input.brandId ?? "").trim();
+  const explicitBrand = ["3350145", "7653100"].includes(requestedBrand) ? requestedBrand : "";
   return {
     category: category || "unspecified",
-    brandId: tiktokBlacklace ? "7653100" : configured || DEFAULT_METRICOOL_BRAND_ID,
+    brandId: explicitBrand || (tiktokBlacklace ? "7653100" : configured || DEFAULT_METRICOOL_BRAND_ID),
     timezone: DEFAULT_METRICOOL_TIMEZONE,
-    routing: tiktokBlacklace ? "explicit-tiktok-blacklace" : configured ? "configured-category" : "default-brand",
+    routing: explicitBrand ? "gerard-explicit-brand" : tiktokBlacklace ? "explicit-tiktok-blacklace" : configured ? "configured-category" : "default-brand",
   };
 }
 
@@ -1482,11 +1486,11 @@ async function finalizeMetricoolPublication(env: Env, input: Record<string, unkn
     if (!prior) {
       stage = "provenance";
       const harvest = await getGardenHarvestById(sql, handoff.harvestId);
-      if (!harvest || !classifyHarvestForSocial(harvest).eligible || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection") {
-        return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_INELIGIBLE" };
+      // Editorial readiness and preferred transport are advisory for Gérard.
+      // Private-prospect material and nonexistent sources remain excluded.
+      if (!harvest || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection") {
+        return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_UNAVAILABLE_OR_PRIVATE" };
       }
-      const route = chooseEditorialDestination(classifyEditorialTopic({ seedId: harvest.seed_id ?? "", title: harvest.title, text: handoff.prepared.text }));
-      if (route.preferredProvider !== "metricool") return { ...base, status: "rejected", stage: "destination", reason: "EDITORIAL_PROVIDER_MISMATCH" };
       const sourceMedia = harvest.download_url || harvest.url;
       if (handoff.prepared.media.some(url => url !== sourceMedia)) return { ...base, status: "rejected", stage: "provenance", reason: "MEDIA_NOT_FROM_SOURCE_HARVEST" };
     }
@@ -1529,9 +1533,10 @@ async function finalizeSocialPublication(env: Env, input: Record<string, unknown
     return { ...base, status: "rejected", stage: "editorial-validation", reason: "INVALID_BUFFER_HANDOFF" };
   try {
     const harvest = await getGardenHarvestById(await getSql(env), String(input.harvestId ?? ""));
-    if (!harvest || !classifyHarvestForSocial(harvest).eligible || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection" ||
-        classifyEditorialTopic({ seedId: harvest.seed_id ?? "", title: harvest.title, text: String(input.text ?? "") }) !== "book")
-      return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_INELIGIBLE" };
+    // Gérard owns editorial readiness and topic selection; Publisher only
+    // enforces source existence and private-prospect confidentiality.
+    if (!harvest || harvest.seed_id === "yael-prospection" || harvest.parcel_id === "project-yael-prospection")
+      return { ...base, status: "rejected", stage: "provenance", reason: "SOURCE_HARVEST_UNAVAILABLE_OR_PRIVATE" };
     // Reuse the existing authenticated Buffer route, reservation table and
     // channel binding. No second scheduler or fallback transport is created.
     const response = await app.fetch(new Request("https://publisher.internal/api/social/transports/buffer/book-draft", {
