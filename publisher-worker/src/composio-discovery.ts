@@ -608,7 +608,11 @@ function jobRows(value: unknown, depth = 0): Record<string, any>[] {
   for (const key of ["jobs", "results", "items", "job_listings"]) {
     if (Array.isArray(p[key])) return jobRows(p[key], depth + 1);
   }
-  if (p.data !== undefined) return jobRows(p.data, depth + 1);
+  for (const key of ["data", "output", "result", "response"]) {
+    if (p[key] !== undefined) {
+      try { return jobRows(p[key], depth + 1); } catch {}
+    }
+  }
   if (Array.isArray(p.content)) {
     const texts = p.content.filter((c: any) => c.type === "text" && typeof c.text === "string");
     for (const item of texts) {
