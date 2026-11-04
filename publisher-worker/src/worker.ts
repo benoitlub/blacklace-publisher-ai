@@ -1,7 +1,7 @@
 import { verifyGerardGithubOidc } from "./gerard-github-oidc";
 import { readGarden } from "./garden-readonly";
 import { writeAcquisitionReview } from "./notion-client-acquisition";
-import { discoverBusinessTools, executeBusinessSearch } from "./composio-discovery";
+import { discoverBusinessTools, executeBusinessSearch, executeLinkedInJobSearch } from "./composio-discovery";
 import { composioOperationStore } from "./composio-operation-state";
 import { createMetricoolProvider } from "./metricool-composio";
 import { metricoolCredentialsForBrand } from "./metricool-routing";
@@ -4508,10 +4508,16 @@ app.post("/api/octopus-adapter/execute", async (c) => {
       const tools=await discoverBusinessTools(query,{userId:await composioUserId(c.env),request:(path,init)=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)})});
       return {status:"discovered",tools:tools.map(t=>({slug:t.slug,name:t.name,toolkit:t.toolkit,inputSchema:t.schema,discovered:true,connected:t.connected,authMode:t.authMode,supportedReadPolicy:t.readPolicy})),executionVerified:false};
     },
-    searchBusinessSources: async (query,options) => executeBusinessSearch({query,...options},{
-      userId:await composioUserId(c.env),request:(path,init)=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)}),
-      store:async()=>composioOperationStore(await getSql(c.env)),
-    }),
+    searchBusinessSources: async (query,options) => {
+      const deps={
+        userId:await composioUserId(c.env),
+        request:(path,init)=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)}),
+        store:async()=>composioOperationStore(await getSql(c.env)),
+      };
+      return options.sourceType === "job-search"
+        ? executeLinkedInJobSearch({query,operationId:options.operationId,location:options.location},deps)
+        : executeBusinessSearch({query,...options},deps);
+    },
   });
   // Always 200: the outcome travels in `status`, which is what Octopus reads.
   // A non-2xx would be recorded as an adapter transport failure and lose the
