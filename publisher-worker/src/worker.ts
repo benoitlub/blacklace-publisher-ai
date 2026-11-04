@@ -416,7 +416,10 @@ async function composioRequest(env: Env, path: string, init: RequestInit = {}, k
       : typeof nested.message === "string"
         ? nested.message
         : text || `Composio ${response.status}`;
-    throw new ComposioHttpError(response.status, `Composio ${response.status}: ${message}`, Number(response.headers.get("Retry-After")) || undefined);
+    const validationDetails = Array.isArray(nested.errors)
+      ? nested.errors.map((item: unknown) => typeof item === "string" ? item : JSON.stringify(item)).join("; ").slice(0, 240)
+      : "";
+    throw new ComposioHttpError(response.status, `Composio ${response.status}: ${message}${validationDetails ? ` — ${validationDetails}` : ""}`, Number(response.headers.get("Retry-After")) || undefined);
   }
   return payload;
 }
