@@ -599,3 +599,115 @@ export async function executeBusinessSearch(
     return result;
   }
 }
+
+
+function jobRows(value: unknown, depth = 0): Record<string, any>[] {
+  if (depth > 8) throw new ToolBlocked("INVALID_JOB_RESPONSE", "provider");
+  if (Array.isArray(value)) return value.map(rec).filter(x => Object.keys(x).length > 0);
+  const p = rec(value);
+  for (const key of ["jobs", "results", "items", "job_listings"]) {
+    if (Array.isArray(p[key])) return jobRows(p[key], depth + 1);
+  }
+  if (p.data !== undefined) return jobRows(p.data, depth + 1);
+  if (Array.isArray(p.content)) {
+    const texts = p.content.filter((c: any) => c.type === "text" && typeof c.text === "string");
+    for (const item of texts) {
+      try { return jobRows(JSON.parse(item.text), depth + 1); } catch {}
+    }
+  }
+  throw new ToolBlocked("INVALID_JOB_RESPONSE", "provider");
+}
+
+function normalizeLinkedInJobs(value: unknown, limit = 10) {
+  const rows = jobRows(value);
+  const seen = new Set<string>();
+  return rows.flatMap(job => {
+    const id = str(job.job_id ?? job.jobId ?? job.id ?? job.linkedin_job_id);
+    const rawUrl = job.job_url ?? job.jobUrl ?? job.url ?? job.link ?? (id ? `https://www.linkedin.com/jobs/view/${encodeURIComponent(id)}` : "");
+    const url = publicUrl(rawUrl);
+    const title = str(job.title ?? job.job_title ?? job.position);
+    if (!url || !title || !/linkedin\.com$/i.test(new URL(url).hostname) || seen.has(url)) return [];
+    seen.add(url);
+    const company = str(job.company_name ?? job.company ?? job.organization);
+    const location = str(job.location ?? job.job_location);
+    const description = str(job.description ?? job.snippet ?? job.summary);
+    return [{
+      title: [title, company].filter(Boolean).join(" — ").slice(0, 500),
+      url,
+      snippet: [location, description].filter(Boolean).join(" · ").slice(0, 1500),
+      verification: "search-result-only",
+      contacted: false,
+    }];
+  }).slice(0, limit);
+}
+
+export async function executeLinkedInJobSearch(
+  input: { query: string; operationId: string; location?: string },
+  deps: DiscoveryDependencies,
+) {
+  const trace: Record<string, unknown>[] = [];
+  const base = { capability: "business.sources.search", sourceType: "job-search", verified: false,
+    contacted: false, orders: 0, published: false, trace, candidates: [] as Record<string, unknown>[] };
+  let store: ToolOperationStore | undefined, key = "", fingerprint = "", claimed = false;
+  try {
+    if (!input.query.trim() || input.query.length > 1200 || !input.operationId || input.operationId.length > 250)
+      throw new ToolBlocked("INVALID_JOB_SEARCH_INTENT", "validation");
+    const tools = await discoverBusinessTools("LinkedIn job listings search jobs API", deps);
+    const jobsTools = tools.filter(t => normalizeToolkit(t.toolkit) === "job-search" &&
+      /LINKEDIN_SEARCH_JOBS/.test(t.slug));
+    trace.push({ stage: "discovery", discovered: jobsTools.length, connected: jobsTools.filter(t => t.connected).length });
+    const active = jobsTools.filter(t => t.connected && t.connectionId);
+    if (active.length !== 1) throw new ToolBlocked(active.length > 1 ? "AMBIGUOUS_CONNECTION" : "NO_ACTIVE_CONNECTION", "connection");
+    const tool = active[0];
+    const properties = rec(tool.schema.properties);
+    const args: Record<string, unknown> = {};
+    const queryKey = ["query", "search_term", "keywords"].find(k => Object.hasOwn(properties, k));
+    if (!queryKey) throw new ToolBlocked("NO_SUPPORTED_QUERY_SCHEMA", "schema");
+    args[queryKey] = input.query.replace(/^site:linkedin\.com\/jobs\/view\s*/i, "").replace(/[()"]/g, " ").slice(0, 300);
+    if (Object.hasOwn(properties, "location")) args.location = input.location || "France";
+    if (Object.hasOwn(properties, "date_posted")) args.date_posted = "week";
+    if (Object.hasOwn(properties, "workplace_types")) args.workplace_types = "remote;hybrid";
+    for (const required of tool.schema.required ?? []) {
+      if (Object.hasOwn(args, required)) continue;
+      const property = rec(properties[required]);
+      if (Object.hasOwn(property, "default")) args[required] = property.default;
+      else throw new ToolBlocked("REQUIRED_ARGUMENT_MISSING", "schema");
+    }
+    if (!validToolArguments(args, tool.schema)) throw new ToolBlocked("ARGUMENT_SCHEMA_MISMATCH", "schema");
+    trace.push({ stage: "selection", toolSlug: tool.slug, toolkit: tool.toolkit, connected: true, schemaValidated: true });
+    if (!deps.store) throw new ToolBlocked("OPERATION_STORE_UNAVAILABLE", "persistence");
+    store = await deps.store();
+    key = await digest(input.operationId);
+    fingerprint = await digest(JSON.stringify([input.query, input.location || "France", tool.slug, args, tool.connectionId]));
+    const prior = await store.read(key);
+    if (prior) {
+      if (prior.fingerprint !== fingerprint) throw new ToolBlocked("OPERATION_CONTENT_CONFLICT", "persistence");
+      return prior.result ? { ...prior.result, replayed: true } : { ...base, status: "confirmation-required", reason: "READ_OUTCOME_UNKNOWN", executed: false, retryAllowed: false };
+    }
+    if (!(await store.claim(key, fingerprint))) throw new ToolBlocked("OPERATION_ALREADY_CLAIMED", "persistence");
+    claimed = true;
+    const response = await deps.request(`/tools/execute/${encodeURIComponent(tool.slug)}`, {
+      method: "POST",
+      body: JSON.stringify({ arguments: args, user_id: deps.userId, entity_id: deps.userId,
+        connected_account_id: tool.connectionId, version: "latest" }),
+    });
+    const candidates = normalizeLinkedInJobs(response);
+    trace.push({ stage: "result", candidateCount: candidates.length });
+    const result = { ...base, status: candidates.length ? "sources-found" : "no-sources", executed: true,
+      selectedTool: tool.slug, candidates, sourceCheckedAt: new Date().toISOString() };
+    await store.finish(key, fingerprint, result);
+    return result;
+  } catch (error) {
+    const status = Number(rec(error).status);
+    const result = { ...base, status: claimed ? "confirmation-required" : "blocked",
+      stage: error instanceof ToolBlocked ? error.stage : "composio",
+      reason: error instanceof ToolBlocked ? error.code : status === 429 ? "COMPOSIO_RATE_LIMITED" :
+        [401, 403].includes(status) ? "COMPOSIO_AUTHENTICATION_FAILED" : "COMPOSIO_UNAVAILABLE",
+      executed: false, providerCallAttempted: claimed, retryAllowed: false,
+      ...(status ? { providerHttpStatus: status } : {}) };
+    if (claimed && store) {
+      try { await store.finish(key, fingerprint, result); } catch {}
+    }
+    return result;
+  }
+}
