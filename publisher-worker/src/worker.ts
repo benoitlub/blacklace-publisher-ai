@@ -1070,6 +1070,37 @@ async function buildOctopusHealth(env: Env): Promise<Record<string, unknown>> {
   }
 }
 
+// Owner-only Composio connection bootstrap for Gérard's LinkedIn job radar.
+app.post("/api/gerard/job-search/connect-link", async (c) => {
+  const provided = c.req.header("Authorization")?.replace(/^Bearer\\s+/i, "") ?? "";
+  if (!(await verifyGerardGithubOidc(provided, "job-search-connect"))) return c.json({ status: "unauthorized" }, 401);
+  const userId = await composioUserId(c.env);
+  if (userId !== "benoit-lubert") return c.json({ status: "blocked", reason: "unexpected-composio-user" }, 409);
+  try {
+    const payload = asRecord(await composioRequest(c.env, "/auth_configs?toolkit_slug=job_search&limit=100"));
+    const data = asRecord(payload.data);
+    const configs = [payload.items, payload.auth_configs, data.items, data.auth_configs].find(Array.isArray) ?? [];
+    const matching = configs.filter((value: unknown) => {
+      const item = asRecord(value), toolkit = asRecord(item.toolkit);
+      const slug = String(item.toolkit_slug ?? toolkit.slug ?? toolkit.key ?? "").toLowerCase().replace(/_/g, "-");
+      return slug === "job-search" && item.is_disabled !== true && item.disabled !== true && Boolean(item.id ?? item.auth_config_id);
+    });
+    if (matching.length !== 1) return c.json({ status: "blocked", reason: matching.length ? "job-search-auth-config-ambiguous" : "job-search-auth-config-not-found", matchingConfigs: matching.length }, 409);
+    const authConfigId = String(asRecord(matching[0]).id ?? asRecord(matching[0]).auth_config_id);
+    const response = asRecord(await composioRequest(c.env, "/connected_accounts/link", {
+      method: "POST",
+      body: JSON.stringify({ auth_config_id: authConfigId, user_id: userId, alias: "Gerard LinkedIn job search" }),
+      signal: AbortSignal.timeout(15000),
+    }));
+    const redirectUrl = stringValue(response.redirect_url ?? asRecord(response.data).redirect_url);
+    if (!redirectUrl || !redirectUrl.startsWith("https://connect.composio.dev/")) return c.json({ status: "blocked", reason: "invalid-composio-redirect" }, 502);
+    return c.json({ status: "link-ready", redirectUrl, expiresAt: response.expires_at ?? null, userId, toolkit: "job_search" });
+  } catch (error) {
+    const status = error instanceof ComposioHttpError ? error.status : 502;
+    return c.json({ status: "blocked", reason: error instanceof Error ? error.message.slice(0, 200) : "composio-link-failed" }, 502);
+  }
+});
+
 // Owner-only OAuth bootstrap for the existing blacklace project user. The
 // GitHub OIDC caller must be benoitlub/poulpe-fiction; no public endpoint,
 // static token, or project key is exposed. Links expire after 10 minutes.
