@@ -1072,7 +1072,7 @@ async function buildOctopusHealth(env: Env): Promise<Record<string, unknown>> {
 
 // Owner-only Composio connection bootstrap for Gérard's LinkedIn job radar.
 app.post("/api/gerard/job-search/connect-link", async (c) => {
-  const provided = c.req.header("Authorization")?.replace(/^Bearer\\s+/i, "") ?? "";
+  const provided = c.req.header("Authorization")?.replace(/^Bearer\s+/i, "") ?? "";
   if (!(await verifyGerardGithubOidc(provided, "job-search-connect"))) return c.json({ status: "unauthorized" }, 401);
   const userId = await composioUserId(c.env);
   if (userId !== "benoit-lubert") return c.json({ status: "blocked", reason: "unexpected-composio-user" }, 409);
