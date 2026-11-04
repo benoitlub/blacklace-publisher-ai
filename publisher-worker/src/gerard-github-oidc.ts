@@ -15,7 +15,8 @@ function decodeBase64Url(input: string): Uint8Array {
   return Uint8Array.from(binary, char => char.charCodeAt(0));
 }
 
-// The LinkedIn job-search connection flow uses the same owner-only GitHub OIDC boundary as Gmail.\nexport async function verifyGerardGithubOidc(jwt: string, purpose: "owner-test" | "gmail-connect" | "job-search-connect" | "runtime-send" = "owner-test"): Promise<boolean> {
+// The LinkedIn job-search connection flow uses the same owner-only GitHub OIDC boundary as Gmail.
+export async function verifyGerardGithubOidc(jwt: string, purpose: "owner-test" | "gmail-connect" | "job-search-connect" | "runtime-send" = "owner-test"): Promise<boolean> {
   if (!jwt || jwt.length > 16000) return false;
   const sections = jwt.split(".");
   if (sections.length !== 3) return false;
