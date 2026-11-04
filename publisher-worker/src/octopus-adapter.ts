@@ -131,7 +131,7 @@ function systemPromptFor(capability: PublisherAdapterCapability): string {
  */
 export async function executeAdapterMission(
   envelope: OctopusAdapterEnvelope,
-  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (input: Record<string, unknown>) => Promise<unknown>; searchBusinessSources?: (query: string, options: {operationId:string;dryRun:boolean;authorized:boolean}) => Promise<unknown>; discoverTools?: (query: string) => Promise<unknown> },
+  deps: { generateText: MistralTextExecutor; knowledgeEnv: KnowledgeEnvLike; publishSocial?: (input: Record<string, unknown>) => Promise<unknown>; searchBusinessSources?: (query: string, options: {operationId:string;dryRun:boolean;authorized:boolean;sourceType?:string;location?:string}) => Promise<unknown>; discoverTools?: (query: string) => Promise<unknown> },
 ): Promise<AdapterExecutionResult> {
   const mission = isRecord(envelope.mission) ? (envelope.mission as OctopusAdapterMission) : undefined;
   const operationId = stringValue(mission?.operationId) ?? `unknown-${Date.now()}`;
@@ -178,7 +178,7 @@ export async function executeAdapterMission(
       const query = stringValue(mission.prompt) ?? stringValue(mission.objective);
       if (!query || !deps.searchBusinessSources) return {operationId,status:"needs-input",summary:"Recherche B2B indisponible : requête ou transport manquant.",output:{capability:"business.sources.search",verified:false,candidates:[],status:"source-unavailable"}};
       try {
-        const response = await deps.searchBusinessSources(query,{operationId,dryRun:request.dryRun !== false,authorized:mission.authorizedResources?.includes("tools.read")===true});
+        const response = await deps.searchBusinessSources(query,{operationId,dryRun:request.dryRun !== false,authorized:mission.authorizedResources?.includes("tools.read")===true,sourceType:stringValue(mission.context?.metadata?.["sourceType"]),location:stringValue(mission.context?.metadata?.["location"])});
         const data=isRecord(response)?response:{};
         const output=data.capability === "business.sources.search" ? data : {capability:"business.sources.search",status:"sources-found",candidates:businessCandidates(response),verified:false,contacted:false,orders:0};
         const completed=["sources-found","no-sources","ready-to-read"].includes(String(output.status));
