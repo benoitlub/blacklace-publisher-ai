@@ -1095,7 +1095,7 @@ app.post("/api/gerard/job-search/connect-link", async (c) => {
     if (!authConfigId) {
       const created = asRecord(await composioRequest(c.env, "/auth_configs", {
         method: "POST",
-        body: JSON.stringify({ toolkit: { slug: "job_search" }, auth_config: { type: "use_custom_auth", auth_scheme: "API_KEY", name: "Gérard Job Search", credentials: {} } }),
+        body: JSON.stringify({ toolkit: { slug: "job_search" }, auth_config: { type: "use_custom_auth", authScheme: "API_KEY", name: "Gérard Job Search", credentials: {} } }),
         signal: AbortSignal.timeout(15000),
       }));
       const createdConfig = asRecord(created.auth_config ?? asRecord(created.data).auth_config);
