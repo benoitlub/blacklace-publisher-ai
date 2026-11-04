@@ -1085,8 +1085,20 @@ app.post("/api/gerard/job-search/connect-link", async (c) => {
       const slug = String(item.toolkit_slug ?? toolkit.slug ?? toolkit.key ?? "").toLowerCase().replace(/_/g, "-");
       return slug === "job-search" && item.is_disabled !== true && item.disabled !== true && Boolean(item.id ?? item.auth_config_id);
     });
-    if (matching.length !== 1) return c.json({ status: "blocked", reason: matching.length ? "job-search-auth-config-ambiguous" : "job-search-auth-config-not-found", matchingConfigs: matching.length }, 409);
-    const authConfigId = String(asRecord(matching[0]).id ?? asRecord(matching[0]).auth_config_id);
+    if (matching.length > 1) return c.json({ status: "blocked", reason: "job-search-auth-config-ambiguous", matchingConfigs: matching.length }, 409);
+    let authConfigId = matching.length === 1
+      ? String(asRecord(matching[0]).id ?? asRecord(matching[0]).auth_config_id)
+      : "";
+    if (!authConfigId) {
+      const created = asRecord(await composioRequest(c.env, "/auth_configs", {
+        method: "POST",
+        body: JSON.stringify({ toolkit: { slug: "job_search" } }),
+        signal: AbortSignal.timeout(15000),
+      }));
+      const createdConfig = asRecord(created.auth_config ?? asRecord(created.data).auth_config);
+      authConfigId = String(createdConfig.id ?? createdConfig.nanoid ?? "");
+      if (!authConfigId) return c.json({ status: "blocked", reason: "job-search-auth-config-create-failed" }, 502);
+    }
     const response = asRecord(await composioRequest(c.env, "/connected_accounts/link", {
       method: "POST",
       body: JSON.stringify({ auth_config_id: authConfigId, user_id: userId, alias: "Gerard LinkedIn job search" }),
