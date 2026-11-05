@@ -69,3 +69,53 @@ export function previewBufferPost(input: {
     willPublish: false,
   };
 }
+
+
+/**
+ * Read-only inventory for issue #144. This does not grant permissions or
+ * perform provider calls; only verified observations may be executable.
+ */
+export type SocialCapabilityObservation = {
+  provider: SocialTransport;
+  account: string;
+  network: string;
+  connected: boolean | null;
+  canSchedule: boolean | null;
+  supportedMedia: readonly ("text" | "image" | "video")[];
+  verifiedAt: string | null;
+  source: string | null;
+  blocker?: string | null;
+};
+
+export type SocialCapabilityResult = {
+  status: "available" | "no-verified-transport";
+  candidates: Array<{ provider: SocialTransport; account: string; network: string; status: "available" | "blocked"; reason: string }>;
+};
+
+/** Never substitute a different social account, even if it has a working transport. */
+export function inspectSocialCapabilities(input: {
+  targetAccount: string;
+  network: string;
+  media: "text" | "image" | "video";
+  observations: readonly SocialCapabilityObservation[];
+}): SocialCapabilityResult {
+  const target = input.targetAccount.trim().replace(/^@/, "").toLowerCase();
+  const network = input.network.trim().toLowerCase();
+  const candidates = input.observations
+    .filter((item) => item.account.trim().replace(/^@/, "").toLowerCase() === target &&
+      item.network.trim().toLowerCase() === network)
+    .map((item) => {
+      let reason = "verified-scheduling-capability";
+      if (!item.verifiedAt || !item.source) reason = "capability-not-verified";
+      else if (item.connected !== true) reason = item.connected === false ? "account-disconnected" : "connection-unknown";
+      else if (item.canSchedule !== true) reason = item.canSchedule === false ? "scheduling-not-allowed" : "scheduling-unverified";
+      else if (!item.supportedMedia.includes(input.media)) reason = "media-not-supported";
+      else if (item.blocker) reason = item.blocker;
+      return { provider: item.provider, account: item.account, network: item.network,
+        status: reason === "verified-scheduling-capability" ? "available" as const : "blocked" as const, reason };
+    });
+  return {
+    status: candidates.some((item) => item.status === "available") ? "available" : "no-verified-transport",
+    candidates,
+  };
+}
