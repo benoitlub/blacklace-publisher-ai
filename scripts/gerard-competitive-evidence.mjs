@@ -11,16 +11,19 @@ const targets = [
   { name: "Dobble", search: "Dobble how to play shorts Asmodee",
     mechanic: "Rendre le défi lisible dans un plan rapproché, de sorte que le spectateur puisse jouer avant la révélation.",
     experiment: "Pour un jeu de cartes Blacklace, cadrer le détail qui change le choix et révéler son effet." },
+  { name: "Dicey Dungeons", search: "Dicey Dungeons official gameplay trailer",
+    mechanic: "Montrer le jet, le choix et l’effet dans un même enchaînement.",
+    experiment: "Comparer deux vraies séquences de dés : l’une montre le lancer d’abord, l’autre le dilemme." },
+  { name: "Slice & Dice", search: "Slice & Dice gameplay trailer dice game",
+    mechanic: "Réduire le début du clip à un seul choix de jeu lisible.",
+    experiment: "Tester un extrait court avec « garder ou relancer ? » et dévoiler le résultat dans la même vidéo." },
+  { name: "Balatro", search: "Balatro official gameplay trailer combo",
+    mechanic: "Faire voir une combinaison de cartes puis sa conséquence immédiate.",
+    experiment: "Pour Jointed, filmer deux cartes réelles et la conséquence de leur association." },
+  { name: "Exploding Kittens", search: "Exploding Kittens how to play short card game",
+    mechanic: "Présenter une règle par la conséquence amusante d’une seule action.",
+    experiment: "Pour Pro.Hibited, ouvrir sur une erreur ou un retournement réel, puis donner le contexte." },
 ];
-const steam = [
-  { id: 861540, name: "Dicey Dungeons", mechanic: "Mettre un résultat de dés à l'écran, puis montrer immédiatement comment il modifie la décision.",
-    experiment: "Sur un futur extrait de partie autorisé, comparer une ouverture « résultat d'abord » et une ouverture « choix d'abord »." },
-  { id: 1775490, name: "Slice & Dice", mechanic: "Faire d'un seul lancer ou d'une seule relance un enjeu compréhensible.",
-    experiment: "Sur un futur extrait de partie autorisé, afficher « garder ou relancer ? » avant de montrer le résultat." },
-  { id: 2379780, name: "Balatro", mechanic: "Révéler le résultat d'une combinaison visible en gardant le calcul ou le score à l'écran.",
-    experiment: "Pour Jointed, filmer une vraie association de cartes et montrer sa conséquence avant le générique." },
-];
-
 async function get(url, json = true) {
   const response = await fetch(url, {
     headers: { "User-Agent": "Mozilla/5.0 (compatible; BlacklacePublisher/1.0)" },
@@ -72,39 +75,25 @@ async function youtube(target) {
     }));
 }
 
-async function steamEvidence(target) {
-  const [detail, reviews] = await Promise.all([
-    get("https://store.steampowered.com/api/appdetails?cc=us&l=en&appids=" + target.id),
-    get("https://store.steampowered.com/appreviews/" + target.id + "?json=1&language=all&purchase_type=all&num_per_page=0"),
-  ]);
-  const product = detail[target.id]?.data;
-  const stats = reviews.query_summary;
-  if (product?.name !== target.name || !Number.isSafeInteger(stats?.total_reviews) || stats.total_reviews < 1) throw new Error("Missing confirmed store metadata");
-  const trailer = product.movies?.find(movie => /^https:\/\//.test(movie.mp4?.max ?? ""));
-  const value = "https://store.steampowered.com/app/" + target.id + "/";
-  return {
-    id: "gerard-competitive-steam-" + target.id,
-    kind: "url", category: "creative-benchmark", value, name: target.name + " · Steam",
-    confidence: 0.85,
-    summary: stats.total_reviews + " avis publics Steam, dont " + stats.total_positive + " positifs, relevés le " + date +
-      ". Les avis concernent le jeu. Aucune donnée de vues du trailer. Hypothèse de mise en scène : " + target.mechanic + " Essai : " + target.experiment,
-    features: ["steam-reviews:" + stats.total_reviews, "positive-reviews:" + stats.total_positive, ...(trailer ? ["official-trailer:" + trailer.mp4.max] : [])],
-    patterns: [target.mechanic], recommendations: [target.experiment],
-    tags: ["gerard", "veille-concurrentielle", "steam", "hypothese-a-tester"],
-  };
-}
-
 const date = new Date().toISOString().slice(0, 10);
-const operations = [...targets.map(target => youtube(target)), ...steam.map(target => steamEvidence(target))];
+const operations = targets.map(youtube);
 const evidence = (await Promise.allSettled(operations)).flatMap((result, index) => {
   if (result.status === "fulfilled") return result.value;
-  console.log(JSON.stringify({ event: "source-unavailable", target: [...targets, ...steam][index].name, reason: result.reason.message }));
+  console.log(JSON.stringify({ event: "source-unavailable", target: targets[index].name, reason: result.reason.message }));
   return [];
 });
 if (!evidence.length) throw new Error("No verifiable competitor data returned");
 
+const existing = await get(PUBLISHER + "/api/observatory/sources?limit=200");
+if (!existing.configured || !Array.isArray(existing.sources)) throw new Error("Cannot verify Publisher observatory state");
+const observedToday = new Set(existing.sources.filter(row => row.lastObservedAt?.slice(0, 10) === date).map(row => row.id));
 const written = [];
 for (const source of evidence) {
+  if (observedToday.has(source.id)) {
+    written.push(source);
+    console.log(JSON.stringify({ event: "publisher-source-already-observed", id: source.id, name: source.name }));
+    continue;
+  }
   const response = await fetch(PUBLISHER + "/api/observatory/sources", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...source, language: "fr" }), signal: AbortSignal.timeout(40000),
