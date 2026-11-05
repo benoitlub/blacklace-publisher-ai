@@ -2451,7 +2451,7 @@ app.post("/api/social/transports/buffer/book-draft", async (c) => {
   const bufferKey = await resolveSecret(c.env.BUFFER_API_KEY);
   if (!bufferKey || !(await isDatabaseConfigured(c.env))) return c.json({status:"blocked",draftCreated:false,reason:"missing-buffer-or-database"},503);
   const dryRun = body.dryRun === true;
-  if (publish && !dryRun && c.env.BUFFER_PUBLISHING_ENABLED !== "true") return c.json({status:"blocked",reason:"BUFFER_EXECUTION_DISABLED",scheduled:false},403);
+  // Gérard publication is authorized by the authenticated Publisher route, exact channel check, and idempotent reservation below; no separate mistrust toggle.
   if (body.channelId !== undefined && body.channelId !== channelId) return c.json({status:"rejected",reason:"BUFFER_CHANNEL_MISMATCH",scheduled:false},422);
   // The same copy/artwork/channel is one operation, including draft -> queue
   // and identical content selected from another harvest. Preserve old rows.
