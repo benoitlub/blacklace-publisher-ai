@@ -62,6 +62,24 @@ const targets = [
   { name: "Mébius en littérature", match: /m[oœö]bius|m[ée]bius|ruban de m/i, search: "ruban de Möbius explication expérience court film lecture structure récit",
     project: "La Grammaire du réel", mechanic: "Faire sentir le retournement par une démonstration que l’on peut refaire.",
     experiment: "Faire entendre la même phrase avant et après un changement de contexte, comme un aperçu de la lecture en ordre inverse." },
+  { name: "Hitchhiker adaptation clips", match: /hitchhiker.?s guide to the galaxy|answer.*(?:42|life.*universe)/i, search: "Hitchhiker Guide to the Galaxy 42 BBC clip answer",
+    project: "Gérard & Gérard", mechanic: "Référence audiovisuelle : une question grandiose reçoit une réponse absurdement simple.",
+    experiment: "Tester un dialogue court des deux Gérard, avec une réponse concrète et une pause avant la chute." },
+  { name: "Discworld adaptation clips", match: /discworld|hogfather|going postal|terry pratchett/i, search: "Terry Pratchett Hogfather Going Postal official trailer Discworld",
+    project: "Gérard & Gérard", mechanic: "Référence audiovisuelle : utiliser un personnage ou un objet quotidien pour donner un aperçu de l’absurde.",
+    experiment: "Donner au spectateur une situation comique complète avant d’afficher le titre du livre." },
+  { name: "Peter Pan adaptation", match: /peter pan|neverland/i, search: "Peter Pan Neverland Nightmare official teaser trailer",
+    project: "Neverland Ltd.", mechanic: "Référence audiovisuelle : jouer avec la reconnaissance immédiate d’un nom familier.",
+    experiment: "Ouvrir sur une image propre à Neverland Ltd. et une attente connue du lecteur, puis révéler un écart attesté." },
+  { name: "Neverland adaptation", match: /peter pan|neverland/i, search: "Peter Pan and Wendy official teaser Neverland Disney trailer",
+    project: "Neverland Ltd.", mechanic: "Référence audiovisuelle : présenter une porte d’entrée dans le monde par une action.",
+    experiment: "Pour un tome, isoler un seul passage ou objet vérifié et inviter à choisir d’y entrer ou de rester." },
+  { name: "Dune world excerpt", match: /dune|arrakis/i, search: "Dune Arrakis desert sandworm clip 1 minute",
+    project: "Ilvaard", mechanic: "Référence audiovisuelle : faire découvrir une contrainte du monde au moment où elle agit.",
+    experiment: "Utiliser un élément visuel original d’Ilvaard et faire comprendre une règle par sa conséquence immédiate." },
+  { name: "Worldbuilding advice", match: /worldbuilding|world.building/i, search: "fantasy worldbuilding tips one minute worldbuilding shorts",
+    project: "Ilvaard", mechanic: "Isoler une seule règle du monde et montrer un exemple concret.",
+    experiment: "Faire un clip « une règle d’Ilvaard en une scène », sans résumer toute la chronologie." },
 ];
 async function get(url, json = true) {
   const response = await fetch(url, {
@@ -142,6 +160,7 @@ for (const source of evidence) {
     console.log(JSON.stringify({ event: "publisher-write-unconfirmed", id: source.id, status: response.status, code: result.code }));
     continue;
   }
+  observedToday.add(source.id);
   written.push(source);
   console.log(JSON.stringify({ event: "publisher-source-persisted", id: result.source.id, status: result.status,
     name: source.name, url: source.value, facts: source.features, project: source.tags.includes("livres-et-univers") ? source.tags.at(-1) : null }));
