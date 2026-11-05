@@ -80,6 +80,15 @@ const targets = [
   { name: "Worldbuilding advice", match: /worldbuilding|world.building/i, search: "fantasy worldbuilding tips one minute worldbuilding shorts",
     project: "Ilvaard", mechanic: "Isoler une seule règle du monde et montrer un exemple concret.",
     experiment: "Faire un clip « une règle d’Ilvaard en une scène », sans résumer toute la chronologie." },
+  { name: "Solaris audiovisual", match: /solaris.*(?:tarkovsky|trailer|criterion)|(?:tarkovsky|trailer).*solaris/i, search: "Solaris Tarkovsky Criterion trailer short",
+    project: "TERRA", mechanic: "Référence audiovisuelle : installer un regard, puis introduire un signal inexpliqué.",
+    experiment: "Comparer un clip qui commence sur le témoin à un clip qui commence sur la sonde, avec la même durée." },
+  { name: "Avenue 5", match: /avenue 5/i, search: "Avenue 5 HBO official teaser short Hugh Laurie cruise spaceship",
+    project: "FLÛTE ET RE-FLÛTE ! / Ema", mechanic: "Référence audiovisuelle : mettre côte à côte un protocole très sérieux et une situation qui déraille.",
+    experiment: "Écrire un micro-dialogue original où une consigne impeccable provoque une réaction inattendue. Garder le contexte compréhensible en une phrase." },
+  { name: "Futurama", match: /futurama/i, search: "Futurama official short clip space ship funny Hulu",
+    project: "FLÛTE ET RE-FLÛTE ! / Ema", mechanic: "Référence audiovisuelle : faire comprendre le gag de SF à travers la réaction d’un personnage.",
+    experiment: "Tester la même micro-scène avec la réaction d’abord, puis avec l’annonce du problème d’abord." },
 ];
 async function get(url, json = true) {
   const response = await fetch(url, {
