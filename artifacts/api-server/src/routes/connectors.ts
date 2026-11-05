@@ -19,12 +19,15 @@ interface ConnectorDef {
 }
 
 const COMPOSIO_USER_ID = process.env.COMPOSIO_USER_ID?.trim() || "benoit-lubert";
+const GERARD_COMPOSIO_USER_ID = process.env.GERARD_COMPOSIO_USER_ID?.trim() || "gerard-poulpe-fiction";
+const userIdFor = (providerId: string) => providerId === "gmail" ? GERARD_COMPOSIO_USER_ID : COMPOSIO_USER_ID;
 const COMPOSIO_TARGETS = [
   { id: "canva", label: "Canva", toolkitSlugs: ["canva"], capability: "visual" },
   { id: "elevenlabs", label: "ElevenLabs", toolkitSlugs: ["elevenlabs"], capability: "voice" },
   { id: "metricool", label: "Metricool", toolkitSlugs: ["metricool"], capability: "publish" },
   { id: "runway", label: "Runway", toolkitSlugs: ["runway", "runwayml"], capability: "video" },
   { id: "kling", label: "Kling", toolkitSlugs: ["kling", "klingai"], capability: "video" },
+  { id: "gmail", label: "Gérard Gmail", toolkitSlugs: ["gmail"], capability: "email-drafts" },
 ] as const;
 const COMPOSIO_CONNECT_ERROR = "La connexion Canva n’a pas pu être ouverte. Le connecteur Composio doit être mis à jour.";
 
@@ -142,8 +145,9 @@ router.get("/composio/catalog", async (_req, res) => {
   }
   try {
     const accounts = await listComposioConnectedAccounts(COMPOSIO_USER_ID);
+    const gerardAccounts = await listComposioConnectedAccounts(GERARD_COMPOSIO_USER_ID);
     const providers = COMPOSIO_TARGETS.map((target) => {
-      const account = accounts.find((item) => target.toolkitSlugs.includes(item.toolkitSlug as never));
+      const account = (target.id === "gmail" ? gerardAccounts : accounts).find((item) => target.toolkitSlugs.includes(item.toolkitSlug as never));
       return {
         ...target,
         status: account && isActiveComposioStatus(account.status) ? "connected" : account ? "authorization-required" : "available",
@@ -173,7 +177,7 @@ router.post("/composio/connect", async (req, res) => {
       if (authConfigId) { toolkitSlug = slug; break; }
     }
 
-    const request = await initiateComposioConnection({ userId: COMPOSIO_USER_ID, toolkitSlug, authConfigId, callbackUrl });
+    const request = await initiateComposioConnection({ userId: userIdFor(target.id), toolkitSlug, authConfigId, callbackUrl });
     await writeGlobalState("connections", target.id, {
       provider: target.label,
       status: "authorization-required",
@@ -196,9 +200,10 @@ router.post("/composio/refresh", async (_req, res) => {
   if (!isComposioConfigured()) return res.status(503).json({ error: "COMPOSIO_API_KEY is not configured" });
   try {
     const accounts = await listComposioConnectedAccounts(COMPOSIO_USER_ID);
+    const gerardAccounts = await listComposioConnectedAccounts(GERARD_COMPOSIO_USER_ID);
     const providers = [];
     for (const target of COMPOSIO_TARGETS) {
-      const account = accounts.find((item) => target.toolkitSlugs.includes(item.toolkitSlug as never));
+      const account = (target.id === "gmail" ? gerardAccounts : accounts).find((item) => target.toolkitSlugs.includes(item.toolkitSlug as never));
       const connected = Boolean(account && isActiveComposioStatus(account.status));
       const record = {
         provider: target.label,
