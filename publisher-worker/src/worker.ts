@@ -4560,13 +4560,13 @@ app.post("/api/octopus-adapter/execute", async (c) => {
     knowledgeEnv: await knowledgeEnvFor(c.env),
     publishSocial: async (input) => finalizeSocialPublication(c.env, input, c.req.header("Authorization")),
     discoverTools: async query => {
-      const tools=await discoverBusinessTools(query,{userId:await composioUserId(c.env),request:(path,init)=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)})});
+      const tools=await discoverBusinessTools(query,{userId:await composioUserId(c.env),request:(path: string, init: RequestInit = {})=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)})});
       return {status:"discovered",tools:tools.map(t=>({slug:t.slug,name:t.name,toolkit:t.toolkit,inputSchema:t.schema,discovered:true,connected:t.connected,authMode:t.authMode,supportedReadPolicy:t.readPolicy})),executionVerified:false};
     },
     searchBusinessSources: async (query,options) => {
       const deps={
         userId:await composioUserId(c.env),
-        request:(path,init)=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)}),
+        request:(path: string, init: RequestInit = {})=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)}),
         store:async()=>composioOperationStore(await getSql(c.env)),
       };
       return options.sourceType === "job-search"
