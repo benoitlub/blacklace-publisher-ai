@@ -9,12 +9,19 @@ export const SEARCHES = [
   'topic:video-generation language:Python',
   'topic:open-source-automation language:TypeScript',
   'topic:3d-visualization language:JavaScript',
+  'awesome free llm api',
+  'open source text to speech voice studio',
+  'open source ai agent builder',
 ];
+// Public leads supplied by Benoît. These are inspected, never installed or trusted.
+export const WATCH_REPOSITORIES = ['mfnst/awesome-free-llm-apis'];
 const PERMISSIVE = new Set(['mit', 'apache-2.0', 'bsd-3-clause', 'bsd-2-clause', 'isc']);
 const BLOCKED = /(?:steal (?:tokens|passwords)|credential harvester|session hijack|malware|keylogger)/i;
 const FEATURES = [
   { capability: 'video.generate', match: /\b(video|animation|reel|shorts|motion)\b/i, adapter: 'video' },
   { capability: 'visual.generate', match: /\b(image|design|visual|render|3d|mesh|texture)\b/i, adapter: 'visual' },
+  { capability: 'audio.synthesize', match: /\b(voice|text.to.speech|tts|speech synthesis|voice cloning)\b/i, adapter: 'voice' },
+  { capability: 'model.inference', match: /\b(llm|language model|inference|model api|free api)\b/i, adapter: 'inference' },
   { capability: 'tool.search', match: /\b(agent|tool|plugin|mcp|workflow|automation|integration)\b/i, adapter: 'tool-search' },
   { capability: 'knowledge.search', match: /\b(research|search|retrieval|knowledge|indexing)\b/i, adapter: 'knowledge' },
 ];
@@ -48,6 +55,7 @@ export function evaluateGem(repo, readme = '') {
       autoInstall: false,
     },
     provenance: { provider: 'github-api', evidence: 'repository-metadata-and-readme', verifiedFunctionality: false },
+    costs: { verified: false, note: 'Les promesses de gratuité, quotas et conditions commerciales doivent être vérifiés chez chaque fournisseur.' },
   };
 }
 
@@ -68,8 +76,17 @@ export async function scout({ token = '', outFile = 'public/knowledge-packs/auto
     const response = await api(url, token);
     for (const repo of response.items ?? []) if (repo?.full_name && !repos.has(repo.full_name)) repos.set(repo.full_name, repo);
   }
+  for (const name of WATCH_REPOSITORIES) {
+    try {
+      const repo = await api(`https://api.github.com/repos/${name}`, token);
+      if (repo?.full_name) repos.set(repo.full_name, repo);
+    } catch { /* A watched source can be unavailable without breaking the scout. */ }
+  }
   const candidates = [];
-  for (const repo of [...repos.values()].slice(0, 25)) {
+  const watched = new Set(WATCH_REPOSITORIES.map(name => name.toLowerCase()));
+  const sampled = [...repos.values()].filter(repo => watched.has(repo.full_name.toLowerCase()))
+    .concat([...repos.values()].filter(repo => !watched.has(repo.full_name.toLowerCase())).slice(0, 25));
+  for (const repo of sampled) {
     if (repo.archived || repo.disabled || repo.fork) continue;
     let readme = '';
     try {
@@ -78,9 +95,10 @@ export async function scout({ token = '', outFile = 'public/knowledge-packs/auto
         readme = Buffer.from(response.content, 'base64').toString('utf8').slice(0, 8000);
     } catch { /* Metadata is still a usable lead, not verified functionality. */ }
     const gem = evaluateGem(repo, readme);
-    if (gem.score >= 35 && gem.capabilities.length) candidates.push(gem);
+    if ((gem.score >= 35 || watched.has(repo.full_name.toLowerCase())) && gem.capabilities.length) candidates.push(gem);
   }
-  const gems = candidates.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name)).slice(0, 15);
+  const gems = candidates.sort((a, b) => Number(watched.has(b.name.toLowerCase())) - Number(watched.has(a.name.toLowerCase()))
+    || b.score - a.score || a.name.localeCompare(b.name)).slice(0, 15);
   const pack = {
     version: 1, contract: 'publisher-autonomous-gems-v1', source: 'github-public-discovery',
     generatedDate: new Date().toISOString().slice(0, 10), executable: false,

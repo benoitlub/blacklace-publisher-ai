@@ -20,6 +20,7 @@ import Campaigns from "@/pages/campaigns";
 import Agents from "@/pages/agents";
 import Connectors from "@/pages/connectors";
 import LocalTechnique from "@/pages/local-technique";
+import ToolInventory from "@/pages/tool-inventory";
 import Settings from "@/pages/settings";
 
 // dry-dew-8fb3blacklace-publisher-relay is write-only (mission intake) —
@@ -47,6 +48,7 @@ function Router() {
         <Route path="/campaigns" component={Campaigns} />
         <Route path="/agents" component={Agents} />
         <Route path="/local-technique" component={LocalTechnique} />
+        <Route path="/tool-inventory" component={ToolInventory} />
         <Route path="/connectors" component={Connectors} />
         <Route path="/settings" component={Settings} />
         <Route>
