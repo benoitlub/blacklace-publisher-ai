@@ -1163,35 +1163,80 @@ app.post("/api/gerard/gmail/send", async (c) => {
       body.length < 10 || body.length > 30000) {
     return c.json({ status: "invalid-mail", reason: "operation-id-recipient-subject-or-body" }, 400);
   }
+  // The relay must not auto-publish 420 Dice while its creative is under review.
+  if (subject.startsWith("[Gerard Metricool v1]")) {
+    const relay = asRecord(await new Response(body).json().catch(() => null));
+    const seedId = stringValue(relay.seedId) ?? "";
+    if (/420[^a-z0-9]*dice/i.test(seedId)) {
+      return c.json({ status: "blocked", reason: "420-dice-review-required" }, 409);
+    }
+  }
   const configuredUserId = await composioUserId(c.env);
   const scopedUserIds = [...new Set([configuredUserId, sender, ownerCc])];
-  let account: ComposioConnectedAccount | null = null;
-  let gmailUserId = "";
-  const verified = new Map<string, { account: ComposioConnectedAccount; userId: string }>();
-  for (const userId of scopedUserIds) {
+  const verified = new Map<string, { account: ComposioConnectedAccount; userId: string; projectKey?: string }>();
+  async function checkIdentity(account: ComposioConnectedAccount, userId: string, projectKey?: string) {
     try {
-      const candidates = (await discoverComposioAccounts(userId, path => composioRequest(c.env, path)))
-        .filter(a => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status));
-      for (const candidate of candidates) {
-        const profile = asRecord(await executeComposioTool(c.env, {
-          toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: candidate.id,
-          userId, arguments: { user_id: "me" }, timeoutMs: 15000,
-        }));
-        const identity = String(stringValue(asRecord(profile.data).emailAddress ??
-          asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
-        if (identity === sender) verified.set(candidate.id, { account: candidate, userId });
-      }
+      const profile = asRecord(await executeComposioTool(c.env, {
+        toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id, userId,
+        apiKeyOverride: projectKey, arguments: { user_id: "me" }, timeoutMs: 7000,
+      }));
+      const identity = String(stringValue(asRecord(profile.data).emailAddress ??
+        asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
+      if (identity === sender) verified.set(account.id, { account, userId, projectKey });
     } catch {
-      // One user scope may be absent; keep checking the known owner and sender scopes.
+      // A profile that cannot be verified is never an eligible sender.
     }
+  }
+
+  await Promise.allSettled(scopedUserIds.map(async userId => {
+    const candidates = (await discoverComposioAccounts(userId, path =>
+      composioRequest(c.env, path, { signal: AbortSignal.timeout(7000) })))
+      .filter(account => account.toolkitSlug === "gmail" && isActiveComposioStatus(account.status));
+    await Promise.all(candidates.map(account => checkIdentity(account, userId)));
+  }));
+  if (!verified.size) {
+    // The owner test can discover Gérard under either existing project even
+    // when the link is owned by a different Composio entity ID.
+    const alternateKey = await resolveSecret(c.env.Composio2);
+    const projects = alternateKey ? [undefined, alternateKey] : [undefined];
+    const lookupDeadline = AbortSignal.timeout(12000);
+    await Promise.allSettled(projects.map(async projectKey => {
+      const candidates: { account: ComposioConnectedAccount; userId: string }[] = [];
+      let cursor = "";
+      const seen = new Set<string>();
+      for (let page = 0; page < 3; page++) {
+        const suffix = cursor ? "&cursor=" + encodeURIComponent(cursor) : "";
+        const payload = asRecord(await composioRequest(c.env,
+          "/connected_accounts?toolkit_slugs=gmail&account_type=ALL&limit=100" + suffix,
+          { signal: lookupDeadline }, projectKey));
+        const data = asRecord(payload.data);
+        const items = [payload.items, payload.connected_accounts, data.items, data.connected_accounts].find(Array.isArray);
+        if (!items) return;
+        for (const value of items) {
+          const item = asRecord(value);
+          const id = String(item.id ?? "");
+          const userId = String(item.user_id ?? item.userId ?? "");
+          const toolkitSlug = String(asRecord(item.toolkit).slug ?? item.toolkit_slug ?? "").toLowerCase();
+          const status = String(item.status ?? "");
+          if (!id || !userId || toolkitSlug !== "gmail" || !isActiveComposioStatus(status) || seen.has(id)) continue;
+          seen.add(id);
+          candidates.push({ account: { id, toolkitSlug, status }, userId });
+        }
+        cursor = String(payload.next_cursor ?? data.next_cursor ?? "");
+        if (!cursor) {
+          // Do not select a sender from an incomplete or unexpectedly large account list.
+          if (candidates.length <= 16) await Promise.all(candidates.map(({ account, userId }) =>
+            checkIdentity(account, userId, projectKey)));
+          return;
+        }
+      }
+    }));
   }
   if (verified.size !== 1) return c.json({
     status: "blocked", reason: verified.size > 1 ? "gmail-identity-not-unique" : "gmail-sender-identity-not-found",
     verifiedMatches: verified.size,
   }, 409);
-  const match = [...verified.values()][0];
-  account = match.account;
-  gmailUserId = match.userId;
+  const { account, userId: gmailUserId, projectKey } = [...verified.values()][0];
   let sql: Awaited<ReturnType<typeof getSql>>;
   try {
     sql = await getSql(c.env);
@@ -1205,7 +1250,7 @@ app.post("/api/gerard/gmail/send", async (c) => {
   try {
     const result = asRecord(await executeComposioTool(c.env, {
       toolSlug: "GMAIL_SEND_EMAIL", connectedAccountId: account.id,
-      userId: gmailUserId, arguments: { user_id: "me", recipient_email: recipient, cc: [ownerCc], subject, body, is_html: false },
+      userId: gmailUserId, apiKeyOverride: projectKey, arguments: { user_id: "me", recipient_email: recipient, cc: [ownerCc], subject, body, is_html: false },
       timeoutMs: 20000,
     }));
     if (result.successful === false || asRecord(result.data).successful === false) throw new Error("PROVIDER_REJECTED");
