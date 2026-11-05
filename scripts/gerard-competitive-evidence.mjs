@@ -23,6 +23,45 @@ const targets = [
   { name: "Exploding Kittens", search: "Exploding Kittens how to play short card game",
     mechanic: "Présenter une règle par la conséquence amusante d’une seule action.",
     experiment: "Pour Pro.Hibited, ouvrir sur une erreur ou un retournement réel, puis donner le contexte." },
+  { name: "The Three Body Problem", match: /three[ -]body problem/i, search: "the three body problem book review Cixin Liu short book recommendation",
+    project: "TERRA", mechanic: "Accrocher avec un seul phénomène inexplicable et une question humaine précise.",
+    experiment: "Ouvrir sur la sonde verte et un témoin de TERRA, puis tester une variante qui commence par le geste quotidien du témoin." },
+  { name: "Solaris", match: /solaris.*(?:lem|book|novel)|(?:lem|book|novel).*solaris/i, search: "Solaris Stanislaw Lem book recommendation review short",
+    project: "TERRA", mechanic: "Suggérer l’inconnu par un détail concret plutôt que résumer l’intrigue.",
+    experiment: "Associer un geste banal à un signe cosmique du livre et laisser une question ouverte en fin de clip." },
+  { name: "Hitchhiker's Guide to the Galaxy", match: /hitchhiker.?s guide to the galaxy|h2g2/i, search: "Hitchhiker's Guide to the Galaxy Douglas Adams book funny short review",
+    project: "Gérard & Gérard", mechanic: "Faire partir le gag d’un contresens sur une habitude humaine.",
+    experiment: "Faire commenter un tapis de course ou un croissant par les deux Gérard, avec une chute originale." },
+  { name: "Discworld", match: /discworld|terry pratchett|disque.monde/i, search: "Discworld Terry Pratchett books funny where to start booktok shorts",
+    project: "Gérard & Gérard", mechanic: "Présenter un duo par le désaccord qui fait rire, sans réciter sa fiche.",
+    experiment: "Une même habitude humaine, deux interprétations opposées, puis un dernier plan tendre." },
+  { name: "Lost Boy", match: /lost boy.*(?:peter pan|christina henry|book)|(?:peter pan|christina henry).*lost boy/i, search: "Lost Boy Christina Henry dark Peter Pan retelling book review short",
+    project: "Neverland Ltd.", mechanic: "Évoquer le conte familier puis révéler ce qui a changé dans ce monde.",
+    experiment: "Tester une accroche « vous connaissez Neverland » suivie d’un seul détail attesté dans le tome choisi." },
+  { name: "Peter Pan retellings", match: /peter pan.*(?:retell|book)|(?:retell|book).*peter pan|peter darling|straight on till morning/i, search: "Peter Pan retellings book recommendations Peter Darling Neverland short BookTok",
+    project: "Neverland Ltd.", mechanic: "Donner une porte d’entrée aux lecteurs qui connaissent déjà le conte.",
+    experiment: "Comparer une vidéo centrée sur le monde à une vidéo centrée sur une décision d’un personnage." },
+  { name: "The Stinky Cheese Man", match: /stinky cheese man/i, search: "The Stinky Cheese Man Jon Scieszka picture book trailer book short",
+    project: "La Feulette tachetée / La crotte de nez magique", mechanic: "Faire du détail incongru un jeu d’observation adapté à chaque livre.",
+    experiment: "Créer deux clips distincts, chacun avec un objet et une question propres au livre. Pour Feulette, partir de la tache." },
+  { name: "The Book with No Pictures", match: /book with no pictures/i, search: "The Book With No Pictures BJ Novak funny picture book short trailer",
+    project: "La crotte de nez magique", mechanic: "Installer une attente très sérieuse puis la déjouer par une chute absurde.",
+    experiment: "Tester une mini lecture jouée à voix naturelle avec une phrase originale, ou un extrait explicitement identifié." },
+  { name: "A Wrinkle in Time", match: /wrinkle in time/i, search: "A Wrinkle in Time book recommendation short middle grade science fiction book trailer",
+    project: "Les Vacances Interdites", mechanic: "Annoncer une aventure jeunesse par une perturbation concrète, à hauteur de personnage.",
+    experiment: "Partir d’un détail d’Émilie ou de Pixel, puis révéler le premier signe que les vacances prennent une autre tournure." },
+  { name: "Amari and the Night Brothers", match: /amari.*night brothers/i, search: "Amari and the Night Brothers book trailer middle grade short",
+    project: "Les Vacances Interdites", mechanic: "Rendre le passage du quotidien à l’étrange visible en deux plans.",
+    experiment: "Montrer un instant banal puis un seul élément inattendu de l’univers, sans dévoiler le dénouement." },
+  { name: "Le Petit Prince", match: /petit prince/i, search: "Le Petit Prince livre présentation lecture en français vidéo courte",
+    project: "Ilvaard", mechanic: "Faire entrer dans un monde par un objet ou un personnage identifiable.",
+    experiment: "Utiliser le Trillo Ball comme point d’entrée dans Ilvaard, en expliquant un seul usage déjà établi." },
+  { name: "Dune worldbuilding", match: /dune.*(?:world|arrakis|explained|book)|(?:world|arrakis|explained|book).*dune/i, search: "Dune book worldbuilding explained Arrakis in 60 seconds",
+    project: "Ilvaard", mechanic: "Expliquer une règle du monde par ce qu’elle change dans une scène.",
+    experiment: "Montrer la règle émotionnelle d’Ilvaard à travers un choix de personnage, avec un exemple issu du canon." },
+  { name: "Mébius en littérature", match: /m[oœö]bius|m[ée]bius|ruban de m/i, search: "ruban de Möbius explication expérience court film lecture structure récit",
+    project: "La Grammaire du réel", mechanic: "Faire sentir le retournement par une démonstration que l’on peut refaire.",
+    experiment: "Faire entendre la même phrase avant et après un changement de contexte, comme un aperçu de la lecture en ordre inverse." },
 ];
 async function get(url, json = true) {
   const response = await fetch(url, {
@@ -54,11 +93,11 @@ async function youtube(target) {
     const title = text(video.title);
     const duration = text(video.lengthText);
     const views = text(video.viewCountText);
-    if (!/^[a-zA-Z0-9_-]{11}$/.test(video.videoId ?? "") || !title.toLowerCase().includes(target.name.toLowerCase())) continue;
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(video.videoId ?? "") || !(target.match ? target.match.test(title) : title.toLowerCase().includes(target.name.toLowerCase()))) continue;
     if (!/^\d{1,2}:\d{2}$/.test(duration) || !/^[\d,]+ views$/.test(views)) continue;
     const [minutes, seconds] = duration.split(":").map(Number);
     const count = Number(views.replace(/[^0-9]/g, ""));
-    if (minutes * 60 + seconds > 90 || !Number.isSafeInteger(count) || count < 1000) continue;
+    if (minutes * 60 + seconds > (target.project ? 120 : 90) || !Number.isSafeInteger(count) || count < (target.project ? 500 : 1000)) continue;
     rows.push({ id: video.videoId, title, duration, views: count, channel: text(video.ownerText), age: text(video.publishedTimeText) });
   }
   return [...new Map(rows.map(row => [row.id, row])).values()].sort((a, b) => b.views - a.views).slice(0, 2)
@@ -66,12 +105,12 @@ async function youtube(target) {
       id: "gerard-competitive-youtube-" + row.id,
       kind: "video", category: "creative-benchmark",
       name: row.title, value: "https://www.youtube.com/watch?v=" + row.id, confidence: 0.8,
-      summary: "YouTube public : " + row.views + " vues relevées le " + date + ", durée " + row.duration + ", chaîne " + row.channel +
+      summary: (target.project ? "Application : " + target.project + ". " : "") + "YouTube public : " + row.views + " vues relevées le " + date + ", durée " + row.duration + ", chaîne " + row.channel +
         (row.age ? ", ancienneté affichée " + row.age : "") + ". Échantillon de recherche, sans preuve de causalité. Hypothèse : " + target.mechanic +
         " Essai : " + target.experiment,
       features: ["public-view-count:" + row.views, "duration:" + row.duration],
       patterns: [target.mechanic], recommendations: [target.experiment],
-      tags: ["gerard", "veille-concurrentielle", "video-courte", "youtube", "hypothese-a-tester"],
+      tags: ["gerard", "veille-concurrentielle", "video-courte", "youtube", "hypothese-a-tester", ...(target.project ? ["livres-et-univers", target.project] : [])],
     }));
 }
 
@@ -105,7 +144,7 @@ for (const source of evidence) {
   }
   written.push(source);
   console.log(JSON.stringify({ event: "publisher-source-persisted", id: result.source.id, status: result.status,
-    name: source.name, url: source.value, facts: source.features }));
+    name: source.name, url: source.value, facts: source.features, project: source.tags.includes("livres-et-univers") ? source.tags.at(-1) : null }));
 }
 if (process.env.GITHUB_STEP_SUMMARY && written.length) {
   await appendFile(process.env.GITHUB_STEP_SUMMARY, "### Veille concurrentielle envoyée à Publisher\n\n" +
