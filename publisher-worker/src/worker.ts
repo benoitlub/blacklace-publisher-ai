@@ -1155,7 +1155,7 @@ app.post("/api/gerard/gmail/send", async (c) => {
   const recipient = (stringValue(input.recipientEmail) ?? "").toLowerCase();
   const subject = stringValue(input.subject) ?? "";
   const body = stringValue(input.body) ?? "";
-  const sender = "gerardpoulpefiction@gmail.com";
+  const sender = "gerard.poulpe-fiction@gmail.com";
   const ownerCc = "benoitlubert@gmail.com";
   if (!/^gerard-mail-[a-zA-Z0-9_-]{8,100}$/.test(operationId) ||
       !/^[^@\s<>]+@[^@\s<>]+\.[a-zA-Z]{2,}$/.test(recipient) ||
@@ -1163,26 +1163,35 @@ app.post("/api/gerard/gmail/send", async (c) => {
       body.length < 10 || body.length > 30000) {
     return c.json({ status: "invalid-mail", reason: "operation-id-recipient-subject-or-body" }, 400);
   }
-  const userId = await composioUserId(c.env);
-  if (userId !== "benoit-lubert") return c.json({ status: "blocked", reason: "unexpected-composio-user" }, 409);
-  let account: ComposioConnectedAccount;
-  try {
-    const candidates = (await discoverComposioAccounts(userId, path => composioRequest(c.env, path)))
-      .filter(a => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status));
-    if (candidates.length !== 1) return c.json({
-      status: "blocked", reason: "gmail-connection-not-unique", count: candidates.length,
-    }, 409);
-    account = candidates[0];
-    const profile = asRecord(await executeComposioTool(c.env, {
-      toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id,
-      userId, arguments: { user_id: "me" }, timeoutMs: 15000,
-    }));
-    const identity = String(stringValue(asRecord(profile.data).emailAddress ??
-      asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
-    if (identity !== sender) return c.json({ status: "blocked", reason: "unexpected-sender-identity" }, 409);
-  } catch {
-    return c.json({ status: "blocked", reason: "gmail-profile-unavailable" }, 503);
+  const configuredUserId = await composioUserId(c.env);
+  const scopedUserIds = [...new Set([configuredUserId, sender, ownerCc])];
+  let account: ComposioConnectedAccount | null = null;
+  let gmailUserId = "";
+  const verified = new Map<string, { account: ComposioConnectedAccount; userId: string }>();
+  for (const userId of scopedUserIds) {
+    try {
+      const candidates = (await discoverComposioAccounts(userId, path => composioRequest(c.env, path)))
+        .filter(a => a.toolkitSlug === "gmail" && isActiveComposioStatus(a.status));
+      for (const candidate of candidates) {
+        const profile = asRecord(await executeComposioTool(c.env, {
+          toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: candidate.id,
+          userId, arguments: { user_id: "me" }, timeoutMs: 15000,
+        }));
+        const identity = String(stringValue(asRecord(profile.data).emailAddress ??
+          asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
+        if (identity === sender) verified.set(candidate.id, { account: candidate, userId });
+      }
+    } catch {
+      // One user scope may be absent; keep checking the known owner and sender scopes.
+    }
   }
+  if (verified.size !== 1) return c.json({
+    status: "blocked", reason: verified.size > 1 ? "gmail-identity-not-unique" : "gmail-sender-identity-not-found",
+    verifiedMatches: verified.size,
+  }, 409);
+  const match = [...verified.values()][0];
+  account = match.account;
+  gmailUserId = match.userId;
   let sql: Awaited<ReturnType<typeof getSql>>;
   try {
     sql = await getSql(c.env);
@@ -1196,7 +1205,7 @@ app.post("/api/gerard/gmail/send", async (c) => {
   try {
     const result = asRecord(await executeComposioTool(c.env, {
       toolSlug: "GMAIL_SEND_EMAIL", connectedAccountId: account.id,
-      userId, arguments: { user_id: "me", recipient_email: recipient, cc: [ownerCc], subject, body, is_html: false },
+      userId: gmailUserId, arguments: { user_id: "me", recipient_email: recipient, cc: [ownerCc], subject, body, is_html: false },
       timeoutMs: 20000,
     }));
     if (result.successful === false || asRecord(result.data).successful === false) throw new Error("PROVIDER_REJECTED");
