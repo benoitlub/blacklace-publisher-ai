@@ -1229,7 +1229,7 @@ app.post("/api/gerard/gmail/owner-test", async (c) => {
   const body: Record<string, unknown> = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const operationId = String(body.operationId ?? "");
   if (!/^gerard-owner-[a-zA-Z0-9_-]{8,80}$/.test(operationId)) return c.json({ status: "invalid-operation-id" }, 400);
-  const sender = "gerardpoulpefiction@gmail.com";
+  const sender = "gerard.poulpe-fiction@gmail.com";
   const recipient = "benoitlubert@gmail.com";
   let account: ComposioConnectedAccount | null = null;
   let gmailUserId = "";
