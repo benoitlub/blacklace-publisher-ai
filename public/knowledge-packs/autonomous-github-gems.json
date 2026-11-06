@@ -2,55 +2,19 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-05",
+  "generatedDate": "2026-11-06",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1291468384",
-      "name": "buildinternet/uploads",
-      "url": "https://github.com/buildinternet/uploads",
-      "summary": "Lightweight file host and upload tools for coding agents to add artifacts to pull requests. Add CI checks for screenshots. Cloud and self-host options.",
-      "stars": 20,
-      "updatedAt": "2026-11-05T12:30:52Z",
-      "license": "Apache-2.0",
-      "score": 94,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1438661890",
-      "name": "JuneYaooo/rea-video",
-      "url": "https://github.com/JuneYaooo/rea-video",
-      "summary": "Reverse-engineer any video, shot by shot: tells whether each shot was filmed, AI-generated or coded, how the captions, cuts and audio were made, and how to remake it. 逆向一切视频，逐镜拆出制作方式并给出复刻方案。",
-      "stars": 1813,
-      "updatedAt": "2026-11-05T14:52:41Z",
-      "license": "Apache-2.0",
-      "score": 92,
+      "id": "1331882604",
+      "name": "scenario-labs/skills",
+      "url": "https://github.com/scenario-labs/skills",
+      "summary": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
+      "stars": 3358,
+      "updatedAt": "2026-11-06T14:28:53Z",
+      "license": "MIT",
+      "score": 93,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -78,14 +42,14 @@
       }
     },
     {
-      "id": "1334422511",
-      "name": "rogerwu188/qingshan-short-drama-production-line",
-      "url": "https://github.com/rogerwu188/qingshan-short-drama-production-line",
-      "summary": "MIT-licensed end-to-end AI short-drama engine: script, shots, SD2/H3 video, QA, editing, and YouTube/Douyin release.",
-      "stars": 6,
-      "updatedAt": "2026-11-05T14:51:58Z",
+      "id": "1131494612",
+      "name": "PawanRamaMali/StudioLite",
+      "url": "https://github.com/PawanRamaMali/StudioLite",
+      "summary": "Local-first AI film studio. 18-stage pipeline turns a one-paragraph brief into a finished short film. Timeline editor, Media Library, Images / Voice / Music / Upscale. Runs offline against local models.",
+      "stars": 3,
+      "updatedAt": "2026-11-06T14:27:34Z",
       "license": "MIT",
-      "score": 91,
+      "score": 90,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -114,26 +78,25 @@
       }
     },
     {
-      "id": "1374390130",
-      "name": "vibe-weaver/media-router-skill",
-      "url": "https://github.com/vibe-weaver/media-router-skill",
-      "summary": "给文本模型补上出图、出视频、出语音的能力：多模型池调度，失败降级、自动熔断，零依赖纯标准库",
-      "stars": 1,
-      "updatedAt": "2026-11-05T14:54:50Z",
+      "id": "1334954277",
+      "name": "hasso5703/alzeo",
+      "url": "https://github.com/hasso5703/alzeo",
+      "summary": "dgx-spark-qwen38 is an open-source installer that turns an NVIDIA DGX Spark, or any GB10 machine (ASUS, Dell, HP, Lenovo, MSI, GIGABYTE, Acer), into a private AI server in one command: measured model lanes, OpenAI and Anthropic APIs, and a local cockpit.",
+      "stars": 252,
+      "updatedAt": "2026-11-06T14:27:39Z",
       "license": "MIT",
-      "score": 88,
+      "score": 86,
       "capabilities": [
         "video.generate",
         "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -150,14 +113,14 @@
       }
     },
     {
-      "id": "1333579278",
-      "name": "ZASENJC/dsh-plugins-store",
-      "url": "https://github.com/ZASENJC/dsh-plugins-store",
-      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
-      "stars": 74,
-      "updatedAt": "2026-11-05T12:51:49Z",
+      "id": "1181761989",
+      "name": "gaopengbin/cesium-mcp",
+      "url": "https://github.com/gaopengbin/cesium-mcp",
+      "summary": "Protocol-agnostic CesiumJS AI control runtime for MCP, WebMCP, function calling, and browser agents.",
+      "stars": 150,
+      "updatedAt": "2026-11-06T13:22:19Z",
       "license": "MIT",
-      "score": 83,
+      "score": 85,
       "capabilities": [
         "visual.generate",
         "tool.search",
@@ -189,8 +152,8 @@
       "name": "strukto-ai/mirage",
       "url": "https://github.com/strukto-ai/mirage",
       "summary": "The World's First Virtual Terminal for AI Agents",
-      "stars": 3765,
-      "updatedAt": "2026-11-05T14:49:10Z",
+      "stars": 3767,
+      "updatedAt": "2026-11-06T14:26:47Z",
       "license": "Apache-2.0",
       "score": 79,
       "capabilities": [
@@ -219,16 +182,15 @@
       }
     },
     {
-      "id": "1421324273",
-      "name": "bitilia/es3d",
-      "url": "https://github.com/bitilia/es3d",
-      "summary": "Extensible Scalable 3D",
-      "stars": 4,
-      "updatedAt": "2026-11-05T11:25:06Z",
-      "license": "Apache-2.0",
-      "score": 76,
+      "id": "1278326592",
+      "name": "instruktlabs/kiln",
+      "url": "https://github.com/instruktlabs/kiln",
+      "summary": "Build and revise procedural 3D assets with your coding agent. Local MCP server, CLI and TypeScript engine with rendered review, editable source and GLB export.",
+      "stars": 316,
+      "updatedAt": "2026-11-06T13:33:42Z",
+      "license": "MIT",
+      "score": 73,
       "capabilities": [
-        "video.generate",
         "visual.generate",
         "tool.search"
       ],
@@ -237,7 +199,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -254,14 +216,14 @@
       }
     },
     {
-      "id": "1361450395",
-      "name": "Chenxi-Only-Y/Little_Crew",
-      "url": "https://github.com/Chenxi-Only-Y/Little_Crew",
-      "summary": "面向 AIGC 漫剧的统一 IR 与确定性验收平台 —— 语义约束可编译、产物可复现、不合格可拦截 零第三方依赖 · 11 层 · 1153 项测试 · CLI + HTTP 接口 · legacy/ 为同仓库前代实现",
-      "stars": 1,
-      "updatedAt": "2026-11-05T14:46:39Z",
-      "license": "Apache-2.0",
-      "score": 74,
+      "id": "1218255587",
+      "name": "mirl-ucsb/mirl-3d-analyzer",
+      "url": "https://github.com/mirl-ucsb/mirl-3d-analyzer",
+      "summary": "A lightweight, browser-based tool for visualizing and quantitatively analyzing 3D-scanned cultural artifacts.",
+      "stars": 0,
+      "updatedAt": "2026-11-06T04:45:06Z",
+      "license": "MIT",
+      "score": 72,
       "capabilities": [
         "visual.generate",
         "tool.search",
@@ -289,24 +251,58 @@
       }
     },
     {
-      "id": "1439261874",
-      "name": "leostera/atxf",
-      "url": "https://github.com/leostera/atxf",
-      "summary": "ATXF: Agent Transcript Exchange Format",
+      "id": "1299395003",
+      "name": "ZenRows/cli",
+      "url": "https://github.com/ZenRows/cli",
+      "summary": "Zero-config CLI that gives AI agents reliable access to protected web data through Zenrows — Fetch, Extract, Batch, and Browser Sessions, plus MCP setup and agent skills. No API key needed to start.",
+      "stars": 16,
+      "updatedAt": "2026-11-06T14:35:41Z",
+      "license": "MIT",
+      "score": 65,
+      "capabilities": [
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1205267694",
+      "name": "LanNguyenSi/agent-dx",
+      "url": "https://github.com/LanNguyenSi/agent-dx",
+      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
       "stars": 6,
-      "updatedAt": "2026-11-05T13:37:19Z",
+      "updatedAt": "2026-11-06T14:35:52Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
-        "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -323,48 +319,48 @@
       }
     },
     {
-      "id": "1446621788",
-      "name": "kou1584423647/build-3d-briefing",
-      "url": "https://github.com/kou1584423647/build-3d-briefing",
-      "summary": "从平面图/设备清单直出可交互、可漫游、可离线的单文件 3D 汇报 HTML · AI 智能体技能 | Interactive offline 3D spatial briefings from floor plans — single-file HTML, Three.js, WASD roaming, double-click doors. AI agent skill.",
-      "stars": 1,
-      "updatedAt": "2026-11-05T06:50:17Z",
-      "license": "Apache-2.0",
-      "score": 60,
-      "capabilities": [
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1223139368",
-      "name": "oh-meh/botprint",
-      "url": "https://github.com/oh-meh/botprint",
-      "summary": "See what your automated browser exposes, and what changed from baseline. CDP diagnostics for Playwright, Puppeteer, and browser agents.",
-      "stars": 1,
-      "updatedAt": "2026-11-05T13:18:55Z",
+      "id": "1448349732",
+      "name": "affogato-ai/skills",
+      "url": "https://github.com/affogato-ai/skills",
+      "summary": "Agent skills and Claude Code plugin for Affogato: generate images, video and audio from any agent",
+      "stars": 0,
+      "updatedAt": "2026-11-06T14:20:48Z",
       "license": "MIT",
-      "score": 60,
+      "score": 58,
+      "capabilities": [
+        "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1446904303",
+      "name": "ceceys/istif",
+      "url": "https://github.com/ceceys/istif",
+      "summary": "Open-source Windows app that plans truck and container loads in 3D, with stacking rules and PDF load plans.",
+      "stars": 0,
+      "updatedAt": "2026-11-06T06:19:33Z",
+      "license": "MIT",
+      "score": 58,
       "capabilities": [
         "visual.generate",
         "tool.search"
@@ -375,6 +371,40 @@
       "adaptation": {
         "mode": "pattern-first",
         "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1357994828",
+      "name": "cortexos-dev/cs-mcp",
+      "url": "https://github.com/cortexos-dev/cs-mcp",
+      "summary": "把本机 CLI 工具接入 AI 客户端的 MCP 服务：按已安装能力自动发现，支持 stdio。",
+      "stars": 0,
+      "updatedAt": "2026-11-06T11:48:15Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -396,7 +426,7 @@
       "url": "https://github.com/grokbot1233/agentreader",
       "summary": "x402 pay-per-call tools for AI agents (HTTP + MCP, USDC on Base): web page to Markdown, PDF/DOCX convert, domain check, company research, UK Companies House due diligence, page monitoring, EVM wallet balances, tx status, ERC20 token risk check, ECB FX rates.",
       "stars": 0,
-      "updatedAt": "2026-11-05T14:23:56Z",
+      "updatedAt": "2026-11-06T14:17:40Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
@@ -430,7 +460,7 @@
       "url": "https://github.com/keremdemirer/3dbinpackingjs",
       "summary": "JavaScript 3D bin packing with an interactive demo, per-item rotation rules, and a standalone Node.js/browser API.",
       "stars": 89,
-      "updatedAt": "2026-11-05T13:52:48Z",
+      "updatedAt": "2026-11-06T13:30:57Z",
       "license": "NOASSERTION",
       "score": 57,
       "capabilities": [
@@ -467,44 +497,7 @@
       "url": "https://github.com/apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
       "summary": "리버스 Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-ko.",
       "stars": 67,
-      "updatedAt": "2026-11-05T14:43:46Z",
-      "license": "NOASSERTION",
-      "score": 56,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1393119996",
-      "name": "apimartozv7b/gemini-omni-1.1-flash-ext-reverse-api-fr",
-      "url": "https://github.com/apimartozv7b/gemini-omni-1.1-flash-ext-reverse-api-fr",
-      "summary": "rétro-ingénierie Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-fr.",
-      "stars": 61,
-      "updatedAt": "2026-11-05T14:38:29Z",
+      "updatedAt": "2026-11-06T14:21:43Z",
       "license": "NOASSERTION",
       "score": 56,
       "capabilities": [
