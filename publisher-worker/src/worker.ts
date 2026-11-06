@@ -85,6 +85,7 @@ type Env = {
   METRICOOL_EXECUTION_TOKEN?: string | SecretsStoreSecret;
   METRICOOL_PUBLISHING_ENABLED?: string;
   DATABASE_URL?: string | SecretsStoreSecret;
+  GERARD_HARVEST_READ_TOKEN?: string | SecretsStoreSecret;
   GITHUB_TOKEN?: string | SecretsStoreSecret;
   NOTION_API_KEY?: string | SecretsStoreSecret;
   NOTION_DATABASE_ID?: string;
@@ -141,6 +142,50 @@ app.post('/api/client-acquisition/notion/review', async (c) => {
 
 // Observational metadata only: no schema creation, registration, AI or publishing.
 app.all("/api/garden/v1/snapshot", (c) => readGarden(c.req.raw, c.env));
+
+// Owner-only read of Gérard's private runtime. The browser's local access mode
+// does not grant access to this endpoint.
+app.get("/api/garden/v1/private-harvests", async (c) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Vary", "Authorization");
+  const expected = await resolveSecret(c.env.GERARD_HARVEST_READ_TOKEN);
+  const provided = /^Bearer ([a-fA-F0-9]{64})$/.exec(c.req.header("Authorization") ?? "")?.[1];
+  if (!/^[a-fA-F0-9]{64}$/.test(expected)) return c.json({ status: "unavailable" }, 503);
+  if (!provided) return c.json({ status: "unauthorized" }, 401);
+
+  const bytes = new TextEncoder();
+  let mismatch = 0;
+  const expectedBytes = bytes.encode(expected);
+  const providedBytes = bytes.encode(provided);
+  for (let i = 0; i < expectedBytes.length; i++) mismatch |= expectedBytes[i] ^ providedBytes[i];
+  if (mismatch !== 0) return c.json({ status: "unauthorized" }, 401);
+
+  try {
+    const sql = await getSql(c.env);
+    const harvests = await sql`
+      SELECT
+        h->>'harvestId' AS "harvestId",
+        h->>'parcelId' AS "parcelId",
+        COALESCE(NULLIF(h->>'title', ''), h->>'seedId', 'Récolte') AS title,
+        h->>'content' AS content,
+        h->>'harvestedAt' AS "harvestedAt",
+        h->>'state' AS state
+      FROM gerard_private_runtime
+      CROSS JOIN LATERAL jsonb_array_elements(payload #> '{files,harvests.json,harvests}') AS item(h)
+      WHERE snapshot_key = 'poulpe-fiction'
+        AND jsonb_typeof(h->'content') = 'string'
+        AND btrim(h->>'content') <> ''
+        AND h->>'state' IN ('harvested', 'ready-to-offer', 'ready-to-use', 'ready-to-review')
+        AND h->>'content' !~* 'mode mock actif|configurez AI_PROVIDER'
+        AND NOT (h->>'parcelId' = 'project-yael-prospection' AND h->>'content' ~* '420 dice|pro[.]hbtd|blacklace dice')
+      ORDER BY h->>'harvestedAt' DESC NULLS LAST, h->>'harvestId'
+      LIMIT 20
+    `;
+    return c.json({ harvests });
+  } catch {
+    return c.json({ status: "unavailable" }, 503);
+  }
+});
 
 app.get("/api/health", async (c) => {
   // Keep the adapter registration alive independently from the expensive
