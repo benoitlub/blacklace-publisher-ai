@@ -1,3 +1,4 @@
+import { verifyPoulpeOwner } from "./poulpe-google-owner";
 import { verifyGerardGithubOidc } from "./gerard-github-oidc";
 import { readGarden } from "./garden-readonly";
 import { writeAcquisitionReview } from "./notion-client-acquisition";
@@ -85,7 +86,6 @@ type Env = {
   METRICOOL_EXECUTION_TOKEN?: string | SecretsStoreSecret;
   METRICOOL_PUBLISHING_ENABLED?: string;
   DATABASE_URL?: string | SecretsStoreSecret;
-  GERARD_HARVEST_READ_TOKEN?: string | SecretsStoreSecret;
   GITHUB_TOKEN?: string | SecretsStoreSecret;
   NOTION_API_KEY?: string | SecretsStoreSecret;
   NOTION_DATABASE_ID?: string;
@@ -148,17 +148,9 @@ app.all("/api/garden/v1/snapshot", (c) => readGarden(c.req.raw, c.env));
 app.get("/api/garden/v1/private-harvests", async (c) => {
   c.header("Cache-Control", "private, no-store");
   c.header("Vary", "Authorization");
-  const expected = await resolveSecret(c.env.GERARD_HARVEST_READ_TOKEN);
-  const provided = /^Bearer ([a-fA-F0-9]{64})$/.exec(c.req.header("Authorization") ?? "")?.[1];
-  if (!/^[a-fA-F0-9]{64}$/.test(expected)) return c.json({ status: "unavailable" }, 503);
-  if (!provided) return c.json({ status: "unauthorized" }, 401);
-
-  const bytes = new TextEncoder();
-  let mismatch = 0;
-  const expectedBytes = bytes.encode(expected);
-  const providedBytes = bytes.encode(provided);
-  for (let i = 0; i < expectedBytes.length; i++) mismatch |= expectedBytes[i] ^ providedBytes[i];
-  if (mismatch !== 0) return c.json({ status: "unauthorized" }, 401);
+  const provided = /^Bearer (\S+)$/.exec(c.req.header("Authorization") ?? "")?.[1];
+  const expiresAt = provided ? await verifyPoulpeOwner(provided) : null;
+  if (!expiresAt) return c.json({ status: "unauthorized" }, 401);
 
   try {
     const sql = await getSql(c.env);
@@ -181,7 +173,7 @@ app.get("/api/garden/v1/private-harvests", async (c) => {
       ORDER BY h->>'harvestedAt' DESC NULLS LAST, h->>'harvestId'
       LIMIT 20
     `;
-    return c.json({ harvests });
+    return c.json({ harvests, expiresAt });
   } catch {
     return c.json({ status: "unavailable" }, 503);
   }
