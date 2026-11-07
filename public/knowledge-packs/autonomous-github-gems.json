@@ -2,54 +2,19 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-06",
+  "generatedDate": "2026-11-07",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1331882604",
-      "name": "scenario-labs/skills",
-      "url": "https://github.com/scenario-labs/skills",
-      "summary": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
-      "stars": 3358,
-      "updatedAt": "2026-11-06T14:28:53Z",
+      "id": "1440387737",
+      "name": "AbdulDevHub/Claude-Code-Second-Brain",
+      "url": "https://github.com/AbdulDevHub/Claude-Code-Second-Brain",
+      "summary": "See everything Claude Code knows about you: a 3D knowledge-graph visualizer for ~/.claude (CLAUDE.md, memories, skills, plugins, MCP servers, agents). Vanilla JS, zero dependencies.",
+      "stars": 1,
+      "updatedAt": "2026-11-07T00:09:50Z",
       "license": "MIT",
-      "score": 93,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1131494612",
-      "name": "PawanRamaMali/StudioLite",
-      "url": "https://github.com/PawanRamaMali/StudioLite",
-      "summary": "Local-first AI film studio. 18-stage pipeline turns a one-paragraph brief into a finished short film. Timeline editor, Media Library, Images / Voice / Music / Upscale. Runs offline against local models.",
-      "stars": 3,
-      "updatedAt": "2026-11-06T14:27:34Z",
-      "license": "MIT",
-      "score": 90,
+      "score": 88,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -78,50 +43,16 @@
       }
     },
     {
-      "id": "1334954277",
-      "name": "hasso5703/alzeo",
-      "url": "https://github.com/hasso5703/alzeo",
-      "summary": "dgx-spark-qwen38 is an open-source installer that turns an NVIDIA DGX Spark, or any GB10 machine (ASUS, Dell, HP, Lenovo, MSI, GIGABYTE, Acer), into a private AI server in one command: measured model lanes, OpenAI and Anthropic APIs, and a local cockpit.",
-      "stars": 252,
-      "updatedAt": "2026-11-06T14:27:39Z",
+      "id": "1448511135",
+      "name": "ViniciusNoetzold/mine-blockreel-skill-",
+      "url": "https://github.com/ViniciusNoetzold/mine-blockreel-skill-",
+      "summary": "Make Minecraft-style animations, skins and texture packs from a prompt. Rendered in code, no video model. A Claude Code plugin with 3 skills.",
+      "stars": 1,
+      "updatedAt": "2026-11-07T13:28:58Z",
       "license": "MIT",
-      "score": 86,
+      "score": 88,
       "capabilities": [
         "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1181761989",
-      "name": "gaopengbin/cesium-mcp",
-      "url": "https://github.com/gaopengbin/cesium-mcp",
-      "summary": "Protocol-agnostic CesiumJS AI control runtime for MCP, WebMCP, function calling, and browser agents.",
-      "stars": 150,
-      "updatedAt": "2026-11-06T13:22:19Z",
-      "license": "MIT",
-      "score": 85,
-      "capabilities": [
         "visual.generate",
         "tool.search",
         "knowledge.search"
@@ -131,7 +62,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -152,8 +83,8 @@
       "name": "strukto-ai/mirage",
       "url": "https://github.com/strukto-ai/mirage",
       "summary": "The World's First Virtual Terminal for AI Agents",
-      "stars": 3767,
-      "updatedAt": "2026-11-06T14:26:47Z",
+      "stars": 3772,
+      "updatedAt": "2026-11-07T13:04:23Z",
       "license": "Apache-2.0",
       "score": 79,
       "capabilities": [
@@ -182,15 +113,16 @@
       }
     },
     {
-      "id": "1278326592",
-      "name": "instruktlabs/kiln",
-      "url": "https://github.com/instruktlabs/kiln",
-      "summary": "Build and revise procedural 3D assets with your coding agent. Local MCP server, CLI and TypeScript engine with rendered review, editable source and GLB export.",
-      "stars": 316,
-      "updatedAt": "2026-11-06T13:33:42Z",
-      "license": "MIT",
-      "score": 73,
+      "id": "1421324273",
+      "name": "bitilia/es3d",
+      "url": "https://github.com/bitilia/es3d",
+      "summary": "Extensible Scalable 3D",
+      "stars": 4,
+      "updatedAt": "2026-11-06T23:06:56Z",
+      "license": "Apache-2.0",
+      "score": 76,
       "capabilities": [
+        "video.generate",
         "visual.generate",
         "tool.search"
       ],
@@ -199,7 +131,77 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1314683733",
+      "name": "eiway112/video-production-skill",
+      "url": "https://github.com/eiway112/video-production-skill",
+      "summary": "工程化 AI 视频制作工作流：旁白脚本或文档一键成片。HTML+GSAP 渲染，TTS 实测驱动音画与字幕同步，输入指纹缓存、真实性质量门禁与机器可验证的交付验收证据链保证可交付质量。支持任意 AI 编码智能体端到端驱动，亦可纯命令行使用。",
+      "stars": 1,
+      "updatedAt": "2026-11-07T13:16:22Z",
+      "license": "MIT",
+      "score": 74,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1348883564",
+      "name": "tryvinci/vinci",
+      "url": "https://github.com/tryvinci/vinci",
+      "summary": "Make ads, films, and shorts with every AI model. Open-source studio for marketers, filmmakers, and creators: all providers, built-in workflows, free demo mode. MIT.",
+      "stars": 1,
+      "updatedAt": "2026-11-07T13:19:05Z",
+      "license": "MIT",
+      "score": 74,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -221,7 +223,7 @@
       "url": "https://github.com/mirl-ucsb/mirl-3d-analyzer",
       "summary": "A lightweight, browser-based tool for visualizing and quantitatively analyzing 3D-scanned cultural artifacts.",
       "stars": 0,
-      "updatedAt": "2026-11-06T04:45:06Z",
+      "updatedAt": "2026-11-06T21:45:54Z",
       "license": "MIT",
       "score": 72,
       "capabilities": [
@@ -251,14 +253,14 @@
       }
     },
     {
-      "id": "1299395003",
-      "name": "ZenRows/cli",
-      "url": "https://github.com/ZenRows/cli",
-      "summary": "Zero-config CLI that gives AI agents reliable access to protected web data through Zenrows — Fetch, Extract, Batch, and Browser Sessions, plus MCP setup and agent skills. No API key needed to start.",
-      "stars": 16,
-      "updatedAt": "2026-11-06T14:35:41Z",
-      "license": "MIT",
-      "score": 65,
+      "id": "1351166934",
+      "name": "maomaochong-ai/open-astravia",
+      "url": "https://github.com/maomaochong-ai/open-astravia",
+      "summary": "开源 · 本地优先的 AI 智能体：编程与实干兼备。 自带模型密钥，内置 MCP、技能、插件、工作流、知识库以及数据库。",
+      "stars": 46,
+      "updatedAt": "2026-11-07T11:29:51Z",
+      "license": "Apache-2.0",
+      "score": 68,
       "capabilities": [
         "visual.generate",
         "tool.search"
@@ -285,12 +287,46 @@
       }
     },
     {
-      "id": "1205267694",
-      "name": "LanNguyenSi/agent-dx",
-      "url": "https://github.com/LanNguyenSi/agent-dx",
-      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
+      "id": "1366979533",
+      "name": "ouli-1242/dsh-plugin-tool-management",
+      "url": "https://github.com/ouli-1242/dsh-plugin-tool-management",
+      "summary": "一个设置面板，统一管理 MCP、技能、记忆、子智能体、提示词和归档会话；可自定义搭配场景，一个场景即可切换整个环境；Agent也能帮你操作这个插件。 | One settings panel managing MCP, skills, memory, subagents, prompts and sessions; customize scene combos to switch the whole environment; the Agent can also operate this plugin for you.",
+      "stars": 43,
+      "updatedAt": "2026-11-07T10:36:25Z",
+      "license": "MIT",
+      "score": 68,
+      "capabilities": [
+        "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1153981814",
+      "name": "khalidsaidi/ragmap",
+      "url": "https://github.com/khalidsaidi/ragmap",
+      "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 6,
-      "updatedAt": "2026-11-06T14:35:52Z",
+      "updatedAt": "2026-11-07T13:16:16Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
@@ -319,48 +355,14 @@
       }
     },
     {
-      "id": "1448349732",
-      "name": "affogato-ai/skills",
-      "url": "https://github.com/affogato-ai/skills",
-      "summary": "Agent skills and Claude Code plugin for Affogato: generate images, video and audio from any agent",
-      "stars": 0,
-      "updatedAt": "2026-11-06T14:20:48Z",
+      "id": "1439261874",
+      "name": "leostera/atxf",
+      "url": "https://github.com/leostera/atxf",
+      "summary": "ATXF: Agent Transcript Exchange Format",
+      "stars": 6,
+      "updatedAt": "2026-11-07T12:05:27Z",
       "license": "MIT",
-      "score": 58,
-      "capabilities": [
-        "video.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1446904303",
-      "name": "ceceys/istif",
-      "url": "https://github.com/ceceys/istif",
-      "summary": "Open-source Windows app that plans truck and container loads in 3D, with stacking rules and PDF load plans.",
-      "stars": 0,
-      "updatedAt": "2026-11-06T06:19:33Z",
-      "license": "MIT",
-      "score": 58,
+      "score": 63,
       "capabilities": [
         "visual.generate",
         "tool.search"
@@ -387,24 +389,28 @@
       }
     },
     {
-      "id": "1357994828",
-      "name": "cortexos-dev/cs-mcp",
-      "url": "https://github.com/cortexos-dev/cs-mcp",
-      "summary": "把本机 CLI 工具接入 AI 客户端的 MCP 服务：按已安装能力自动发现，支持 stdio。",
-      "stars": 0,
-      "updatedAt": "2026-11-06T11:48:15Z",
-      "license": "MIT",
-      "score": 58,
+      "id": "1201369588",
+      "name": "quantum-26learning/quantum-measurement-lab",
+      "url": "https://github.com/quantum-26learning/quantum-measurement-lab",
+      "summary": "Interactive 3D visualization of a quantum measurement and control laboratory — built for public science outreach and education.",
+      "stars": 1,
+      "updatedAt": "2026-11-06T16:59:17Z",
+      "license": "UNKNOWN",
+      "score": 61,
       "capabilities": [
         "video.generate",
-        "tool.search"
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
       ],
-      "riskFlags": [],
-      "decision": "candidate",
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -426,7 +432,7 @@
       "url": "https://github.com/grokbot1233/agentreader",
       "summary": "x402 pay-per-call tools for AI agents (HTTP + MCP, USDC on Base): web page to Markdown, PDF/DOCX convert, domain check, company research, UK Companies House due diligence, page monitoring, EVM wallet balances, tx status, ERC20 token risk check, ECB FX rates.",
       "stars": 0,
-      "updatedAt": "2026-11-06T14:17:40Z",
+      "updatedAt": "2026-11-07T13:20:39Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
@@ -455,27 +461,24 @@
       }
     },
     {
-      "id": "52693285",
-      "name": "keremdemirer/3dbinpackingjs",
-      "url": "https://github.com/keremdemirer/3dbinpackingjs",
-      "summary": "JavaScript 3D bin packing with an interactive demo, per-item rotation rules, and a standalone Node.js/browser API.",
-      "stars": 89,
-      "updatedAt": "2026-11-06T13:30:57Z",
-      "license": "NOASSERTION",
-      "score": 57,
+      "id": "1206337439",
+      "name": "TheColonyAI/colony-sdk-js",
+      "url": "https://github.com/TheColonyAI/colony-sdk-js",
+      "summary": "TypeScript SDK for The Colony (thecolony.cc) — fetch-based, zero-dependency, works in Node, Bun, Deno, edge runtimes, and browsers",
+      "stars": 0,
+      "updatedAt": "2026-11-07T11:12:11Z",
+      "license": "MIT",
+      "score": 58,
       "capabilities": [
-        "visual.generate",
         "tool.search",
         "knowledge.search"
       ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
+      "riskFlags": [],
+      "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -496,8 +499,8 @@
       "name": "apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
       "url": "https://github.com/apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
       "summary": "리버스 Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-ko.",
-      "stars": 67,
-      "updatedAt": "2026-11-06T14:21:43Z",
+      "stars": 81,
+      "updatedAt": "2026-11-07T13:10:06Z",
       "license": "NOASSERTION",
       "score": 56,
       "capabilities": [
