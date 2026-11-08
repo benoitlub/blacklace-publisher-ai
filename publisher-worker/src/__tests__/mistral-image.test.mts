@@ -90,3 +90,11 @@ test("legacy media request does not retry Mistral or switch provider after 429 o
     assert.equal(providerCalls, 1);
   });
 });
+
+test("Mistral octet-stream images retain a usable MIME without relabelling arbitrary data", async () => {
+  const bytes = new Uint8Array([137,80,78,71,13,10,26,10,0,0,0,0,1,2,3]);
+  const r = await downloadMistralImage("test-key", "image", async () => new Response(bytes, { headers: { "content-type": "application/octet-stream" } }));
+  assert.equal(r.headers.get("content-type"), "image/png");
+  assert.deepEqual(new Uint8Array(await r.arrayBuffer()), bytes);
+  await assert.rejects(downloadMistralImage("test-key", "not-image", async () => new Response("<html>not an image</html>", { headers: { "content-type": "application/octet-stream" } })), /CONTENT_TYPE_INVALID/);
+});

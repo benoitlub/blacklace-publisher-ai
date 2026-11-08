@@ -84,5 +84,41 @@ export async function downloadMistralImage(key: string, fileId: string, fetchImp
   const type = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
   if (!["image/png", "image/jpeg", "image/webp", "application/octet-stream"].includes(type))
     throw new MistralImageError("MISTRAL_IMAGE_CONTENT_TYPE_INVALID", 502, "download");
-  return response;
+  if (type !== "application/octet-stream") return response;
+  // Mistral also serves image files as octet-stream. Keep existing media URLs
+  // usable, deriving their image MIME from bytes rather than labelling HTML PNG.
+  const reader = response.body?.getReader();
+  if (!reader) throw new MistralImageError("MISTRAL_IMAGE_CONTENT_TYPE_INVALID", 502, "download");
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (length < 12) {
+      const part = await reader.read();
+      if (part.done) break;
+      chunks.push(part.value); length += part.value.length;
+    }
+  } catch { throw new MistralImageError("MISTRAL_IMAGE_DOWNLOAD_INTERRUPTED", 502, "download"); }
+  const prefix = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { prefix.set(chunk, offset); offset += chunk.length; }
+  const mime = [137,80,78,71,13,10,26,10].every((b,i) => prefix[i] === b) ? "image/png" :
+    prefix[0] === 255 && prefix[1] === 216 && prefix[2] === 255 ? "image/jpeg" :
+    String.fromCharCode(...prefix.subarray(0,4)) === "RIFF" &&
+      String.fromCharCode(...prefix.subarray(8,12)) === "WEBP" ? "image/webp" : null;
+  if (!mime) {
+    await reader.cancel().catch(() => {});
+    throw new MistralImageError("MISTRAL_IMAGE_CONTENT_TYPE_INVALID", 502, "download");
+  }
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) { for (const chunk of chunks) controller.enqueue(chunk); },
+    async pull(controller) {
+      try {
+        const part = await reader.read();
+        if (part.done) controller.close(); else controller.enqueue(part.value);
+      } catch { controller.error(new MistralImageError("MISTRAL_IMAGE_DOWNLOAD_INTERRUPTED", 502, "download")); }
+    },
+    cancel(reason) { return reader.cancel(reason); },
+  });
+  return new Response(body, { headers: { "content-type": mime } });
 }
+

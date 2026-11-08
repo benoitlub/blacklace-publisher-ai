@@ -26,7 +26,7 @@ maintenant effectivement un PNG de test.
 ## Validation exécutée
 
 - Suite Studio API : **16 tests réussis**, dont 5 nouveaux tests de transport/reprise.
-- Suite Worker : **146 réussis, 1 ignoré**, aucun échec. Le test Postgres exige
+- Suite Worker : **147 réussis, 1 ignoré**, aucun échec. Le test Postgres exige
   TEST_DATABASE_URL ; aucune base distante n’a été sollicitée.
 - TypeScript Worker : réussi.
 - TypeScript strict ciblé : service partagé, moteur Studio et nouveaux tests : réussi.
@@ -36,7 +36,8 @@ maintenant effectivement un PNG de test.
 - Cas vérifiés : clé spécifique prioritaire ; absence de permission ; 401/402/403/429 ;
   Retry-After ; absence de fichier ; HTML rejeté ; téléchargement interrompu ;
   cache vérifié ; reprise concurrente sans double génération ; ancien endpoint média
-  sans relance/fallback après résultat incertain.
+  sans relance/fallback après résultat incertain ; MIME image déduit des signatures
+  pour les téléchargements octet-stream, sans altérer les octets.
 
 Toutes les réponses Mistral de ces tests sont simulées. Aucun fichier n’est
 présenté comme une nouvelle image Mistral. Les nouvelles suites n’appellent pas
