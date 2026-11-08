@@ -16,8 +16,9 @@ export class StudioImageProviderError extends StudioError {
     fallbackCode: string,
     stage: ImageStage,
     response: Response,
-    body: Record<string, unknown> | null,
+    payload: unknown,
   ) {
+    const body = payload && typeof payload === "object" ? payload as Record<string, unknown> : null;
     const code = typeof body?.error === "string" && /^MISTRAL_IMAGE_[A-Z_]{1,40}$/.test(body.error)
       ? body.error
       : fallbackCode;
