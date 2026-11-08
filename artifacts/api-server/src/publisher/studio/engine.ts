@@ -5,6 +5,7 @@ import {
   readdir,
   rename,
   realpath,
+  rm,
 } from "node:fs/promises";
 import path from "node:path";
 import { validateRequest, requirePermission } from "./request";
@@ -17,6 +18,7 @@ import {
   verifyStudioMedia,
 } from "./runtime";
 import { produceAudio } from "./audio";
+import { MistralImageError } from "../../services/mistral-image";
 import { produceImage } from "./image";
 import { produceVideo, prepareGameplaySource } from "./video";
 export const STUDIO_CAPABILITIES = [
@@ -118,19 +120,32 @@ export async function runStudio(
     if (e.code !== "ENOENT")
       throw new StudioError("STUDIO_CACHED_REPORT_INVALID");
   }
+  let retryLock: string | undefined;
   if (old) {
-    if (old.fingerprint !== fingerprint)
-      throw new StudioError("STUDIO_OPERATION_CONFLICT");
+    if (old.fingerprint !== fingerprint) throw new StudioError("STUDIO_OPERATION_CONFLICT");
     if (old.status === "ready-for-review") {
       await verifyCachedReport(old, request, capability, id, dir);
+      return { ...old, reused: true };
     }
-    return { ...old, reused: true };
-  }
-  await mkdir(path.dirname(dir), { recursive: true });
-  try {
-    await mkdir(dir);
-  } catch {
-    throw new StudioError("STUDIO_OPERATION_ALREADY_CLAIMED");
+    // Resume only a known rejection or retrieval of an already saved file.
+    // Legacy generic failures and uncertain billable outcomes stay reserved.
+    if (old.status !== "failed" || old.retryAllowed !== true ||
+        !Number.isFinite(Date.parse(old.retryAt)) || Date.now() < Date.parse(old.retryAt))
+      return { ...old, reused: true };
+    retryLock = dir + ".retry-lock";
+    try { await mkdir(retryLock); }
+    catch { return { ...old, reused: true }; }
+    const latest = JSON.parse(await readFile(artifactPath(id, "report.json"), "utf8"));
+    if (JSON.stringify(latest) !== JSON.stringify(old)) {
+      await rm(retryLock, { recursive: true });
+      if (latest.status === "ready-for-review")
+        await verifyCachedReport(latest, request, capability, id, dir);
+      return { ...latest, reused: true };
+    }
+  } else {
+    await mkdir(path.dirname(dir), { recursive: true });
+    try { await mkdir(dir); }
+    catch { throw new StudioError("STUDIO_OPERATION_ALREADY_CLAIMED"); }
   }
   const base = {
     contract: "publisher-studio-v1",
@@ -140,7 +155,8 @@ export async function runStudio(
     parcelId: request.parcelId,
     seedId: request.seedId,
     operationId: request.operationId,
-    createdAt: new Date().toISOString(),
+    createdAt: old?.createdAt ?? new Date().toISOString(),
+    attempt: (old?.attempt ?? 0) + 1,
     published: false,
     publicationEnabled: false,
     creativeFeedback: request.creativeFeedback ?? [],
@@ -151,8 +167,8 @@ export async function runStudio(
     files: [] as Record<string, any>[],
     reportUrl: `/api/production/studio/artifacts/${id}/report.json`,
   };
-  await writeReport(id, { ...base, status: "rendering" });
   try {
+    await writeReport(id, { ...base, status: "rendering" });
     const dependencies = await studioCatalog();
     if (
       !dependencies.checks.ffmpeg ||
@@ -242,15 +258,24 @@ export async function runStudio(
     await writeReport(id, report);
     return report;
   } catch (e) {
+    const providerFailure = e instanceof MistralImageError ? e.toJSON() : null;
+    const seconds = Number(providerFailure?.retryAfter);
+    const date = Date.parse(providerFailure?.retryAfter ?? "");
+    const delay = providerFailure?.retryAfter && Number.isFinite(seconds) && seconds >= 0
+      ? seconds * 1000 : Number.isFinite(date) ? Math.max(0, date - Date.now()) : 15 * 60_000;
     const report = {
       ...base,
       status: "failed",
       code: e instanceof StudioError ? e.code : "STUDIO_PRODUCTION_FAILED",
       retryAllowed: false,
       providerOutcomeMayBeUnknown: true,
+      ...providerFailure,
+      ...(providerFailure?.retryAllowed ? { retryAt: new Date(Date.now() + Math.max(1000, delay)).toISOString() } : {}),
     };
     await writeReport(id, report);
     return report;
+  } finally {
+    if (retryLock) await rm(retryLock, { recursive: true, force: true });
   }
 }
 export async function executeStudioMission(mission: any) {
