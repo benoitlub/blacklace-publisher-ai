@@ -9,6 +9,40 @@ import {
   StudioError,
 } from "./runtime";
 import { requirePermission, type StudioRequest } from "./request";
+type ImageStage = "generation" | "download";
+
+export class StudioImageProviderError extends StudioError {
+  constructor(
+    fallbackCode: string,
+    stage: ImageStage,
+    response: Response,
+    body: Record<string, unknown> | null,
+  ) {
+    const code = typeof body?.error === "string" && /^MISTRAL_IMAGE_[A-Z_]{1,40}$/.test(body.error)
+      ? body.error
+      : fallbackCode;
+    super(code);
+    const providerStage = body?.providerStage;
+    const providerStatus = body?.providerStatus;
+    const retryAfter = response.headers.get("Retry-After");
+    this.details = {
+      provider: "mistral",
+      providerStage: providerStage === "configuration" || providerStage === "agent" ||
+        providerStage === "conversation" || providerStage === "download" ? providerStage : stage,
+      ...(typeof providerStatus === "number" && Number.isInteger(providerStatus) &&
+        providerStatus >= 100 && providerStatus <= 599 ? { providerStatus } : {}),
+      ...(body?.providerModel === "mistral-medium-latest" ? { providerModel: body.providerModel } : {}),
+      publisherStatus: response.status,
+      ...(retryAfter ? { retryAfter } : {}),
+      // A download 429 is evidence of an existing generation. Do not turn it
+      // into an automatic retry of the entire generation mission.
+      ...(stage === "generation" && response.status === 429 ? { httpStatus: 429 } : {}),
+    };
+  }
+
+  readonly details: Record<string, unknown>;
+}
+
 export async function produceImage(
   request: StudioRequest,
   dir: string,
@@ -60,16 +94,18 @@ export async function produceImage(
       `${base}/api/production/mistral-image/test?prompt=${encodeURIComponent(request.imagePrompt)}`,
       { signal: AbortSignal.timeout(90000), redirect: "error" },
     );
-    const result = (await r.json()) as any;
+    const result = (await r.json().catch(() => null)) as any;
     const id = result?.result?.fileId;
-    if (!r.ok || result.status !== "generated" || typeof id !== "string" || !id)
-      throw new StudioError("MISTRAL_IMAGE_UNCONFIRMED");
+    if (!r.ok || result?.status !== "generated" || typeof id !== "string" || !id)
+      throw new StudioImageProviderError("MISTRAL_IMAGE_UNCONFIRMED", "generation", r, result);
     const response = await fetchImpl(
       `${base}/api/production/mistral-image/content?fileId=${encodeURIComponent(id)}`,
       { signal: AbortSignal.timeout(90000), redirect: "error" },
     );
-    if (!response.ok || !response.body)
-      throw new StudioError("MISTRAL_IMAGE_DOWNLOAD_FAILED");
+    if (!response.ok || !response.body) {
+      const failure = await response.json().catch(() => null);
+      throw new StudioImageProviderError("MISTRAL_IMAGE_DOWNLOAD_FAILED", "download", response, failure);
+    }
     const parts: Uint8Array[] = [];
     let size = 0;
     for await (const part of response.body) {
