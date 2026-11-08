@@ -1,3 +1,4 @@
+import { generateMistralImage, downloadMistralImage, MistralImageError } from "../../artifacts/api-server/src/services/mistral-image";
 import { verifyPoulpeOwner } from "./poulpe-google-owner";
 import { verifyGerardGithubOidc } from "./gerard-github-oidc";
 import { readGarden } from "./garden-readonly";
@@ -113,7 +114,7 @@ async function resolveSecret(value: string | SecretsStoreSecret | undefined): Pr
 }
 
 async function mistralApiKey(env: Env): Promise<string> {
-  return (await resolveSecret(env.AI_API_KEY)) || (await resolveSecret(env.MISTRAL_API_KEY));
+  return (await resolveSecret(env.MISTRAL_API_KEY)) || (await resolveSecret(env.AI_API_KEY));
 }
 
 const app = new Hono<{ Bindings: Env }>();
@@ -270,7 +271,7 @@ type MistralImageToolPack = {
   capability: "visual.generate";
   provider: "mistral";
   executable: true;
-  recipe: { createAgentEndpoint: string; conversationEndpoint: string; downloadEndpoint: string; tool: "image_generation"; model: string };
+  recipe: { agentCreationRequired: false; conversationEndpoint: string; downloadEndpoint: string; tool: "image_generation"; model: string };
 };
 
 function mistralImageToolPack(): MistralImageToolPack {
@@ -281,7 +282,7 @@ function mistralImageToolPack(): MistralImageToolPack {
     provider: "mistral",
     executable: true,
     recipe: {
-      createAgentEndpoint: "https://api.mistral.ai/v1/agents",
+      agentCreationRequired: false,
       conversationEndpoint: "https://api.mistral.ai/v1/conversations",
       downloadEndpoint: "https://api.mistral.ai/v1/files/{file_id}/content",
       tool: "image_generation",
@@ -296,83 +297,39 @@ app.get("/api/production/mistral-image-pack", async (c) => {
     status: configured ? "ready" : "unavailable",
     pack: { ...mistralImageToolPack(), executable: configured },
     configured,
-    evidence: "https://docs.mistral.ai/studio/agents/agent-tools/image_generation",
-    executionFlow: ["create image-generation agent", "start conversation with prompt", "extract tool_file.file_id", "download generated image"],
+    evidence: "https://docs.mistral.ai/agents/tools/built-in/image_generation",
+    executionFlow: ["start inline image-generation conversation with prompt", "extract image_generation tool_file.file_id", "download and validate generated image"],
   }, configured ? 200 : 503);
 });
 
-function findMistralGeneratedFileId(payload: unknown): string {
-  const stack: unknown[] = [payload];
-  while (stack.length) {
-    const value = stack.pop();
-    if (!value || typeof value !== "object") continue;
-    const record = value as Record<string, unknown>;
-    const type = String(record.type || record.object || "").toLowerCase();
-    const fileId = String(record.file_id || record.fileId || "").trim();
-    if (fileId && (type.includes("tool_file") || type.includes("file") || "file_id" in record)) return fileId;
-    for (const child of Object.values(record)) {
-      if (Array.isArray(child)) stack.push(...child);
-      else if (child && typeof child === "object") stack.push(child);
-    }
-  }
-  return "";
-}
-
 async function executeMistralImage(env: Env, prompt: string) {
-  const key = await mistralApiKey(env);
-  if (!key) throw new Error("Mistral n'est pas configuré dans Publisher.");
-  if (!prompt.trim()) throw new Error("Image prompt is empty.");
-  const headers = { Authorization: `Bearer ${key}`, "Content-Type": "application/json", Accept: "application/json" };
-  const agentResponse = await fetch("https://api.mistral.ai/v1/agents", {
-    method: "POST", headers,
-    body: JSON.stringify({ model: "mistral-medium-latest", name: "Gerard Visual Producer", description: "Blacklace Publisher visual.generate producer", instructions: "Generate the requested promotional image. Do not add readable text unless explicitly requested.", tools: [{ type: "image_generation" }] }),
-  });
-  const agent = await agentResponse.json().catch(() => ({})) as Record<string, any>;
-  if (!agentResponse.ok || !agent.id) throw new Error(String(agent?.message ?? agent?.error?.message ?? `Mistral agent ${agentResponse.status}`));
-  const conversationResponse = await fetch("https://api.mistral.ai/v1/conversations", {
-    method: "POST", headers,
-    body: JSON.stringify({ agent_id: agent.id, inputs: prompt }),
-  });
-  const conversation = await conversationResponse.json().catch(() => ({})) as Record<string, any>;
-  if (!conversationResponse.ok) throw new Error(String(conversation?.message ?? conversation?.error?.message ?? `Mistral conversation ${conversationResponse.status}`));
-  const fileId = findMistralGeneratedFileId(conversation);
-  if (!fileId) throw new Error("Mistral completed the conversation but returned no generated image file_id.");
-  return { provider: "mistral", capability: "visual.generate", agentId: String(agent.id), conversationId: String(conversation.id || ""), fileId, contentUrl: `${publisherPublicUrl(env)}/api/production/mistral-image/content?fileId=${encodeURIComponent(fileId)}` };
+  const result = await generateMistralImage(await mistralApiKey(env), prompt);
+  return { ...result, contentUrl: `${publisherPublicUrl(env)}/api/production/mistral-image/content?fileId=${encodeURIComponent(result.fileId)}` };
 }
-
+function mistralImageFailure(c: any, error: unknown) {
+  const failure = error instanceof MistralImageError
+    ? error : new MistralImageError("MISTRAL_IMAGE_UPSTREAM_FAILED", 502, "conversation", undefined, undefined, true);
+  if (failure.retryAfter) c.header("Retry-After", failure.retryAfter);
+  return c.json({ status: "failed", contract: "publisher-visual-generate-v1", ...failure.toJSON() }, failure.httpStatus);
+}
 app.get("/api/production/mistral-image/test", async (c) => {
   try {
     const prompt = String(c.req.query("prompt") || "").trim();
-    if (!prompt) return c.json({status:"rejected",error:"Explicit parcel image prompt required"},400);
+    if (!prompt) return c.json({ status: "rejected", error: "Explicit parcel image prompt required" }, 400);
     const result = await executeMistralImage(c.env, prompt);
     return c.json({ status: "generated", contract: "publisher-visual-generate-v1", prompt, result });
-  } catch (error) {
-    return c.json({ status: "failed", contract: "publisher-visual-generate-v1", error: error instanceof Error ? error.message : String(error) }, 502);
-  }
+  } catch (error) { return mistralImageFailure(c, error); }
 });
-
 app.get("/api/production/mistral-image/content", async (c) => {
   const fileId = String(c.req.query("fileId") || "").trim();
   if (!fileId) return c.json({ status: "rejected", error: "fileId is required" }, 400);
   try {
-    const key = await mistralApiKey(c.env);
-    if (!key) return c.json({ status: "unavailable", error: "Mistral not configured" }, 503);
-    const response = await fetch(`https://api.mistral.ai/v1/files/${encodeURIComponent(fileId)}/content`, { headers: { Authorization: `Bearer ${key}` } });
-    if (!response.ok) return c.json({ status: "failed", error: `Mistral file download ${response.status}` }, 502);
-    const upstreamType = (response.headers.get("content-type") || "").split(";")[0].trim().toLowerCase();
-    const contentType = upstreamType.startsWith("image/") ? upstreamType : "image/png";
-    const extension = contentType === "image/jpeg" ? "jpg" : contentType === "image/webp" ? "webp" : contentType === "image/gif" ? "gif" : "png";
-    return new Response(response.body, {
-      status: 200,
-      headers: {
-        "Content-Type": contentType,
-        "Content-Disposition": `inline; filename="publisher-generated.${extension}"`,
-        "Cache-Control": "public, max-age=86400",
-      },
-    });
-  } catch (error) {
-    return c.json({ status: "failed", error: error instanceof Error ? error.message : String(error) }, 502);
-  }
+    const response = await downloadMistralImage(await mistralApiKey(c.env), fileId);
+    return new Response(response.body, { status: 200, headers: {
+      "Content-Type": response.headers.get("content-type")!,
+      "Cache-Control": "private, no-store",
+    } });
+  } catch (error) { return mistralImageFailure(c, error); }
 });
 
 app.get("/api/production/mistral-image/:fileId/image.png", async (c) => {
@@ -1887,6 +1844,8 @@ app.post("/api/social/media/request", async (c) => {
       }
       failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: `Attempt ${attempt}: missing public media URL or file ID` });
       } catch (error) {
+      if (error instanceof MistralImageError && (error.httpStatus === 429 || error.providerOutcomeMayBeUnknown))
+        return mistralImageFailure(c, error);
       failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: error instanceof Error ? `Attempt ${attempt}: ${error.message}` : `Attempt ${attempt}: ${String(error)}` });
       }
     }
