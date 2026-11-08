@@ -106,6 +106,60 @@ describe("studio authorization, provenance and meaningful failure states", () =>
       "STUDIO_CACHED_ARTIFACT_INVALID",
     );
   });
+  it("preserves a generation rate limit and its Retry-After in the Studio report", async () => {
+    const dir = await mkdtemp(path.join(tmpdir(), "studio-rate-limit-"));
+    dirs.push(dir);
+    vi.stubEnv("PUBLISHER_STUDIO_DIR", dir);
+    const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        error: "MISTRAL_IMAGE_AGENT_FAILED",
+        providerStage: "agent",
+        providerStatus: 429,
+        providerModel: "mistral-medium-latest",
+      }, { status: 429, headers: { "Retry-After": "30" } }),
+    );
+
+    const report = await runStudio({
+      ...input,
+      assetId: undefined,
+      imagePrompt: "Own parcel subject",
+      authorizedResources: ["image.studio", "mistral.image"],
+    }, "image.studio");
+
+    expect(report).toMatchObject({
+      status: "failed",
+      code: "MISTRAL_IMAGE_AGENT_FAILED",
+      providerStage: "agent",
+      providerStatus: 429,
+      httpStatus: 429,
+      retryAfter: "30",
+      published: false,
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+  it("keeps a download rate limit from restarting image generation", async () => {
+    const fetcher = vi.fn<typeof fetch>()
+      .mockResolvedValueOnce(Response.json({
+        status: "generated",
+        result: { fileId: "fixture-only" },
+      }))
+      .mockResolvedValueOnce(Response.json({
+        error: "MISTRAL_IMAGE_DOWNLOAD_FAILED",
+        providerStatus: 429,
+      }, { status: 429, headers: { "Retry-After": "30" } }));
+    const error = await produceImage({
+      ...input,
+      assetId: undefined,
+      imagePrompt: "Own parcel subject",
+      authorizedResources: ["image.studio", "mistral.image"],
+    } as any, ".", fetcher).catch((error) => error);
+    expect(error).toMatchObject({
+      code: "MISTRAL_IMAGE_DOWNLOAD_FAILED",
+      details: { providerStage: "download", providerStatus: 429, publisherStatus: 429 },
+    });
+    expect(error.details).not.toHaveProperty("httpStatus");
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it("a provider file identifier and image-like signature never prove a decodable image", async () => {
     const dir = await mkdtemp(path.join(tmpdir(), "studio-fake-image-"));
     dirs.push(dir);
