@@ -5,6 +5,7 @@ import path from "node:path";
 import { validateRequest } from "./request";
 import { runStudio, executeStudioMission } from "./engine";
 import { artifactPath, hash, registeredAsset } from "./runtime";
+import * as runtime from "./runtime";
 import { scriptFor, loudnessJson, originalSoundtrack } from "./audio";
 import { captionLines } from "./video";
 import { produceImage } from "./image";
@@ -110,6 +111,11 @@ describe("studio authorization, provenance and meaningful failure states", () =>
     const dir = await mkdtemp(path.join(tmpdir(), "studio-rate-limit-"));
     dirs.push(dir);
     vi.stubEnv("PUBLISHER_STUDIO_DIR", dir);
+    const catalog = await runtime.studioCatalog();
+    vi.spyOn(runtime, "studioCatalog").mockResolvedValue({
+      ...catalog,
+      checks: { ...catalog.checks, ffmpeg: true, ffprobe: true },
+    });
     const fetcher = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       Response.json({
         error: "MISTRAL_IMAGE_AGENT_FAILED",
