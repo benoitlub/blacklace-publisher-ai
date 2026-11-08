@@ -17,7 +17,7 @@ import {
   verifyStudioMedia,
 } from "./runtime";
 import { produceAudio } from "./audio";
-import { produceImage } from "./image";
+import { produceImage, StudioImageProviderError } from "./image";
 import { produceVideo, prepareGameplaySource } from "./video";
 export const STUDIO_CAPABILITIES = [
   "image.studio",
@@ -248,6 +248,7 @@ export async function runStudio(
       code: e instanceof StudioError ? e.code : "STUDIO_PRODUCTION_FAILED",
       retryAllowed: false,
       providerOutcomeMayBeUnknown: true,
+      ...(e instanceof StudioImageProviderError ? e.details : {}),
     };
     await writeReport(id, report);
     return report;
