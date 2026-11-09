@@ -38,6 +38,9 @@ jobs:
       - name: Test Publisher
         run: pnpm --filter @workspace/blacklace-publisher test
 
+      - name: Test public site audit without external requests
+        run: node --test scripts/site-agent-audit.test.mjs
+
       # Extend this existing validation workflow; no scheduler or publishing.
       - uses: actions/checkout@v4
         with:
