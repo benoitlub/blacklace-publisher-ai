@@ -23,6 +23,16 @@ test : HTTP 200, rapport JSON valide, 8 contrôles satisfaits sur 13 ; robots.tx
 et sitemap.xml répondent 404. Ces points restent des recommandations, sans
 modification du portail. Le rapport local est `/tmp/publisher-site-audit-fixed.json`.
 
+La première CI du correctif passe les 4 tests d’audit, les 93 tests API, les 12
+tests interface, les types et le build, puis bloque sur le hash Piper. La branche
+amont du modèle a été réentraînée le 9 novembre à 16:22 UTC : le hash courant
+`b1d946fd68d0347155fa59bce0a018924abbef3c1561181db45ca463d83963ef` diffère du hash
+attendu. Le téléchargement est désormais épinglé à la révision publique
+`e7229f7d33a10e145e109b886d661984201ac3c4`, qui conserve l’empreinte approuvée
+`641d1ab097da2b81128c076810edb052b385decc8be3381814802a64a73baf99`.
+La configuration et MODEL_CARD sont épinglés ensemble. Le contrôle d’intégrité
+reste inchangé ; aucun nouveau modèle n’est accepté silencieusement.
+
 Cet incident est distinct de l’échec Studio du matin : le run Poulpe Fiction
 42577164619 signale `MISTRAL_IMAGE_UPSTREAM_FAILED`, HTTP 422. Il ne démontre pas
 un quota 429. Les détails de validation amont n’ont pas été conservés ; le schéma
