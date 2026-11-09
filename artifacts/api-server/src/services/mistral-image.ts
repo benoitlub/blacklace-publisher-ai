@@ -1,6 +1,11 @@
 /** Shared by the existing Node Studio and Worker; no SDK or remote agent needed. */
 export const MISTRAL_IMAGE_MODEL = "mistral-medium-latest";
 export type ImageStage = "configuration" | "conversation" | "download";
+type ProviderDiagnostic = {
+  requestId?: string;
+  message?: string;
+  validation?: { field: string; type: string; message?: string }[];
+};
 export class MistralImageError extends Error {
   constructor(
     public code: string,
@@ -9,6 +14,7 @@ export class MistralImageError extends Error {
     public retryAfter?: string,
     public conversationId?: string,
     public providerOutcomeMayBeUnknown = false,
+    public diagnostic?: ProviderDiagnostic,
   ) { super(code); }
   toJSON() {
     return {
@@ -19,15 +25,46 @@ export class MistralImageError extends Error {
       providerOutcomeMayBeUnknown: this.providerOutcomeMayBeUnknown,
       provider: { service: "mistral", model: MISTRAL_IMAGE_MODEL, stage: this.stage,
         endpoint: this.stage === "download" ? "/v1/files/{file_id}/content" : "/v1/conversations",
-        ...(this.conversationId ? { conversationId: this.conversationId } : {}) },
+        ...(this.conversationId ? { conversationId: this.conversationId } : {}),
+        ...this.diagnostic },
     };
   }
 }
 function errorCode(status: number) {
-  return status === 429 ? "MISTRAL_IMAGE_RATE_LIMITED" :
+  return [400, 422].includes(status) ? "MISTRAL_IMAGE_REQUEST_INVALID" :
+    status === 429 ? "MISTRAL_IMAGE_RATE_LIMITED" :
     status === 401 ? "MISTRAL_IMAGE_AUTHENTICATION_FAILED" :
     status === 402 ? "MISTRAL_IMAGE_BILLING_REQUIRED" :
     status === 403 ? "MISTRAL_IMAGE_ACCESS_DENIED" : "MISTRAL_IMAGE_UPSTREAM_FAILED";
+}
+function providerDiagnostic(payload: any, response: Response, key: string, init: RequestInit): ProviderDiagnostic {
+  const sensitive = [key];
+  try {
+    const body = JSON.parse(String(init.body));
+    // Keep validation messages, never request values, credentials, input/ctx or
+    // the full upstream body. Redact text if a provider echoes it in a message.
+    for (const name of ["inputs", "instructions"])
+      if (typeof body[name] === "string" && body[name].length >= 8) sensitive.push(body[name]);
+  } catch { /* Downloads have no request body. */ }
+  const clean = (v: unknown) => {
+    if (typeof v !== "string") return undefined;
+    let s = v;
+    for (const value of sensitive.filter(Boolean).sort((a, b) => b.length - a.length))
+      s = s.split(value).join("[redacted]");
+    return s.replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
+      .replace(/[\x00-\x1f\x7f]/g, " ").slice(0, 300);
+  };
+  const fields = new Set(["body", "query", "path", "inputs", "instructions", "model", "tools", "type", "completion_args", "temperature", "top_p", "tool_choice", "agent_id", "stream"]);
+  const validation = Array.isArray(payload?.detail) ? payload.detail.slice(0, 8).map((item: any) => ({
+    field: Array.isArray(item?.loc) ? item.loc.slice(0, 8).map((x: unknown) =>
+      typeof x === "number" && Number.isSafeInteger(x) ? String(x) : fields.has(String(x)) ? String(x) : "[field]").join(".") : "body",
+    type: typeof item?.type === "string" && /^[a-z_.]{1,60}$/.test(item.type) && !item.type.includes(key)
+      ? item.type : "validation_error",
+    message: clean(item?.msg),
+  })) : undefined;
+  return { requestId: clean(response.headers.get("x-request-id"))?.slice(0, 100),
+    message: clean(typeof payload?.detail === "string" ? payload.detail : payload?.message ?? payload?.error?.message),
+    ...(validation?.length ? { validation } : {}) };
 }
 export async function mistralImageFetch(
   key: string, url: string, init: RequestInit, stage: ImageStage,
@@ -43,10 +80,13 @@ export async function mistralImageFetch(
     // Never retry an uncertain billable request.
     throw new MistralImageError("MISTRAL_IMAGE_NETWORK_FAILED", 502, stage, undefined, undefined, stage === "conversation");
   }
-  if (!response.ok)
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null);
     throw new MistralImageError(errorCode(response.status), response.status, stage,
       response.headers.get("retry-after")?.slice(0, 100), undefined,
-      stage === "conversation" && response.status >= 500);
+      stage === "conversation" && response.status >= 500,
+      providerDiagnostic([400, 422].includes(response.status) ? payload : null, response, key, init));
+  }
   return response;
 }
 export async function generateMistralImage(key: string, prompt: string, fetchImpl: typeof fetch = fetch) {

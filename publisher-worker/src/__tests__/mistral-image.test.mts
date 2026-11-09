@@ -61,7 +61,7 @@ test("rejects HTML downloads and never retries an uncertain generation", async (
 });
 
 test("legacy media request does not retry Mistral or switch provider after 429 or an uncertain result", async (t) => {
-  for (const limited of [true, false]) await t.test(limited ? "429" : "missing file", async st => {
+  for (const status of [429, 422, 400, 502]) await t.test(String(status), async st => {
     let providerCalls = 0;
     const harvest: Record<string, unknown> = { id: "image-test-harvest", seed_id: "test-universe",
       parcel_id: "creative", title: "Campagne test", content: "Accroche centrale: Découvrez notre création.",
@@ -77,7 +77,7 @@ test("legacy media request does not retry Mistral or switch provider after 429 o
       }
       assert.equal(String(url), "https://api.mistral.ai/v1/conversations");
       providerCalls++;
-      return limited ? new Response("", { status: 429, headers: { "retry-after": "120" } })
+      return status !== 502 ? new Response("", { status, headers: { "retry-after": "120" } })
         : Response.json({ conversation_id: "no-file", outputs: [] });
     });
     const r = await app.fetch(new Request("https://publisher.test/api/social/media/request", {
@@ -85,8 +85,8 @@ test("legacy media request does not retry Mistral or switch provider after 429 o
       body: JSON.stringify({ harvestId: harvest.id }),
     }), { DATABASE_URL: "postgresql://audit:audit@audit.invalid/audit", MISTRAL_API_KEY: "test-key" });
     const p = await r.json() as any;
-    assert.equal(r.status, limited ? 429 : 502, JSON.stringify(p));
-    assert.equal(p.code, limited ? "MISTRAL_IMAGE_RATE_LIMITED" : "MISTRAL_IMAGE_FILE_MISSING");
+    assert.equal(r.status, status, JSON.stringify(p));
+    assert.equal(p.code, status === 429 ? "MISTRAL_IMAGE_RATE_LIMITED" : status === 502 ? "MISTRAL_IMAGE_FILE_MISSING" : "MISTRAL_IMAGE_REQUEST_INVALID");
     assert.equal(providerCalls, 1);
   });
 });
@@ -97,4 +97,25 @@ test("Mistral octet-stream images retain a usable MIME without relabelling arbit
   assert.equal(r.headers.get("content-type"), "image/png");
   assert.deepEqual(new Uint8Array(await r.arrayBuffer()), bytes);
   await assert.rejects(downloadMistralImage("test-key", "not-image", async () => new Response("<html>not an image</html>", { headers: { "content-type": "application/octet-stream" } })), /CONTENT_TYPE_INVALID/);
+});
+
+test("422 identifies validation fields without exposing upstream input, context or credentials", async () => {
+  const key = "fixture-private-key", prompt = "fixture private parcel prompt";
+  await assert.rejects(generateMistralImage(key, prompt, async () => Response.json({
+    message: `Rejected ${key} ${prompt}`,
+    detail: [{ loc: ["body", "completion_args", "tool_choice"], type: "value_error",
+      msg: `Invalid selection; ${key}; ${prompt}`, input: { key, prompt }, ctx: { secret: key } }],
+  }, { status: 422, headers: { "x-request-id": "request-fixture" } })), (error: any) => {
+    const d = error.toJSON();
+    assert.equal(d.code, "MISTRAL_IMAGE_REQUEST_INVALID");
+    assert.equal(d.httpStatus, 422);
+    assert.equal(d.retryAllowed, false);
+    assert.equal(d.provider.requestId, "request-fixture");
+    assert.equal(d.provider.validation[0].field, "body.completion_args.tool_choice");
+    assert.equal(d.provider.validation[0].type, "value_error");
+    const output = JSON.stringify(d);
+    assert.ok(!output.includes(key)); assert.ok(!output.includes(prompt));
+    assert.ok(!output.includes('"input"')); assert.ok(!output.includes('"ctx"'));
+    return true;
+  });
 });

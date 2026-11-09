@@ -1844,7 +1844,7 @@ app.post("/api/social/media/request", async (c) => {
       }
       failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: `Attempt ${attempt}: missing public media URL or file ID` });
       } catch (error) {
-      if (error instanceof MistralImageError && (error.httpStatus === 429 || error.providerOutcomeMayBeUnknown))
+      if (error instanceof MistralImageError && ([400, 401, 402, 403, 422, 429].includes(error.httpStatus) || error.providerOutcomeMayBeUnknown))
         return mistralImageFailure(c, error);
       failures.push({ toolSlug: "visual.generate:mistral:image-generation", error: error instanceof Error ? `Attempt ${attempt}: ${error.message}` : `Attempt ${attempt}: ${String(error)}` });
       }
