@@ -1,4 +1,4 @@
-export const GERARD_GMAIL = "gerard.poulpe-fiction@gmail.com";
+export const GERARD_GMAIL = "gerardpoulpefiction@gmail.com";
 export const candidatureId = /^candidature-[a-f0-9]{20}$/;
 
 export function candidatureAddress(value: unknown): string | null {
