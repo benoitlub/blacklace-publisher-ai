@@ -4,6 +4,7 @@ import { verifyGerardGithubOidc } from "./gerard-github-oidc";
 import { readGarden } from "./garden-readonly";
 import { writeAcquisitionReview } from "./notion-client-acquisition";
 import { discoverBusinessTools, executeBusinessSearch, executeLinkedInJobSearch } from "./composio-discovery";
+import { verifyJobPostings } from "./job-postings";
 import { composioOperationStore } from "./composio-operation-state";
 import { createMetricoolProvider } from "./metricool-composio";
 import { metricoolCredentialsForBrand } from "./metricool-routing";
@@ -156,23 +157,31 @@ app.get("/api/garden/v1/private-harvests", async (c) => {
   try {
     const sql = await getSql(c.env);
     const harvests = await sql`
-      SELECT
-        h->>'harvestId' AS "harvestId",
-        h->>'parcelId' AS "parcelId",
-        COALESCE(NULLIF(h->>'title', ''), h->>'seedId', 'Récolte') AS title,
-        h->>'content' AS content,
-        h->>'harvestedAt' AS "harvestedAt",
-        h->>'state' AS state
-      FROM gerard_private_runtime
-      CROSS JOIN LATERAL jsonb_array_elements(payload #> '{files,harvests.json,harvests}') AS item(h)
-      WHERE snapshot_key = 'poulpe-fiction'
-        AND jsonb_typeof(h->'content') = 'string'
-        AND btrim(h->>'content') <> ''
-        AND h->>'state' IN ('harvested', 'ready-to-offer', 'ready-to-use', 'ready-to-review')
-        AND h->>'content' !~* 'mode mock actif|configurez AI_PROVIDER'
-        AND NOT (h->>'parcelId' = 'project-yael-prospection' AND h->>'content' ~* '420 dice|pro[.]hbtd|blacklace dice')
-      ORDER BY h->>'harvestedAt' DESC NULLS LAST, h->>'harvestId'
-      LIMIT 20
+      WITH recent AS (
+        SELECT
+          h->>'harvestId' AS "harvestId",
+          h->>'parcelId' AS "parcelId",
+          COALESCE(NULLIF(h->>'title', ''), h->>'seedId', 'Récolte') AS title,
+          h->>'content' AS content,
+          h->>'harvestedAt' AS "harvestedAt",
+          h->>'state' AS state,
+          h->>'capability' AS capability,
+          row_number() OVER (
+            PARTITION BY COALESCE(h->>'capability' = 'candidature.draft', false)
+            ORDER BY h->>'harvestedAt' DESC NULLS LAST, h->>'harvestId'
+          ) AS position
+        FROM gerard_private_runtime
+        CROSS JOIN LATERAL jsonb_array_elements(payload #> '{files,harvests.json,harvests}') AS item(h)
+        WHERE snapshot_key = 'poulpe-fiction'
+          AND jsonb_typeof(h->'content') = 'string'
+          AND btrim(h->>'content') <> ''
+          AND h->>'state' IN ('harvested', 'ready-to-offer', 'ready-to-use', 'ready-to-review')
+          AND h->>'content' !~* 'mode mock actif|configurez AI_PROVIDER'
+          AND NOT (h->>'parcelId' = 'project-yael-prospection' AND h->>'content' ~* '420 dice|pro[.]hbtd|blacklace dice')
+      )
+      SELECT "harvestId", "parcelId", title, content, "harvestedAt", state, capability
+      FROM recent WHERE position <= 20
+      ORDER BY "harvestedAt" DESC NULLS LAST, "harvestId"
     `;
     return c.json({ harvests, expiresAt });
   } catch {
@@ -4610,9 +4619,16 @@ app.post("/api/octopus-adapter/execute", async (c) => {
         request:(path: string, init: RequestInit = {})=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)}),
         store:async()=>composioOperationStore(await getSql(c.env)),
       };
-      return options.sourceType === "job-search"
-        ? executeLinkedInJobSearch({query,operationId:options.operationId,location:options.location},deps)
-        : executeBusinessSearch({query,...options},deps);
+      if (options.sourceType === "job-search") {
+        return executeLinkedInJobSearch({query,operationId:options.operationId,location:options.location},deps);
+      }
+      const search = await executeBusinessSearch({query,...options},deps);
+      if (options.sourceType !== "job-postings" || search.status !== "sources-found") return search;
+      const { jobs, attempted, opened } = await verifyJobPostings(search.candidates as { url: string }[]);
+      if (attempted && !opened) {
+        return { ...search, status: "blocked", reason: "JOB_SOURCE_VERIFICATION_UNAVAILABLE", candidates: [] };
+      }
+      return { ...search, status: jobs.length ? "sources-found" : "no-sources", candidates: jobs };
     },
   });
   // Always 200: the outcome travels in `status`, which is what Octopus reads.
