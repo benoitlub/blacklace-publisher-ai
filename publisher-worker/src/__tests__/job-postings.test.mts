@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseJobPosting, verifyJobPostings } from "../job-postings.ts";
+import { parseJobPosting, searchPublicJobPages, verifyJobPostings } from "../job-postings.ts";
 
 const url = "https://www.hellowork.com/fr-fr/emplois/123.html";
 const html = (extra = {}) => `<script type="application/ld&#x2B;json">${JSON.stringify({
@@ -18,6 +18,7 @@ test("extracts only source-backed contract, pay and application email", () => {
   assert.equal(job?.applicationEmail, "recrutement@example.org");
   assert.equal(job?.location, "Versailles 78000");
   assert.equal(parseJobPosting(html({ validThrough: "2000-01-01" }), url), null);
+  assert.equal(parseJobPosting(html({ title: "Conseiller de vente en alternance" }), url), null);
   assert.equal(parseJobPosting(html({ url: url.replace("123", "999") }), url), null);
 });
 
@@ -33,4 +34,19 @@ test("only opens approved offer paths over HTTPS and refuses redirects", async (
   });
   assert.deepEqual(calls, [url]);
   assert.equal(result.jobs.length, 1);
+});
+
+test("finds offer links in the relevant public directory before verifying details", async () => {
+  const calls: string[] = [];
+  const result = await searchPublicJobPages("Conseiller de vente Versailles", async (input) => {
+    calls.push(String(input));
+    const page = String(input) === url ? html() : `<a href="/fr-fr/emplois/123.html?src=search">Offre</a>
+      <a href="https://evil.example/fr-fr/emplois/456.html">Lien externe</a>`;
+    return new Response(page, { headers: { "Content-Type": "text/html" } });
+  });
+  assert.equal(calls.length, 3);
+  assert.match(calls[0], /vente-ville_versailles/);
+  assert.match(calls[1], /vente-ville_rueil-malmaison/);
+  assert.equal(calls[2], url);
+  assert.equal(result.jobs[0].verification, "source-opened");
 });
