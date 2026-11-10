@@ -1,4 +1,5 @@
 import { generateMistralImage, downloadMistralImage, MistralImageError } from "../../artifacts/api-server/src/services/mistral-image";
+import { candidatureAddress, candidatureId, candidatureRevision, GERARD_GMAIL, gmailCandidatureReceipt, parseCandidatureMail } from "./candidature-mail";
 import { verifyPoulpeOwner } from "./poulpe-google-owner";
 import { verifyGerardGithubOidc } from "./gerard-github-oidc";
 import { readGarden } from "./garden-readonly";
@@ -179,8 +180,17 @@ app.get("/api/garden/v1/private-harvests", async (c) => {
           AND h->>'content' !~* 'mode mock actif|configurez AI_PROVIDER'
           AND NOT (h->>'parcelId' = 'project-yael-prospection' AND h->>'content' ~* '420 dice|pro[.]hbtd|blacklace dice')
       )
-      SELECT "harvestId", "parcelId", title, content, "harvestedAt", state, capability
-      FROM recent WHERE position <= 20
+      SELECT recent."harvestId", recent."parcelId", title, content, "harvestedAt", state, capability,
+        CASE WHEN delivery.value->>'status' = 'sending' AND delivery.updated_at < NOW() - INTERVAL '2 minutes'
+          THEN 'unknown' ELSE delivery.value->>'status' END AS "mailStatus",
+        delivery.value->>'sentAt' AS "mailSentAt",
+        delivery.value->>'recipient' AS "mailRecipient"
+      FROM recent
+      LEFT JOIN publisher_global_state AS delivery
+        ON recent.capability = 'candidature.draft'
+        AND delivery.namespace = 'gerard-candidature-mail'
+        AND delivery.key = recent."harvestId"
+      WHERE position <= 20
       ORDER BY "harvestedAt" DESC NULLS LAST, "harvestId"
     `;
     return c.json({ harvests, expiresAt });
@@ -1147,6 +1157,72 @@ app.post("/api/gerard/gmail/connect-link", async (c) => {
   }
 });
 
+async function findGerardGmail(env: Env) {
+  const sender = GERARD_GMAIL;
+  const configuredUserId = await composioUserId(env);
+  const scopedUserIds = [...new Set([configuredUserId, sender, "benoitlubert@gmail.com"])];
+  const verified = new Map<string, { account: ComposioConnectedAccount; userId: string; projectKey?: string }>();
+  async function checkIdentity(account: ComposioConnectedAccount, userId: string, projectKey?: string) {
+    try {
+      const profile = asRecord(await executeComposioTool(env, {
+        toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id, userId,
+        apiKeyOverride: projectKey, arguments: { user_id: "me" }, timeoutMs: 7000,
+      }));
+      const identity = String(stringValue(asRecord(profile.data).emailAddress ??
+        asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
+      if (identity === sender) verified.set(account.id, { account, userId, projectKey });
+    } catch {
+      // A profile that cannot be verified is never an eligible sender.
+    }
+  }
+
+  await Promise.allSettled(scopedUserIds.map(async userId => {
+    const candidates = (await discoverComposioAccounts(userId, path =>
+      composioRequest(env, path, { signal: AbortSignal.timeout(7000) })))
+      .filter(account => account.toolkitSlug === "gmail" && isActiveComposioStatus(account.status));
+    await Promise.all(candidates.map(account => checkIdentity(account, userId)));
+  }));
+  if (!verified.size) {
+    // The owner test can discover Gérard under either existing project even
+    // when the link is owned by a different Composio entity ID.
+    const alternateKey = await resolveSecret(env.Composio2);
+    const projects = alternateKey ? [undefined, alternateKey] : [undefined];
+    const lookupDeadline = AbortSignal.timeout(12000);
+    await Promise.allSettled(projects.map(async projectKey => {
+      const candidates: { account: ComposioConnectedAccount; userId: string }[] = [];
+      let cursor = "";
+      const seen = new Set<string>();
+      for (let page = 0; page < 3; page++) {
+        const suffix = cursor ? "&cursor=" + encodeURIComponent(cursor) : "";
+        const payload = asRecord(await composioRequest(env,
+          "/connected_accounts?toolkit_slugs=gmail&account_type=ALL&limit=100" + suffix,
+          { signal: lookupDeadline }, projectKey));
+        const data = asRecord(payload.data);
+        const items = [payload.items, payload.connected_accounts, data.items, data.connected_accounts].find(Array.isArray);
+        if (!items) return;
+        for (const value of items) {
+          const item = asRecord(value);
+          const id = String(item.id ?? "");
+          const userId = String(item.user_id ?? item.userId ?? "");
+          const toolkitSlug = String(asRecord(item.toolkit).slug ?? item.toolkit_slug ?? "").toLowerCase();
+          const status = String(item.status ?? "");
+          if (!id || !userId || toolkitSlug !== "gmail" || !isActiveComposioStatus(status) || seen.has(id)) continue;
+          seen.add(id);
+          candidates.push({ account: { id, toolkitSlug, status }, userId });
+        }
+        cursor = String(payload.next_cursor ?? data.next_cursor ?? "");
+        if (!cursor) {
+          // Do not select a sender from an incomplete or unexpectedly large account list.
+          if (candidates.length <= 16) await Promise.all(candidates.map(({ account, userId }) =>
+            checkIdentity(account, userId, projectKey)));
+          return;
+        }
+      }
+    }));
+  }
+  return { matches: verified.size, connection: verified.size === 1 ? [...verified.values()][0] : null };
+}
+
 // Gérard's autonomous outreach transport. GitHub OIDC binds this route to the
 // scheduled Gérard runtime on main. Every message includes Benoît in CC;
 // the database reservation is permanent even if the provider times out.
@@ -1174,72 +1250,12 @@ app.post("/api/gerard/gmail/send", async (c) => {
       return c.json({ status: "blocked", reason: "420-dice-review-required" }, 409);
     }
   }
-  const configuredUserId = await composioUserId(c.env);
-  const scopedUserIds = [...new Set([configuredUserId, sender, ownerCc])];
-  const verified = new Map<string, { account: ComposioConnectedAccount; userId: string; projectKey?: string }>();
-  async function checkIdentity(account: ComposioConnectedAccount, userId: string, projectKey?: string) {
-    try {
-      const profile = asRecord(await executeComposioTool(c.env, {
-        toolSlug: "GMAIL_GET_PROFILE", connectedAccountId: account.id, userId,
-        apiKeyOverride: projectKey, arguments: { user_id: "me" }, timeoutMs: 7000,
-      }));
-      const identity = String(stringValue(asRecord(profile.data).emailAddress ??
-        asRecord(asRecord(profile.data).data).emailAddress ?? profile.emailAddress) ?? "").toLowerCase();
-      if (identity === sender) verified.set(account.id, { account, userId, projectKey });
-    } catch {
-      // A profile that cannot be verified is never an eligible sender.
-    }
-  }
-
-  await Promise.allSettled(scopedUserIds.map(async userId => {
-    const candidates = (await discoverComposioAccounts(userId, path =>
-      composioRequest(c.env, path, { signal: AbortSignal.timeout(7000) })))
-      .filter(account => account.toolkitSlug === "gmail" && isActiveComposioStatus(account.status));
-    await Promise.all(candidates.map(account => checkIdentity(account, userId)));
-  }));
-  if (!verified.size) {
-    // The owner test can discover Gérard under either existing project even
-    // when the link is owned by a different Composio entity ID.
-    const alternateKey = await resolveSecret(c.env.Composio2);
-    const projects = alternateKey ? [undefined, alternateKey] : [undefined];
-    const lookupDeadline = AbortSignal.timeout(12000);
-    await Promise.allSettled(projects.map(async projectKey => {
-      const candidates: { account: ComposioConnectedAccount; userId: string }[] = [];
-      let cursor = "";
-      const seen = new Set<string>();
-      for (let page = 0; page < 3; page++) {
-        const suffix = cursor ? "&cursor=" + encodeURIComponent(cursor) : "";
-        const payload = asRecord(await composioRequest(c.env,
-          "/connected_accounts?toolkit_slugs=gmail&account_type=ALL&limit=100" + suffix,
-          { signal: lookupDeadline }, projectKey));
-        const data = asRecord(payload.data);
-        const items = [payload.items, payload.connected_accounts, data.items, data.connected_accounts].find(Array.isArray);
-        if (!items) return;
-        for (const value of items) {
-          const item = asRecord(value);
-          const id = String(item.id ?? "");
-          const userId = String(item.user_id ?? item.userId ?? "");
-          const toolkitSlug = String(asRecord(item.toolkit).slug ?? item.toolkit_slug ?? "").toLowerCase();
-          const status = String(item.status ?? "");
-          if (!id || !userId || toolkitSlug !== "gmail" || !isActiveComposioStatus(status) || seen.has(id)) continue;
-          seen.add(id);
-          candidates.push({ account: { id, toolkitSlug, status }, userId });
-        }
-        cursor = String(payload.next_cursor ?? data.next_cursor ?? "");
-        if (!cursor) {
-          // Do not select a sender from an incomplete or unexpectedly large account list.
-          if (candidates.length <= 16) await Promise.all(candidates.map(({ account, userId }) =>
-            checkIdentity(account, userId, projectKey)));
-          return;
-        }
-      }
-    }));
-  }
-  if (verified.size !== 1) return c.json({
-    status: "blocked", reason: verified.size > 1 ? "gmail-identity-not-unique" : "gmail-sender-identity-not-found",
-    verifiedMatches: verified.size,
+  const { connection, matches } = await findGerardGmail(c.env);
+  if (!connection) return c.json({
+    status: "blocked", reason: matches > 1 ? "gmail-identity-not-unique" : "gmail-sender-identity-not-found",
+    verifiedMatches: matches,
   }, 409);
-  const { account, userId: gmailUserId, projectKey } = [...verified.values()][0];
+  const { account, userId: gmailUserId, projectKey } = connection;
   let sql: Awaited<ReturnType<typeof getSql>>;
   try {
     sql = await getSql(c.env);
@@ -1265,6 +1281,84 @@ app.post("/api/gerard/gmail/send", async (c) => {
   } catch {
     return c.json({ status: "unknown", reason: "provider-result-unconfirmed",
       operationId, retryAllowed: false }, 502);
+  }
+});
+
+// Each approval is bound to one owner-visible draft revision and one recipient.
+app.post("/api/garden/v1/candidatures/:id/send", async (c) => {
+  c.header("Cache-Control", "private, no-store");
+  c.header("Vary", "Authorization");
+  const token = /^Bearer (\S+)$/.exec(c.req.header("Authorization") ?? "")?.[1];
+  if (!token || !(await verifyPoulpeOwner(token))) return c.json({ status: "unauthorized" }, 401);
+  const id = c.req.param("id");
+  const input = asRecord(await c.req.json().catch(() => null));
+  const revision = typeof input.revision === "string" ? input.revision : "";
+  const approvedRecipient = candidatureAddress(input.recipient);
+  if (!candidatureId.test(id) || !/^[a-f0-9]{64}$/.test(revision) || !approvedRecipient) {
+    return c.json({ status: "invalid-approval" }, 400);
+  }
+
+  try {
+    const sql = await getSql(c.env);
+    const existing = await sql`SELECT value FROM publisher_global_state
+      WHERE namespace='gerard-candidature-mail' AND key=${id}`;
+    if (existing.length) {
+      const delivery = asRecord(existing[0].value);
+      return c.json({ status: delivery.status === "sent" ? "sent" : "unknown", sentAt: delivery.sentAt ?? null, recipient: delivery.recipient ?? null });
+    }
+    const rows = await sql`SELECT h->>'content' AS content FROM gerard_private_runtime
+      CROSS JOIN LATERAL jsonb_array_elements(payload #> '{files,harvests.json,harvests}') AS item(h)
+      WHERE snapshot_key='poulpe-fiction' AND h->>'harvestId'=${id}
+        AND h->>'parcelId'='benoit-career' AND h->>'capability'='candidature.draft'
+        AND h->>'state'='ready-to-review' LIMIT 1`;
+    const content = rows[0]?.content;
+    if (typeof content !== "string" || await candidatureRevision(content) !== revision) {
+      return c.json({ status: "draft-changed" }, 409);
+    }
+    const draft = parseCandidatureMail(content);
+    if (!draft || (draft.recipient && draft.recipient !== approvedRecipient)) {
+      return c.json({ status: "invalid-approval" }, 409);
+    }
+
+    const { connection } = await findGerardGmail(c.env);
+    if (!connection) return c.json({ status: "gmail-unavailable" }, 503);
+    const reserved = await sql`INSERT INTO publisher_global_state (namespace,key,value,version,updated_at)
+      SELECT 'gerard-candidature-mail', ${id}, ${JSON.stringify({
+        status: "sending", recipient: approvedRecipient, revision,
+      })}::jsonb, 1, NOW()
+      WHERE EXISTS (
+        SELECT 1 FROM gerard_private_runtime
+        CROSS JOIN LATERAL jsonb_array_elements(payload #> '{files,harvests.json,harvests}') AS item(h)
+        WHERE snapshot_key='poulpe-fiction' AND h->>'harvestId'=${id}
+          AND h->>'parcelId'='benoit-career' AND h->>'capability'='candidature.draft'
+          AND h->>'state'='ready-to-review' AND h->>'content'=${content}
+      )
+      ON CONFLICT (namespace,key) DO NOTHING RETURNING version`;
+    if (!reserved.length) return c.json({ status: "check-delivery" }, 409);
+
+    try {
+      const result = await executeComposioTool(c.env, {
+        toolSlug: "GMAIL_SEND_EMAIL", connectedAccountId: connection.account.id,
+        userId: connection.userId, apiKeyOverride: connection.projectKey, timeoutMs: 20000,
+        arguments: { user_id: "me", recipient_email: approvedRecipient, subject: draft.subject, body: draft.body, is_html: false },
+      });
+      const messageId = gmailCandidatureReceipt(result);
+      if (!messageId) throw new Error("GMAIL_RECEIPT_UNCONFIRMED");
+      const sentAt = new Date().toISOString();
+      await sql`UPDATE publisher_global_state SET value=${JSON.stringify({
+        status: "sent", recipient: approvedRecipient, revision, messageId, sentAt,
+      })}::jsonb, version=version+1, updated_at=NOW()
+        WHERE namespace='gerard-candidature-mail' AND key=${id}`;
+      return c.json({ status: "sent", sentAt, recipient: approvedRecipient });
+    } catch {
+      await sql`UPDATE publisher_global_state SET value=jsonb_set(value, '{status}', '"unknown"'::jsonb),
+        version=version+1, updated_at=NOW()
+        WHERE namespace='gerard-candidature-mail' AND key=${id} AND value->>'status'='sending'`
+        .catch(() => {});
+      return c.json({ status: "unknown" }, 502);
+    }
+  } catch {
+    return c.json({ status: "unavailable" }, 503);
   }
 });
 
