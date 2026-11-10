@@ -61,7 +61,9 @@ export function parseJobPosting(html: string, url: string, now = Date.now()) {
     const title = plain(job.title);
     const employer = plain(record(job.hiringOrganization).name);
     const description = plain(job.description, 12_000);
-    if (!title || !employer || !description) continue;
+    if (!title || !employer || !description ||
+        /\b(?:alternance|alternant|apprentissage|stage|internship)\b/i.test(title) ||
+        list(job.employmentType).includes("INTERN")) continue;
     const location = list(job.jobLocation).map(item => {
       const address = record(record(item).address);
       return [plain(address.addressLocality), plain(address.postalCode, 12)].filter(Boolean).join(" ");

@@ -18,6 +18,7 @@ test("extracts only source-backed contract, pay and application email", () => {
   assert.equal(job?.applicationEmail, "recrutement@example.org");
   assert.equal(job?.location, "Versailles 78000");
   assert.equal(parseJobPosting(html({ validThrough: "2000-01-01" }), url), null);
+  assert.equal(parseJobPosting(html({ title: "Conseiller de vente en alternance" }), url), null);
   assert.equal(parseJobPosting(html({ url: url.replace("123", "999") }), url), null);
 });
 
