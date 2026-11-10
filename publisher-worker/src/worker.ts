@@ -1234,7 +1234,7 @@ app.post("/api/gerard/gmail/send", async (c) => {
   const recipient = (stringValue(input.recipientEmail) ?? "").toLowerCase();
   const subject = stringValue(input.subject) ?? "";
   const body = stringValue(input.body) ?? "";
-  const sender = "gerard.poulpe-fiction@gmail.com";
+  const sender = GERARD_GMAIL;
   const ownerCc = "benoitlubert@gmail.com";
   if (!/^gerard-mail-[a-zA-Z0-9_-]{8,100}$/.test(operationId) ||
       !/^[^@\s<>]+@[^@\s<>]+\.[a-zA-Z]{2,}$/.test(recipient) ||
@@ -1371,7 +1371,7 @@ app.post("/api/gerard/gmail/owner-test", async (c) => {
   const body: Record<string, unknown> = await c.req.json<Record<string, unknown>>().catch(() => ({}));
   const operationId = String(body.operationId ?? "");
   if (!/^gerard-owner-[a-zA-Z0-9_-]{8,80}$/.test(operationId)) return c.json({ status: "invalid-operation-id" }, 400);
-  const sender = "gerard.poulpe-fiction@gmail.com";
+  const sender = GERARD_GMAIL;
   const recipient = "benoitlubert@gmail.com";
   let account: ComposioConnectedAccount | null = null;
   let gmailUserId = "";

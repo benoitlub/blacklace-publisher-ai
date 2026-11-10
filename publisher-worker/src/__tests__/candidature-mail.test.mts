@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { candidatureAddress, candidatureRevision, gmailCandidatureReceipt, parseCandidatureMail } from "../candidature-mail.ts";
+import { GERARD_GMAIL, candidatureAddress, candidatureRevision, gmailCandidatureReceipt, parseCandidatureMail } from "../candidature-mail.ts";
 import workerModule from "../worker.ts";
 const worker = "fetch" in workerModule ? workerModule : workerModule.default;
 
@@ -15,6 +15,7 @@ test("reads only the approved mail text and source-verified recipient", async ()
 });
 
 test("requires an actual Gmail message id and rejects provider errors", () => {
+  assert.equal(GERARD_GMAIL,"gerardpoulpefiction@gmail.com");
   assert.equal(gmailCandidatureReceipt({ successful: true, data: { id: "example-id" } }), "example-id");
   assert.equal(gmailCandidatureReceipt({ successful: true, data: {} }), null);
   assert.equal(gmailCandidatureReceipt({ successful: false, data: { id: "example-id" } }), null);
