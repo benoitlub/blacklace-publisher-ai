@@ -4623,8 +4623,9 @@ app.post("/api/octopus-adapter/execute", async (c) => {
         return executeLinkedInJobSearch({query,operationId:options.operationId,location:options.location},deps);
       }
       const search = await executeBusinessSearch({query,...options},deps);
-      if (options.sourceType !== "job-postings" || search.status !== "sources-found") return search;
-      const { jobs, attempted, opened } = await verifyJobPostings(search.candidates as { url: string }[]);
+      if (options.sourceType !== "job-postings" || !("status" in search) || search.status !== "sources-found" ||
+          !("candidates" in search) || !Array.isArray(search.candidates)) return search;
+      const { jobs, attempted, opened } = await verifyJobPostings(search.candidates);
       if (attempted && !opened) {
         return { ...search, status: "blocked", reason: "JOB_SOURCE_VERIFICATION_UNAVAILABLE", candidates: [] };
       }
