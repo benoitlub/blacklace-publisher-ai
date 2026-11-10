@@ -123,3 +123,29 @@ export async function verifyJobPostings(
   }));
   return { jobs: jobs.filter(job => job !== null), attempted: urls.length, opened };
 }
+
+const helloWork = "https://www.hellowork.com";
+const localSalesPages = [
+  "/fr-fr/emploi/domaine_vente-ville_versailles-78000.html",
+  "/fr-fr/emploi/domaine_vente-ville_rueil-malmaison-92500.html",
+];
+const digitalWorkPages = [
+  "/fr-fr/emploi/metier_formateur-region_ile-de-france.html",
+  "/fr-fr/emploi/metier_graphiste-departement_yvelines-78.html",
+];
+
+export async function searchPublicJobPages(query: string, fetcher: typeof fetch = fetch) {
+  const pages = /\b(?:vendeur|vendeuse|conseiller de vente)\b/i.test(query) ? localSalesPages : digitalWorkPages;
+  const links = await Promise.all(pages.map(async path => {
+    try {
+      const response = await fetcher(helloWork + path, { redirect: "error", signal: AbortSignal.timeout(6000) });
+      if (!response.ok || !response.headers.get("Content-Type")?.includes("text/html")) return [];
+      const html = await readPage(response);
+      const matches = html.matchAll(/\bhref\s*=\s*["'](?:https:\/\/www\.hellowork\.com)?(\/fr-fr\/emplois\/\d+\.html)(?=["'?#])/gi);
+      return [...new Set(Array.from(matches, match => helloWork + match[1]))].slice(0, 4);
+    } catch {
+      return [];
+    }
+  }));
+  return verifyJobPostings(links.flat().map(url => ({ url })), fetcher);
+}

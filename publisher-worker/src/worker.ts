@@ -4,7 +4,7 @@ import { verifyGerardGithubOidc } from "./gerard-github-oidc";
 import { readGarden } from "./garden-readonly";
 import { writeAcquisitionReview } from "./notion-client-acquisition";
 import { discoverBusinessTools, executeBusinessSearch, executeLinkedInJobSearch } from "./composio-discovery";
-import { verifyJobPostings } from "./job-postings";
+import { searchPublicJobPages, verifyJobPostings } from "./job-postings";
 import { composioOperationStore } from "./composio-operation-state";
 import { createMetricoolProvider } from "./metricool-composio";
 import { metricoolCredentialsForBrand } from "./metricool-routing";
@@ -4614,6 +4614,13 @@ app.post("/api/octopus-adapter/execute", async (c) => {
       return {status:"discovered",tools:tools.map(t=>({slug:t.slug,name:t.name,toolkit:t.toolkit,inputSchema:t.schema,discovered:true,connected:t.connected,authMode:t.authMode,supportedReadPolicy:t.readPolicy})),executionVerified:false};
     },
     searchBusinessSources: async (query,options) => {
+      if (options.sourceType === "job-postings" && options.authorized && !options.dryRun) {
+        const { jobs } = await searchPublicJobPages(query);
+        if (jobs.length) return {
+          capability: "business.sources.search", status: "sources-found", executed: true,
+          candidates: jobs, selectedTool: "public-job-pages",
+        };
+      }
       const deps={
         userId:await composioUserId(c.env),
         request:(path: string, init: RequestInit = {})=>composioRequest(c.env,path,{...init,signal:AbortSignal.timeout(15000)}),
