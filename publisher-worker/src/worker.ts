@@ -1641,12 +1641,31 @@ app.get("/api/production/canva-tool-schema", async (c) => {
 });
 
 async function metricoolProvider(env: Env, brandId: string) {
-  if (!(await isComposioConfigured(env))) throw new MetricoolBlocked("COMPOSIO_NOT_CONFIGURED", "connection");
+  // Resolve the Composio project and user for the requested Metricool brand.
+  // Blacklace can live in the independent Composio2 project; never discover
+  // its accounts using the primary project's key and user.
+  let routed: Env;
+  const secondaryKey = brandId === "7653100" ? await resolveSecret(env.Composio2) : "";
+  if (secondaryKey) {
+    routed = {
+      ...env,
+      COMPOSIO_API_KEY: secondaryKey,
+      COMPOSIO_USER_ID: env.COMPOSIO2_USER_ID,
+      METRICOOL_CONNECTED_ACCOUNT_ID: env.COMPOSIO2_METRICOOL_CONNECTED_ACCOUNT_ID,
+    };
+  } else {
+    try {
+      routed = metricoolCredentialsForBrand(env, brandId);
+    } catch (error) {
+      throw new MetricoolBlocked(error instanceof Error ? error.message : "METRICOOL_ROUTING_FAILED", "connection");
+    }
+  }
+  if (!(await isComposioConfigured(routed))) throw new MetricoolBlocked("COMPOSIO_NOT_CONFIGURED", "connection");
   return createMetricoolProvider({
-    accounts: async () => discoverComposioAccounts(await composioUserId(env), path => composioRequest(env, path, { signal: AbortSignal.timeout(15000) })),
-    tools: (toolkit) => listComposioTools(env, toolkit, 15000),
-    execute: (input) => executeComposioTool(env, { ...input, timeoutMs: 20000, toolVersion: "latest" }),
-    connectedAccountId: env.METRICOOL_CONNECTED_ACCOUNT_ID,
+    accounts: async () => discoverComposioAccounts(await composioUserId(routed), path => composioRequest(routed, path, { signal: AbortSignal.timeout(15000) })),
+    tools: (toolkit) => listComposioTools(routed, toolkit, 15000),
+    execute: (input) => executeComposioTool(routed, { ...input, timeoutMs: 20000, toolVersion: "latest" }),
+    connectedAccountId: routed.METRICOOL_CONNECTED_ACCOUNT_ID,
     brandId,
   });
 }
