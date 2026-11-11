@@ -2,7 +2,7 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-10",
+  "generatedDate": "2026-11-11",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
@@ -11,8 +11,8 @@
       "name": "vllm-project/vllm-omni",
       "url": "https://github.com/vllm-project/vllm-omni",
       "summary": "A framework for efficient model inference with omni-modality models",
-      "stars": 7668,
-      "updatedAt": "2026-11-10T14:53:27Z",
+      "stars": 7697,
+      "updatedAt": "2026-11-11T14:26:30Z",
       "license": "Apache-2.0",
       "score": 100,
       "capabilities": [
@@ -43,14 +43,49 @@
       }
     },
     {
-      "id": "1334422511",
-      "name": "rogerwu188/qingshan-short-drama-production-line",
-      "url": "https://github.com/rogerwu188/qingshan-short-drama-production-line",
-      "summary": "MIT-licensed end-to-end AI short-drama engine: script, shots, SD2/H3 video, QA, editing, and YouTube/Douyin release.",
-      "stars": 6,
-      "updatedAt": "2026-11-10T14:57:00Z",
+      "id": "1331882604",
+      "name": "scenario-labs/skills",
+      "url": "https://github.com/scenario-labs/skills",
+      "summary": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
+      "stars": 3681,
+      "updatedAt": "2026-11-11T14:28:03Z",
       "license": "MIT",
-      "score": 91,
+      "score": 93,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1452203169",
+      "name": "fiwon123/viral-short-videos-ai",
+      "url": "https://github.com/fiwon123/viral-short-videos-ai",
+      "summary": "AI-assisted studio for creating original 2D, 2.5D, and 3D animated shorts for YouTube and TikTok, from channel research and scripting to MP4 export.",
+      "stars": 0,
+      "updatedAt": "2026-11-11T14:36:44Z",
+      "license": "MIT",
+      "score": 86,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -79,47 +114,12 @@
       }
     },
     {
-      "id": "1117435862",
-      "name": "Sayhi-bzb/CharDesk",
-      "url": "https://github.com/Sayhi-bzb/CharDesk",
-      "summary": "A Unicode canvas for humans and AI. Draw diagrams, interfaces, and slides as editable text.",
-      "stars": 434,
-      "updatedAt": "2026-11-10T15:11:03Z",
-      "license": "MIT",
-      "score": 88,
-      "capabilities": [
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
       "id": "1231135337",
       "name": "strukto-ai/mirage",
       "url": "https://github.com/strukto-ai/mirage",
       "summary": "The World's First Virtual Terminal for AI Agents",
       "stars": 3782,
-      "updatedAt": "2026-11-10T15:09:04Z",
+      "updatedAt": "2026-11-11T14:07:19Z",
       "license": "Apache-2.0",
       "score": 79,
       "capabilities": [
@@ -148,85 +148,16 @@
       }
     },
     {
-      "id": "1450020713",
-      "name": "chrissix666/Jellyfin-Globe",
-      "url": "https://github.com/chrissix666/Jellyfin-Globe",
-      "summary": "Your Jellyfin libraries as a 3D globe: thousands of posters, backdrops and logos on a sphere you turn and zoom like a map; a double-click opens the title",
-      "stars": 1,
-      "updatedAt": "2026-11-09T20:38:55Z",
-      "license": "MIT",
-      "score": 74,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1319227393",
-      "name": "tylkokcr/ShortPulse",
-      "url": "https://github.com/tylkokcr/ShortPulse",
-      "summary": "Open-source local AI agent that turns a topic into a ready-to-post vertical short-form video (TikTok/Reels/Shorts) — Ollama scripting, local Piper voiceover in 9 languages, word-synced captions, AI or stock visuals, FFmpeg render. No SaaS subscription.",
-      "stars": 1,
-      "updatedAt": "2026-11-10T15:06:59Z",
-      "license": "MIT",
-      "score": 74,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1351166934",
-      "name": "maomaochong-ai/open-astravia",
-      "url": "https://github.com/maomaochong-ai/open-astravia",
-      "summary": "开源 · 本地优先的 AI 智能体：编程与实干兼备。 自带模型密钥，内置 MCP、技能、插件、工作流、知识库以及数据库。",
-      "stars": 48,
-      "updatedAt": "2026-11-10T14:38:40Z",
+      "id": "1421324273",
+      "name": "bitilia/es3d",
+      "url": "https://github.com/bitilia/es3d",
+      "summary": "Extensible Scalable 3D",
+      "stars": 4,
+      "updatedAt": "2026-11-10T16:23:09Z",
       "license": "Apache-2.0",
-      "score": 68,
+      "score": 76,
       "capabilities": [
+        "video.generate",
         "visual.generate",
         "tool.search"
       ],
@@ -235,7 +166,77 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1453857400",
+      "name": "MAOLVLHL/mcp-repo-devtools",
+      "url": "https://github.com/MAOLVLHL/mcp-repo-devtools",
+      "summary": "Tool surface for coding agents: bounded git and GitHub tools, structured results, progress and cancellation, a human gate before writes, plus a reference agent loop and an eval that can fail it.",
+      "stars": 1,
+      "updatedAt": "2026-11-11T14:13:13Z",
+      "license": "MIT",
+      "score": 74,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1454057576",
+      "name": "Abhinav-murugan1/Aria",
+      "url": "https://github.com/Abhinav-murugan1/Aria",
+      "summary": "Aria: Claude Code skills that make finished videos with expressive voices from code. Emotion-tagged narration, word-timed captions, GPU-rendered 2D/3D scenes, music in code, export checks, slash commands.",
+      "stars": 0,
+      "updatedAt": "2026-11-11T14:35:51Z",
+      "license": "MIT",
+      "score": 72,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -257,7 +258,7 @@
       "url": "https://github.com/oomol-lab/oo-cli",
       "summary": "oo is OOMOL's CLI toolkit. Everything can be done in the CLI.",
       "stars": 43,
-      "updatedAt": "2026-11-10T14:34:08Z",
+      "updatedAt": "2026-11-11T12:41:14Z",
       "license": "MIT",
       "score": 68,
       "capabilities": [
@@ -286,14 +287,48 @@
       }
     },
     {
-      "id": "1308271634",
-      "name": "Parker-Fawcett/rebuild-dossier",
-      "url": "https://github.com/Parker-Fawcett/rebuild-dossier",
-      "summary": "MCP server that reverse engineers a locked rebuild spec (CLAUDE.md, .claude config, mutation tested tests) from an existing app",
-      "stars": 3,
-      "updatedAt": "2026-11-10T14:56:00Z",
+      "id": "1153981814",
+      "name": "khalidsaidi/ragmap",
+      "url": "https://github.com/khalidsaidi/ragmap",
+      "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
+      "stars": 7,
+      "updatedAt": "2026-11-11T14:36:51Z",
       "license": "MIT",
-      "score": 62,
+      "score": 63,
+      "capabilities": [
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1245856620",
+      "name": "electricwolfemarshmallowhypertext/laconic-skill",
+      "url": "https://github.com/electricwolfemarshmallowhypertext/laconic-skill",
+      "summary": "Deterministic verifier for concise AI output. Pass, fail, rewrite, and emit receipts without model calls.",
+      "stars": 1,
+      "updatedAt": "2026-11-11T12:54:59Z",
+      "license": "Apache-2.0",
+      "score": 60,
       "capabilities": [
         "tool.search",
         "knowledge.search"
@@ -325,7 +360,7 @@
       "url": "https://github.com/eloyhere/deepseek-coordination",
       "summary": "A dual-face Cordis plugin for DeepSeek Harness: the host half owns a coordination SQLite database, seven model-facing tools and an HTTP surface; the web half mounts five composer dropdowns, a settings catalog and the service-level takeover dialog.",
       "stars": 1,
-      "updatedAt": "2026-11-10T15:00:09Z",
+      "updatedAt": "2026-11-11T13:40:18Z",
       "license": "Apache-2.0",
       "score": 60,
       "capabilities": [
@@ -354,16 +389,115 @@
       }
     },
     {
-      "id": "1425543662",
-      "name": "shahed1475/Studio",
-      "url": "https://github.com/shahed1475/Studio",
-      "summary": "Automated YouTube story channel: script, voice, footage, render, review, upload, growth agent, 24/7 Docker worker",
+      "id": "1357994828",
+      "name": "cortexos-dev/cs-mcp",
+      "url": "https://github.com/cortexos-dev/cs-mcp",
+      "summary": "CortexOS 的 MCP 接入层：探测本机 CLI 并向 AI 客户端提供工具能力。品牌源由 CortexOS 维护。",
       "stars": 0,
-      "updatedAt": "2026-11-10T15:03:07Z",
-      "license": "UNKNOWN",
-      "score": 59,
+      "updatedAt": "2026-11-11T13:50:23Z",
+      "license": "MIT",
+      "score": 58,
       "capabilities": [
         "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "991790727",
+      "name": "nikonikoCW/Meteor3DEditor",
+      "url": "https://github.com/nikonikoCW/Meteor3DEditor",
+      "summary": "基于 Three.js 和 Vue3 的三维引擎低代码编辑开发平台，专注于数字孪生和物联网数据大屏可视化开发。A low-code editing and development platform for 3D engines based on Three.js and Vue3, focusing on digital twin and IoT data visualization on large screens.",
+      "stars": 177,
+      "updatedAt": "2026-11-11T07:38:23Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1082438194",
+      "name": "nitr0yukkuri/githubplanet",
+      "url": "https://github.com/nitr0yukkuri/githubplanet",
+      "summary": "Turn your GitHub activity into a personalized 3D planet, with language-specific visuals, achievements, and shareable profile cards. GitHubの活動を自分だけの3D惑星に。",
+      "stars": 7,
+      "updatedAt": "2026-11-11T07:55:05Z",
+      "license": "MIT",
+      "score": 49,
+      "capabilities": [
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1335725435",
+      "name": "olekingkole28-dot/bridgepoint-live",
+      "url": "https://github.com/olekingkole28-dot/bridgepoint-live",
+      "summary": "Open-source global 3D digital twin 🌎 Geospatial intelligence, property data, 3D terrain and buildings, weather and hazard mapping. 412M+ reported canonical property records.",
+      "stars": 1,
+      "updatedAt": "2026-11-11T11:11:32Z",
+      "license": "NOASSERTION",
+      "score": 47,
+      "capabilities": [
         "visual.generate",
         "tool.search",
         "knowledge.search"
@@ -375,152 +509,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1450824800",
-      "name": "al-ex-ai/Machina",
-      "url": "https://github.com/al-ex-ai/Machina",
-      "summary": "Real aircraft in the browser, every part selectable, every size checked against published specs.",
-      "stars": 0,
-      "updatedAt": "2026-11-09T23:08:16Z",
-      "license": "MIT",
-      "score": 58,
-      "capabilities": [
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1393126659",
-      "name": "apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
-      "url": "https://github.com/apimarto957/gemini-omni-1.1-flash-ext-reverse-api-ko",
-      "summary": "리버스 Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-ko.",
-      "stars": 81,
-      "updatedAt": "2026-11-10T14:57:53Z",
-      "license": "NOASSERTION",
-      "score": 56,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1393181875",
-      "name": "apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-pt",
-      "url": "https://github.com/apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-pt",
-      "summary": "engenharia reversa Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-pt.",
-      "stars": 43,
-      "updatedAt": "2026-11-10T14:56:45Z",
-      "license": "NOASSERTION",
-      "score": 55,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1393183720",
-      "name": "apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-ru",
-      "url": "https://github.com/apimartxs4/gemini-omni-1.1-flash-ext-reverse-api-ru",
-      "summary": "реверс-инжиниринг Gemini Omni 1.1 Flash Ext API: per-call billing. model ID `Omni-Flash-Ext`, OpenAI-compatible, async task + cost in every response, $1 minimum top-up. gemini-omni-1.1-flash-ext-reverse-api-ru.",
-      "stars": 35,
-      "updatedAt": "2026-11-10T14:56:30Z",
-      "license": "NOASSERTION",
-      "score": 54,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
