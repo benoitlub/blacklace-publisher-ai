@@ -1,3 +1,4 @@
+import { metricoolReviewMail } from "./metricool-review-mail";
 import { generateMistralImage, downloadMistralImage, MistralImageError } from "../../artifacts/api-server/src/services/mistral-image";
 import { candidatureAddress, candidatureId, candidatureRevision, GERARD_GMAIL, gmailCandidatureReceipt, parseCandidatureMail } from "./candidature-mail";
 import { verifyPoulpeOwner } from "./poulpe-google-owner";
@@ -1250,6 +1251,12 @@ app.post("/api/gerard/gmail/send", async (c) => {
       return c.json({ status: "blocked", reason: "420-dice-review-required" }, 409);
     }
   }
+  let view: ReturnType<typeof metricoolReviewMail>;
+  try { view = metricoolReviewMail({subject,body,recipientEmail:recipient,presentation:input.presentation,operationId}); }
+  catch (error) {
+    const reason = error instanceof Error && error.message === "420-dice-review-required" ? error.message : "metricool-review-invalid";
+    return c.json({status:"blocked",reason},reason === "420-dice-review-required" ? 409 : 400);
+  }
   const { connection, matches } = await findGerardGmail(c.env);
   if (!connection) return c.json({
     status: "blocked", reason: matches > 1 ? "gmail-identity-not-unique" : "gmail-sender-identity-not-found",
@@ -1260,7 +1267,7 @@ app.post("/api/gerard/gmail/send", async (c) => {
   try {
     sql = await getSql(c.env);
     const reserved = await sql`INSERT INTO publisher_global_state (namespace,key,value,version,updated_at)
-      VALUES ('gerard-autonomous-mail',${operationId},${JSON.stringify({ status: "sending", recipient, cc: ownerCc })}::jsonb,1,NOW())
+      VALUES ('gerard-autonomous-mail',${operationId},${JSON.stringify({ status: "sending", recipient, cc: ownerCc, ...(view.relay ? {relay:view.relay} : {}) })}::jsonb,1,NOW())
       ON CONFLICT (namespace,key) DO NOTHING RETURNING version`;
     if (!reserved.length) return c.json({ status: "blocked", reason: "operation-already-reserved", operationId }, 409);
   } catch {
@@ -1269,12 +1276,12 @@ app.post("/api/gerard/gmail/send", async (c) => {
   try {
     const result = asRecord(await executeComposioTool(c.env, {
       toolSlug: "GMAIL_SEND_EMAIL", connectedAccountId: account.id,
-      userId: gmailUserId, apiKeyOverride: projectKey, arguments: { user_id: "me", recipient_email: recipient, cc: [ownerCc], subject, body, is_html: false },
+      userId: gmailUserId, apiKeyOverride: projectKey, arguments: { user_id: "me", recipient_email: recipient, cc: [ownerCc], subject:view.subject, body:view.body, is_html: false },
       timeoutMs: 20000,
     }));
     if (result.successful === false || asRecord(result.data).successful === false) throw new Error("PROVIDER_REJECTED");
     await sql`UPDATE publisher_global_state SET
-      value=${JSON.stringify({ status: "sent", recipient, cc: ownerCc, sender, subject })}::jsonb,
+      value=${JSON.stringify({ status: "sent", recipient, cc: ownerCc, sender, subject:view.subject, ...(view.relay ? {relay:view.relay} : {}) })}::jsonb,
       version=version+1,updated_at=NOW()
       WHERE namespace='gerard-autonomous-mail' AND key=${operationId}`;
     return c.json({ status: "sent", recipient, cc: ownerCc, sender, operationId });
