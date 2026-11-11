@@ -10,6 +10,9 @@ OCTOPUS_ENGINE_URL = "https://octopus-engine-app.benoitlubert.workers.dev"
 # Gérard's book publishing is authorized by Benoît. Declare it here so
 # subsequent Wrangler deployments do not overwrite the dashboard setting.
 BUFFER_PUBLISHING_ENABLED = "true"
+# Production is explicitly opted in by GERARD_METRICOOL_DIRECT_EXECUTION_ENABLED.
+# Authentication, source, provider quota, deduplication and confirmation still apply.
+METRICOOL_PUBLISHING_ENABLED = "true"
 
 # Bound from the account-wide Cloudflare Secrets Store (not the classic
 # per-Worker "Variables and Secrets" tab). worker.ts resolves this via

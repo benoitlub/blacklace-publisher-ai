@@ -1,5 +1,5 @@
 /**
- * Authenticate the one-off owner-mail test from a trusted GitHub Actions job.
+ * Authenticate trusted Gérard jobs with purpose-specific GitHub identities.
  * No stored bearer secret is required: GitHub signs short-lived OIDC JWTs.
  */
 const ISSUER = "https://token.actions.githubusercontent.com";
@@ -8,6 +8,8 @@ const REPOSITORY = "benoitlub/poulpe-fiction";
 const OWNER_TEST_WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-owner-publisher-mail-test.yml@refs/heads/main";
 const GMAIL_CONNECT_WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-composio-gmail-connect.yml@refs/heads/main";
 const JOB_SEARCH_CONNECT_WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-composio-job-search-connect.yml@refs/heads/main";
+const PRODUCTION_WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-production.yml@refs/heads/main";
+const PUBLICATION_AUDIENCE = "blacklace-publisher-gerard-production-publish";
 const RUNTIME_WORKFLOW = "benoitlub/poulpe-fiction/.github/workflows/gerard-runtime.yml@refs/heads/main";
 
 function decodeBase64Url(input: string): Uint8Array {
@@ -16,7 +18,7 @@ function decodeBase64Url(input: string): Uint8Array {
 }
 
 // The LinkedIn job-search connection flow uses the same owner-only GitHub OIDC boundary as Gmail.
-export async function verifyGerardGithubOidc(jwt: string, purpose: "owner-test" | "gmail-connect" | "job-search-connect" | "runtime-send" = "owner-test"): Promise<boolean> {
+export async function verifyGerardGithubOidc(jwt: string, purpose: "owner-test" | "gmail-connect" | "job-search-connect" | "runtime-send" | "production-publish" = "owner-test"): Promise<boolean> {
   if (!jwt || jwt.length > 16000) return false;
   const sections = jwt.split(".");
   if (sections.length !== 3) return false;
@@ -25,9 +27,10 @@ export async function verifyGerardGithubOidc(jwt: string, purpose: "owner-test" 
     const claims = JSON.parse(new TextDecoder().decode(decodeBase64Url(sections[1]))) as Record<string, unknown>;
     const now = Math.floor(Date.now() / 1000);
     if (header.alg !== "RS256" || typeof header.kid !== "string") return false;
-    const expectedWorkflow = purpose === "gmail-connect" ? GMAIL_CONNECT_WORKFLOW : purpose === "job-search-connect" ? JOB_SEARCH_CONNECT_WORKFLOW : purpose === "runtime-send" ? RUNTIME_WORKFLOW : OWNER_TEST_WORKFLOW;
-    const allowedEvent = purpose === "runtime-send" ? ["schedule", "push", "workflow_dispatch"] : purpose === "gmail-connect" || purpose === "job-search-connect" ? ["push", "workflow_dispatch"] : ["push"];
-    if (claims.iss !== ISSUER || claims.aud !== AUDIENCE ||
+    const expectedWorkflow = purpose === "production-publish" ? PRODUCTION_WORKFLOW : purpose === "gmail-connect" ? GMAIL_CONNECT_WORKFLOW : purpose === "job-search-connect" ? JOB_SEARCH_CONNECT_WORKFLOW : purpose === "runtime-send" ? RUNTIME_WORKFLOW : OWNER_TEST_WORKFLOW;
+    const expectedAudience = purpose === "production-publish" ? PUBLICATION_AUDIENCE : AUDIENCE;
+    const allowedEvent = purpose === "production-publish" ? ["schedule", "workflow_dispatch"] : purpose === "runtime-send" ? ["schedule", "push", "workflow_dispatch"] : purpose === "gmail-connect" || purpose === "job-search-connect" ? ["push", "workflow_dispatch"] : ["push"];
+    if (claims.iss !== ISSUER || claims.aud !== expectedAudience ||
         claims.repository !== REPOSITORY || claims.ref !== "refs/heads/main" ||
         claims.workflow_ref !== expectedWorkflow || !allowedEvent.includes(String(claims.event_name)) ||
         claims.sub !== "repo:benoitlub/poulpe-fiction:ref:refs/heads/main" ||

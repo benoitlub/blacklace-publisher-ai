@@ -1720,7 +1720,9 @@ async function finalizeMetricoolPublication(env: Env, input: Record<string, unkn
 
 async function metricoolAuthenticated(env: Env, authorization: string | undefined): Promise<boolean> {
   const token = await resolveSecret(env.METRICOOL_EXECUTION_TOKEN);
-  return Boolean(token && authorization === "Bearer " + token);
+  if (token && authorization === "Bearer " + token) return true;
+  const jwt = /^Bearer (\S+)$/.exec(authorization ?? "")?.[1] ?? "";
+  return verifyGerardGithubOidc(jwt, "production-publish");
 }
 
 async function finalizeSocialPublication(env: Env, input: Record<string, unknown>, authorization?: string) {
