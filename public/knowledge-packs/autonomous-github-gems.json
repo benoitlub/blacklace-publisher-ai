@@ -2,19 +2,19 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-11",
+  "generatedDate": "2026-11-12",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1054512829",
-      "name": "vllm-project/vllm-omni",
-      "url": "https://github.com/vllm-project/vllm-omni",
-      "summary": "A framework for efficient model inference with omni-modality models",
-      "stars": 7697,
-      "updatedAt": "2026-11-11T14:26:30Z",
-      "license": "Apache-2.0",
-      "score": 100,
+      "id": "1334173734",
+      "name": "AIPMAndy/Andy-Video-Skill",
+      "url": "https://github.com/AIPMAndy/Andy-Video-Skill",
+      "summary": "Claude Code 视频生成 Skills 精选目录：Manim、React Video、录屏转视频等｜Curated catalog of 12 video-generation Skills for Claude Code — Manim, React Video, Screencast-to-Viral, and more.",
+      "stars": 19,
+      "updatedAt": "2026-11-12T15:28:44Z",
+      "license": "MIT",
+      "score": 94,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -43,25 +43,25 @@
       }
     },
     {
-      "id": "1331882604",
-      "name": "scenario-labs/skills",
-      "url": "https://github.com/scenario-labs/skills",
-      "summary": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
-      "stars": 3681,
-      "updatedAt": "2026-11-11T14:28:03Z",
+      "id": "1117435862",
+      "name": "Sayhi-bzb/CharDesk",
+      "url": "https://github.com/Sayhi-bzb/CharDesk",
+      "summary": "A Unicode canvas for humans and AI. Draw diagrams, interfaces, and slides as editable text.",
+      "stars": 433,
+      "updatedAt": "2026-11-12T15:06:01Z",
       "license": "MIT",
-      "score": 93,
+      "score": 88,
       "capabilities": [
-        "video.generate",
         "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -78,12 +78,12 @@
       }
     },
     {
-      "id": "1452203169",
-      "name": "fiwon123/viral-short-videos-ai",
-      "url": "https://github.com/fiwon123/viral-short-videos-ai",
-      "summary": "AI-assisted studio for creating original 2D, 2.5D, and 3D animated shorts for YouTube and TikTok, from channel research and scripting to MP4 export.",
+      "id": "1444595708",
+      "name": "diegoarivada/local-video-studio",
+      "url": "https://github.com/diegoarivada/local-video-studio",
+      "summary": "Topic in, narrated YouTube video draft out. Script, voice, stock footage, captions, chapters, and thumbnail, all local and free.",
       "stars": 0,
-      "updatedAt": "2026-11-11T14:36:44Z",
+      "updatedAt": "2026-11-12T15:18:17Z",
       "license": "MIT",
       "score": 86,
       "capabilities": [
@@ -114,12 +114,82 @@
       }
     },
     {
+      "id": "1401664277",
+      "name": "alexshpunt/pi-agent-computer-use",
+      "url": "https://github.com/alexshpunt/pi-agent-computer-use",
+      "summary": "Computer use for the Pi coding agent — Windows apps, browsers and desktops through native UI trees, screenshots and real input.",
+      "stars": 62,
+      "updatedAt": "2026-11-12T14:03:52Z",
+      "license": "MIT",
+      "score": 83,
+      "capabilities": [
+        "video.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1341557301",
+      "name": "chrissix666/Jellyfin-Cinema-Project",
+      "url": "https://github.com/chrissix666/Jellyfin-Cinema-Project",
+      "summary": "A first-person 3D cinema for Jellyfin Web. Watch and listen to the soul of a movie, a visualized experience you step into like a video game",
+      "stars": 13,
+      "updatedAt": "2026-11-12T13:20:13Z",
+      "license": "MIT",
+      "score": 79,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
       "id": "1231135337",
       "name": "strukto-ai/mirage",
       "url": "https://github.com/strukto-ai/mirage",
       "summary": "The World's First Virtual Terminal for AI Agents",
       "stars": 3782,
-      "updatedAt": "2026-11-11T14:07:19Z",
+      "updatedAt": "2026-11-12T14:06:47Z",
       "license": "Apache-2.0",
       "score": 79,
       "capabilities": [
@@ -148,60 +218,24 @@
       }
     },
     {
-      "id": "1421324273",
-      "name": "bitilia/es3d",
-      "url": "https://github.com/bitilia/es3d",
-      "summary": "Extensible Scalable 3D",
-      "stars": 4,
-      "updatedAt": "2026-11-10T16:23:09Z",
-      "license": "Apache-2.0",
-      "score": 76,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1453857400",
-      "name": "MAOLVLHL/mcp-repo-devtools",
-      "url": "https://github.com/MAOLVLHL/mcp-repo-devtools",
-      "summary": "Tool surface for coding agents: bounded git and GitHub tools, structured results, progress and cancellation, a human gate before writes, plus a reference agent loop and an eval that can fail it.",
-      "stars": 1,
-      "updatedAt": "2026-11-11T14:13:13Z",
+      "id": "1229757805",
+      "name": "A-cat-with-carrots/OnlyShot",
+      "url": "https://github.com/A-cat-with-carrots/OnlyShot",
+      "summary": "OnlyShot · 神仙鱼 AI 短剧工业流水线 Claude Skill — 一句话 → 剧本/分镜/分镜图/视频/剪辑 五步 → 可发红果抖音的完整短剧。集成即梦/Seedance，17 失败模式沉淀。",
+      "stars": 408,
+      "updatedAt": "2026-11-12T14:40:27Z",
       "license": "MIT",
       "score": 74,
       "capabilities": [
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "video.generate",
+        "visual.generate"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -218,14 +252,14 @@
       }
     },
     {
-      "id": "1454057576",
-      "name": "Abhinav-murugan1/Aria",
-      "url": "https://github.com/Abhinav-murugan1/Aria",
-      "summary": "Aria: Claude Code skills that make finished videos with expressive voices from code. Emotion-tagged narration, word-timed captions, GPU-rendered 2D/3D scenes, music in code, export checks, slash commands.",
-      "stars": 0,
-      "updatedAt": "2026-11-11T14:35:51Z",
+      "id": "1450020713",
+      "name": "chrissix666/Jellyfin-Globe",
+      "url": "https://github.com/chrissix666/Jellyfin-Globe",
+      "summary": "Your Jellyfin libraries as a 3D globe: thousands of posters, backdrops and logos on a sphere you turn and zoom like a map; a double-click opens the title",
+      "stars": 1,
+      "updatedAt": "2026-11-12T13:21:39Z",
       "license": "MIT",
-      "score": 72,
+      "score": 74,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -253,15 +287,16 @@
       }
     },
     {
-      "id": "1190322268",
-      "name": "oomol-lab/oo-cli",
-      "url": "https://github.com/oomol-lab/oo-cli",
-      "summary": "oo is OOMOL's CLI toolkit. Everything can be done in the CLI.",
-      "stars": 43,
-      "updatedAt": "2026-11-11T12:41:14Z",
+      "id": "1314683733",
+      "name": "eiway112/video-production-skill",
+      "url": "https://github.com/eiway112/video-production-skill",
+      "summary": "工程化 AI 视频制作工作流：旁白脚本或文档一键成片。HTML+GSAP 渲染，TTS 实测驱动音画与字幕同步，输入指纹缓存、真实性质量门禁与机器可验证的交付验收证据链保证可交付质量。支持任意 AI 编码智能体端到端驱动，亦可纯命令行使用。",
+      "stars": 1,
+      "updatedAt": "2026-11-12T14:49:52Z",
       "license": "MIT",
-      "score": 68,
+      "score": 74,
       "capabilities": [
+        "video.generate",
         "visual.generate",
         "tool.search"
       ],
@@ -270,7 +305,41 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1366979533",
+      "name": "ouli-1242/dsh-plugin-tool-management",
+      "url": "https://github.com/ouli-1242/dsh-plugin-tool-management",
+      "summary": "一个设置面板，统一管理 MCP、技能、记忆、子智能体、提示词和归档会话；可自定义搭配场景，一个场景即可切换整个环境；Agent也能帮你操作这个插件。 | One settings panel managing MCP, skills, memory, subagents, prompts and sessions; customize scene combos to switch the whole environment; the Agent can also operate this plugin for you.",
+      "stars": 60,
+      "updatedAt": "2026-11-12T14:18:23Z",
+      "license": "MIT",
+      "score": 69,
+      "capabilities": [
+        "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -292,7 +361,7 @@
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 7,
-      "updatedAt": "2026-11-11T14:36:51Z",
+      "updatedAt": "2026-11-12T15:33:08Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
@@ -321,84 +390,50 @@
       }
     },
     {
-      "id": "1245856620",
-      "name": "electricwolfemarshmallowhypertext/laconic-skill",
-      "url": "https://github.com/electricwolfemarshmallowhypertext/laconic-skill",
-      "summary": "Deterministic verifier for concise AI output. Pass, fail, rewrite, and emit receipts without model calls.",
-      "stars": 1,
-      "updatedAt": "2026-11-11T12:54:59Z",
-      "license": "Apache-2.0",
-      "score": 60,
-      "capabilities": [
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1415333343",
-      "name": "eloyhere/deepseek-coordination",
-      "url": "https://github.com/eloyhere/deepseek-coordination",
-      "summary": "A dual-face Cordis plugin for DeepSeek Harness: the host half owns a coordination SQLite database, seven model-facing tools and an HTTP surface; the web half mounts five composer dropdowns, a settings catalog and the service-level takeover dialog.",
-      "stars": 1,
-      "updatedAt": "2026-11-11T13:40:18Z",
-      "license": "Apache-2.0",
-      "score": 60,
-      "capabilities": [
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1357994828",
-      "name": "cortexos-dev/cs-mcp",
-      "url": "https://github.com/cortexos-dev/cs-mcp",
-      "summary": "CortexOS 的 MCP 接入层：探测本机 CLI 并向 AI 客户端提供工具能力。品牌源由 CortexOS 维护。",
-      "stars": 0,
-      "updatedAt": "2026-11-11T13:50:23Z",
+      "id": "1205267694",
+      "name": "LanNguyenSi/agent-dx",
+      "url": "https://github.com/LanNguyenSi/agent-dx",
+      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
+      "stars": 6,
+      "updatedAt": "2026-11-12T14:25:37Z",
       "license": "MIT",
-      "score": 58,
+      "score": 63,
       "capabilities": [
-        "video.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1328399743",
+      "name": "celados/wbot",
+      "url": "https://github.com/celados/wbot",
+      "summary": "Agent-first read-only CLI and MCP for authorized WeChat conversations",
+      "stars": 1,
+      "updatedAt": "2026-11-12T14:34:20Z",
+      "license": "MIT",
+      "score": 60,
+      "capabilities": [
+        "visual.generate",
         "tool.search"
       ],
       "riskFlags": [],
@@ -406,7 +441,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -423,23 +458,24 @@
       }
     },
     {
-      "id": "991790727",
-      "name": "nikonikoCW/Meteor3DEditor",
-      "url": "https://github.com/nikonikoCW/Meteor3DEditor",
-      "summary": "基于 Three.js 和 Vue3 的三维引擎低代码编辑开发平台，专注于数字孪生和物联网数据大屏可视化开发。A low-code editing and development platform for 3D engines based on Three.js and Vue3, focusing on digital twin and IoT data visualization on large screens.",
-      "stars": 177,
-      "updatedAt": "2026-11-11T07:38:23Z",
+      "id": "1437278903",
+      "name": "faxforagents/sdk-typescript",
+      "url": "https://github.com/faxforagents/sdk-typescript",
+      "summary": "Fax for Agents is a fax API, a hosted MCP server and SDKs built so AI agents can send and receive faxes. It is made by JSB Holdings LLC.",
+      "stars": 0,
+      "updatedAt": "2026-11-12T13:00:50Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
-        "visual.generate"
+        "visual.generate",
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -456,60 +492,24 @@
       }
     },
     {
-      "id": "1082438194",
-      "name": "nitr0yukkuri/githubplanet",
-      "url": "https://github.com/nitr0yukkuri/githubplanet",
-      "summary": "Turn your GitHub activity into a personalized 3D planet, with language-specific visuals, achievements, and shareable profile cards. GitHubの活動を自分だけの3D惑星に。",
-      "stars": 7,
-      "updatedAt": "2026-11-11T07:55:05Z",
+      "id": "1230972042",
+      "name": "Haven16262/bili-progress-pwa",
+      "url": "https://github.com/Haven16262/bili-progress-pwa",
+      "summary": "Bilibili 多 P 视频观看进度 3D 可视化 PWA，自动同步观看历史并可视化追踪进度",
+      "stars": 0,
+      "updatedAt": "2026-11-12T10:29:49Z",
       "license": "MIT",
-      "score": 49,
-      "capabilities": [
-        "visual.generate"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1335725435",
-      "name": "olekingkole28-dot/bridgepoint-live",
-      "url": "https://github.com/olekingkole28-dot/bridgepoint-live",
-      "summary": "Open-source global 3D digital twin 🌎 Geospatial intelligence, property data, 3D terrain and buildings, weather and hazard mapping. 412M+ reported canonical property records.",
-      "stars": 1,
-      "updatedAt": "2026-11-11T11:11:32Z",
-      "license": "NOASSERTION",
-      "score": 47,
+      "score": 58,
       "capabilities": [
         "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "tool.search"
       ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
+      "riskFlags": [],
+      "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
