@@ -8,23 +8,27 @@ const generated = { conversation_id: "conv-fixture", outputs: [
     { type: "tool_file", tool: "image_generation", file_id: "image-fixture", file_type: "png" },
   ] },
 ] };
-test("uses one inline conversation and the actual conversation_id without creating an agent", async () => {
+test("uses the documented image agent and its actual conversation ID", async () => {
   const calls: string[] = [];
   const result = await generateMistralImage("test-key", "Parcel image", async (url, init) => {
     calls.push(String(url));
     const body = JSON.parse(String(init?.body));
-    assert.equal(body.tools[0].type, "image_generation");
-    assert.equal(body.completion_args.tool_choice, "any");
-    assert.equal(body.inputs, "Parcel image");
+    if (String(url).endsWith("/agents")) {
+      assert.equal(body.tools[0].type, "image_generation");
+      assert.equal(body.model, "mistral-medium-latest");
+      return Response.json({ id: "agent-fixture" });
+    }
+    assert.deepEqual(body, { agent_id: "agent-fixture", inputs: "Parcel image" });
     return Response.json(generated);
   });
-  assert.deepEqual(calls, ["https://api.mistral.ai/v1/conversations"]);
+  assert.deepEqual(calls, ["https://api.mistral.ai/v1/agents", "https://api.mistral.ai/v1/conversations"]);
   assert.equal(result.fileId, "image-fixture");
   assert.equal(result.conversationId, "conv-fixture");
 });
 test("a 429 survives the Worker route with Retry-After and no provider body/secret", async (t) => {
   let count = 0;
-  t.mock.method(globalThis, "fetch", async () => {
+  t.mock.method(globalThis, "fetch", async (url) => {
+    if (String(url).endsWith("/agents")) return Response.json({ id: "agent-fixture" });
     count++;
     return Response.json({ message: "SECRET-MUST-NOT-LEAK" }, { status: 429, headers: { "Retry-After": "120" } });
   });
@@ -43,7 +47,7 @@ test("no generated image is inferred from an input file, another tool or text", 
     { file_id: "input" },
     { ...generated, outputs: [{ type: "message.output", role: "assistant", content: [{ type: "tool_file", tool: "code_interpreter", file_id: "csv" }] }] },
     { ...generated, outputs: [{ type: "message.output", role: "assistant", content: "file_id: fictional" }] },
-  ]) await assert.rejects(generateMistralImage("test-key", "Parcel", async () => Response.json(payload)),
+  ]) await assert.rejects(generateMistralImage("test-key", "Parcel", async (url) => Response.json(String(url).endsWith("/agents") ? { id: "agent-fixture" } : payload)),
     (e: any) => e.code === "MISTRAL_IMAGE_FILE_MISSING" && e.providerOutcomeMayBeUnknown && !e.toJSON().retryAllowed);
 });
 test("authentication, permissions, billing and download throttling stay distinct", async () => {
@@ -55,7 +59,7 @@ test("authentication, permissions, billing and download throttling stay distinct
 test("rejects HTML downloads and never retries an uncertain generation", async () => {
   await assert.rejects(downloadMistralImage("test-key", "image", async () => new Response("<html/>", { headers: { "content-type": "text/html" } })), /CONTENT_TYPE_INVALID/);
   let calls=0;
-  await assert.rejects(generateMistralImage("test-key", "Parcel", async () => { calls++; throw new Error("private network diagnostics"); }),
+  await assert.rejects(generateMistralImage("test-key", "Parcel", async (url) => { if (String(url).endsWith("/agents")) return Response.json({ id: "agent-fixture" }); calls++; throw new Error("private network diagnostics"); }),
     (e: any) => e.code === "MISTRAL_IMAGE_NETWORK_FAILED" && !e.toJSON().retryAllowed);
   assert.equal(calls, 1);
 });
@@ -75,6 +79,7 @@ test("legacy media request does not retry Mistral or switch provider after 429 o
         return Response.json({ fields: columns.map(name => ({ name, dataTypeID: 25 })),
           rows: rows.map(row => columns.map(k => row[k])), rowCount: rows.length });
       }
+      if (String(url).endsWith("/agents")) return Response.json({ id: "agent-fixture" });
       assert.equal(String(url), "https://api.mistral.ai/v1/conversations");
       providerCalls++;
       return limited ? new Response("", { status: 429, headers: { "retry-after": "120" } })

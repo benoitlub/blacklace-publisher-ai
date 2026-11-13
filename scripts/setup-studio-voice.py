@@ -10,7 +10,7 @@ import sys
 
 target = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else 'data/studio-models').resolve()
 target.mkdir(parents=True, exist_ok=True)
-base = 'https://huggingface.co/rhasspy/piper-voices/resolve/main/fr/fr_FR/siwis/medium/'
+base = 'https://huggingface.co/rhasspy/piper-voices/resolve/d5de91c972ba5a13cea0e77a63fda1623faac2c1/fr/fr_FR/siwis/medium/'
 expected = '641d1ab097da2b81128c076810edb052b385decc8be3381814802a64a73baf99'
 for name in ['fr_FR-siwis-medium.onnx', 'fr_FR-siwis-medium.onnx.json', 'MODEL_CARD']:
     dest = target / name

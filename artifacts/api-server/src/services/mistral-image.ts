@@ -1,6 +1,6 @@
 /** Shared by the existing Node Studio and Worker; no SDK or remote agent needed. */
 export const MISTRAL_IMAGE_MODEL = "mistral-medium-latest";
-export type ImageStage = "configuration" | "conversation" | "download";
+export type ImageStage = "configuration" | "agent" | "conversation" | "download";
 export class MistralImageError extends Error {
   constructor(
     public code: string,
@@ -18,7 +18,8 @@ export class MistralImageError extends Error {
         (this.stage === "download" && ["MISTRAL_IMAGE_NETWORK_FAILED", "MISTRAL_IMAGE_UPSTREAM_FAILED", "MISTRAL_IMAGE_DOWNLOAD_INTERRUPTED"].includes(this.code) && this.httpStatus >= 500),
       providerOutcomeMayBeUnknown: this.providerOutcomeMayBeUnknown,
       provider: { service: "mistral", model: MISTRAL_IMAGE_MODEL, stage: this.stage,
-        endpoint: this.stage === "download" ? "/v1/files/{file_id}/content" : "/v1/conversations",
+        endpoint: this.stage === "download" ? "/v1/files/{file_id}/content" :
+          this.stage === "agent" ? "/v1/agents" : "/v1/conversations",
         ...(this.conversationId ? { conversationId: this.conversationId } : {}) },
     };
   }
@@ -51,16 +52,27 @@ export async function mistralImageFetch(
 }
 export async function generateMistralImage(key: string, prompt: string, fetchImpl: typeof fetch = fetch) {
   if (!prompt.trim()) throw new MistralImageError("MISTRAL_IMAGE_PROMPT_REQUIRED", 400, "configuration");
-  const response = await mistralImageFetch(key, "https://api.mistral.ai/v1/conversations", {
+  const headers = { "Content-Type": "application/json", Accept: "application/json" };
+  const agentResponse = await mistralImageFetch(key, "https://api.mistral.ai/v1/agents", {
     method: "POST",
-    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    headers,
     body: JSON.stringify({
+      name: "Publisher Image Studio",
       model: MISTRAL_IMAGE_MODEL,
       instructions: "Use image_generation to produce the requested image, not a description. Do not add readable text unless explicitly requested.",
       tools: [{ type: "image_generation" }],
-      completion_args: { temperature: 0.3, tool_choice: "any" },
-      inputs: prompt,
+      completion_args: { temperature: 0.3 },
     }),
+  }, "agent", fetchImpl);
+  const agent: unknown = await agentResponse.json().catch(() => null);
+  if (!agent || typeof agent !== "object" || !("id" in agent) ||
+      typeof agent.id !== "string" || !agent.id.trim())
+    throw new MistralImageError("MISTRAL_IMAGE_AGENT_ID_MISSING", 502, "agent");
+
+  const response = await mistralImageFetch(key, "https://api.mistral.ai/v1/conversations", {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ agent_id: agent.id, inputs: prompt }),
   }, "conversation", fetchImpl);
   const payload = await response.json().catch(() => null) as any;
   const conversationId = typeof payload?.conversation_id === "string" ? payload.conversation_id : undefined;
