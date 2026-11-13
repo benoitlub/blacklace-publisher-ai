@@ -64,8 +64,9 @@ export async function generateMistralImage(key: string, prompt: string, fetchImp
       completion_args: { temperature: 0.3 },
     }),
   }, "agent", fetchImpl);
-  const agent = await agentResponse.json().catch(() => null);
-  if (typeof agent?.id !== "string" || !agent.id.trim())
+  const agent: unknown = await agentResponse.json().catch(() => null);
+  if (!agent || typeof agent !== "object" || !("id" in agent) ||
+      typeof agent.id !== "string" || !agent.id.trim())
     throw new MistralImageError("MISTRAL_IMAGE_AGENT_ID_MISSING", 502, "agent");
 
   const response = await mistralImageFetch(key, "https://api.mistral.ai/v1/conversations", {
