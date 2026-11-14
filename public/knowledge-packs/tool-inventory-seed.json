@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-24T19:14:38.741Z",
+  "source": "Composio production metadata diagnostic (read-only)",
+  "verification": "schemas-only-no-provider-executions",
+  "tools": [
+    { "slug": "COMPOSIO_SEARCH_DUCK_DUCK_GO" },
+    { "slug": "COMPOSIO_SEARCH_EVENT" },
+    { "slug": "COMPOSIO_SEARCH_EXA_ANSWER" },
+    { "slug": "COMPOSIO_SEARCH_FETCH_URL_CONTENT" },
+    { "slug": "COMPOSIO_SEARCH_GOOGLE_MAPS" },
+    { "slug": "COMPOSIO_SEARCH_IMAGE" },
+    { "slug": "COMPOSIO_SEARCH_NPPESNPI_LOOKUP" },
+    { "slug": "COMPOSIO_SEARCH_SCHOLAR" },
+    { "slug": "COMPOSIO_SEARCH_TAVILY" },
+    { "slug": "COMPOSIO_SEARCH_WEB" }
+  ]
+}
