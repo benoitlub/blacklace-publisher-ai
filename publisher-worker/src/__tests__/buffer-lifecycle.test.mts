@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { executeBufferBookPost, GERARD_BOOK_CHANNEL_ID, type BufferReservation } from "../buffer-book-post.ts";
-import { chooseSocialTransport } from "../social-transport.ts";
+import { chooseSocialTransport, inspectSocialCapabilities } from "../social-transport.ts";
 
 const input = { harvestId: "book", text: "Texte choisi par Gérard", mediaUrl: "https://example.org/cover.jpg", channelId: GERARD_BOOK_CHANNEL_ID, publish: true, dryRun: false };
 function fixture(options: { fail?: string; paused?: boolean; badPost?: string } = {}) {
@@ -99,4 +99,40 @@ test("Buffer concurrent calls claim only one create and one queue mutation", asy
 test("explicit Metricool request never silently falls back to Buffer", () => {
   assert.deepEqual(chooseSocialTransport({ requested: "metricool", metricoolAvailable: false, bufferConnected: true, allowBufferProduction: true }), { transport: "metricool", mode: "hold", reason: "requested-metricool-unavailable" });
   assert.equal(chooseSocialTransport({ requested: "buffer", metricoolAvailable: true, bufferConnected: true, allowBufferProduction: true }).transport, "buffer");
+});
+
+test("social capability inventory never swaps the requested account", () => {
+  const observation = { provider: "buffer" as const, account: "benoitlubert", network: "instagram",
+    connected: true, canSchedule: true, supportedMedia: ["image"] as const,
+    verifiedAt: "2026-10-23T15:00:00Z", source: "provider-read" };
+  assert.deepEqual(inspectSocialCapabilities({
+    targetAccount: "pro.hbtd", network: "instagram", media: "image", observations: [observation],
+  }), { status: "no-verified-transport", candidates: [] });
+});
+
+test("unverified capability or missing media permission always blocks", () => {
+  const base = { provider: "metricool" as const, account: "pro.hbtd", network: "instagram",
+    connected: true, canSchedule: true, supportedMedia: ["image"] as const,
+    verifiedAt: null, source: null };
+  const unknown = inspectSocialCapabilities({
+    targetAccount: "pro.hbtd", network: "instagram", media: "image", observations: [base],
+  });
+  assert.equal(unknown.status, "no-verified-transport");
+  assert.equal(unknown.candidates[0]?.reason, "capability-not-verified");
+  const missingMedia = inspectSocialCapabilities({
+    targetAccount: "pro.hbtd", network: "instagram", media: "video",
+    observations: [{ ...base, verifiedAt: "2026-10-23T15:00:00Z", source: "provider-read" }],
+  });
+  assert.equal(missingMedia.candidates[0]?.reason, "media-not-supported");
+});
+
+test("verified matching transport is only marked available in read-only inventory", () => {
+  const result = inspectSocialCapabilities({
+    targetAccount: "@benoitlubert", network: "instagram", media: "image",
+    observations: [{ provider: "buffer", account: "benoitlubert", network: "instagram",
+      connected: true, canSchedule: true, supportedMedia: ["image"],
+      verifiedAt: "2026-10-23T15:00:00Z", source: "provider-read" }],
+  });
+  assert.equal(result.status, "available");
+  assert.equal(result.candidates[0]?.reason, "verified-scheduling-capability");
 });
