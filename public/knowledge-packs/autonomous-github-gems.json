@@ -2,91 +2,19 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-13",
+  "generatedDate": "2026-11-14",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "620676737",
-      "name": "jianzhnie/awesome-text-to-video",
-      "url": "https://github.com/jianzhnie/awesome-text-to-video",
-      "summary": " A Survey on Text-to-Video Generation/Synthesis.",
-      "stars": 755,
-      "updatedAt": "2026-11-13T14:08:25Z",
+      "id": "1438661890",
+      "name": "JuneYaooo/rea-video",
+      "url": "https://github.com/JuneYaooo/rea-video",
+      "summary": "Reverse-engineer any video, shot by shot: filmed, AI-generated or coded, and how to remake it. Breakdowns in the open VIDEO.md format. 逆向一切视频，逐个镜头看是拍的、AI 生成的还是代码做的，再告诉你怎么复刻；拆解结果按 VIDEO.md 格式输出。",
+      "stars": 8304,
+      "updatedAt": "2026-11-14T13:29:59Z",
       "license": "Apache-2.0",
-      "score": 100,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1054512829",
-      "name": "vllm-project/vllm-omni",
-      "url": "https://github.com/vllm-project/vllm-omni",
-      "summary": "A framework for efficient model inference with omni-modality models",
-      "stars": 7740,
-      "updatedAt": "2026-11-13T14:21:02Z",
-      "license": "Apache-2.0",
-      "score": 100,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1325364035",
-      "name": "rookiestar28/MiniMaxH3-Studio",
-      "url": "https://github.com/rookiestar28/MiniMaxH3-Studio",
-      "summary": "Direct MiniMax H3 like a pro: Idea in, finished video out. A complete MiniMax H3 studio that lives in your ComfyUI.",
-      "stars": 158,
-      "updatedAt": "2026-11-13T14:17:30Z",
-      "license": "Apache-2.0",
-      "score": 85,
+      "score": 94,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -114,14 +42,49 @@
       }
     },
     {
-      "id": "1341557301",
-      "name": "chrissix666/Jellyfin-Cinema-Project",
-      "url": "https://github.com/chrissix666/Jellyfin-Cinema-Project",
-      "summary": "A first-person 3D cinema for Jellyfin Web. Watch and listen to the soul of a movie, a visualized experience you step into like a video game",
-      "stars": 13,
-      "updatedAt": "2026-11-12T15:46:24Z",
+      "id": "1333579278",
+      "name": "ZASENJC/dsh-plugins-store",
+      "url": "https://github.com/ZASENJC/dsh-plugins-store",
+      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
+      "stars": 74,
+      "updatedAt": "2026-11-14T10:47:13Z",
       "license": "MIT",
-      "score": 79,
+      "score": 83,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1285376005",
+      "name": "riffkit/skill",
+      "url": "https://github.com/riffkit/skill",
+      "summary": "Official Riffkit skill — change the outfit, place, product or person in your video, or riff a winning short video, from ChatGPT, Claude, Claude Code, Codex, Cursor or the browser.",
+      "stars": 8,
+      "updatedAt": "2026-11-14T12:47:05Z",
+      "license": "MIT",
+      "score": 78,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -149,24 +112,25 @@
       }
     },
     {
-      "id": "1231135337",
-      "name": "strukto-ai/mirage",
-      "url": "https://github.com/strukto-ai/mirage",
-      "summary": "The World's First Virtual Terminal for AI Agents",
-      "stars": 3785,
-      "updatedAt": "2026-11-13T14:49:28Z",
+      "id": "1421324273",
+      "name": "bitilia/es3d",
+      "url": "https://github.com/bitilia/es3d",
+      "summary": "Extensible Scalable 3D",
+      "stars": 4,
+      "updatedAt": "2026-11-13T19:45:11Z",
       "license": "Apache-2.0",
-      "score": 79,
+      "score": 76,
       "capabilities": [
-        "tool.search",
-        "knowledge.search"
+        "video.generate",
+        "visual.generate",
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -183,12 +147,47 @@
       }
     },
     {
-      "id": "1397753114",
-      "name": "R0zumnik/memglow",
-      "url": "https://github.com/R0zumnik/memglow",
-      "summary": "Watch your AI's memory come alive — a live 3D brain of your Markdown notes that lights up as Claude Code, Cursor & other agents read, search and write.",
+      "id": "1214395862",
+      "name": "kitepon/Caveat",
+      "url": "https://github.com/kitepon/Caveat",
+      "summary": "Long-term memory layer for Claude Code and Codex — markdown-in-git knowledge base, SQLite FTS5 retrieval, MCP, and native agent hooks.",
+      "stars": 3,
+      "updatedAt": "2026-11-14T13:48:18Z",
+      "license": "MIT",
+      "score": 76,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1389382283",
+      "name": "jjongguet/gjc-plugin",
+      "url": "https://github.com/jjongguet/gjc-plugin",
+      "summary": "Plugins for gajae-code (gjc) that make an agent's work checkable: test receipts, loopback UI assertions, plan validation, advisory delegation checks and a self-improvement ledger.",
       "stars": 2,
-      "updatedAt": "2026-11-13T08:37:26Z",
+      "updatedAt": "2026-11-14T13:35:45Z",
       "license": "MIT",
       "score": 75,
       "capabilities": [
@@ -218,14 +217,14 @@
       }
     },
     {
-      "id": "1361450395",
-      "name": "Chenxi-Only-Y/Little_Crew",
-      "url": "https://github.com/Chenxi-Only-Y/Little_Crew",
-      "summary": "面向 AIGC 漫剧的统一 IR 与确定性验收平台 —— 语义约束可编译、产物可复现、不合格可拦截 零第三方依赖 · 11 层 · 1153 项测试 · CLI + HTTP 接口 · legacy/ 为同仓库前代实现",
-      "stars": 1,
-      "updatedAt": "2026-11-13T14:42:06Z",
-      "license": "Apache-2.0",
-      "score": 74,
+      "id": "1452327660",
+      "name": "chloeyntu-byte/layout-3d-viewer",
+      "url": "https://github.com/chloeyntu-byte/layout-3d-viewer",
+      "summary": "3D viewer for IC layouts (OA, GDS, OASIS, JSON): see hidden metal, read the layer stack, find pins, submodules and nets from one search box.",
+      "stars": 0,
+      "updatedAt": "2026-11-14T12:11:40Z",
+      "license": "MIT",
+      "score": 72,
       "capabilities": [
         "visual.generate",
         "tool.search",
@@ -253,47 +252,12 @@
       }
     },
     {
-      "id": "1450020713",
-      "name": "chrissix666/Jellyfin-Globe",
-      "url": "https://github.com/chrissix666/Jellyfin-Globe",
-      "summary": "Your Jellyfin libraries as a 3D globe: thousands of posters, backdrops and logos on a sphere you turn and zoom like a map; a double-click opens the title",
-      "stars": 1,
-      "updatedAt": "2026-11-12T15:49:44Z",
-      "license": "MIT",
-      "score": 74,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1452203169",
-      "name": "fiwon123/viral-short-videos-ai",
-      "url": "https://github.com/fiwon123/viral-short-videos-ai",
-      "summary": "AI-assisted studio for creating original 2D, 2.5D, and 3D animated shorts for YouTube and TikTok",
+      "id": "1457717417",
+      "name": "Maria-Aleana-De-Leon/Open-Explainer",
+      "url": "https://github.com/Maria-Aleana-De-Leon/Open-Explainer",
+      "summary": "Open-source toolkit for narrated explainer videos: your voice, your own mascot, word-timed scenes, lip sync, sound design and FFmpeg rendering, driven by Claude Code or Codex agent skills (public beta)",
       "stars": 0,
-      "updatedAt": "2026-11-13T14:26:52Z",
+      "updatedAt": "2026-11-14T13:19:44Z",
       "license": "MIT",
       "score": 72,
       "capabilities": [
@@ -328,7 +292,7 @@
       "url": "https://github.com/backenly/backenly",
       "summary": "Autonomous backend platform. Your coding agent builds it over MCP, Backenly keeps it running: Postgres, REST APIs, auth, storage, realtime, and functions, with every change governed, verified, and reversible.",
       "stars": 84,
-      "updatedAt": "2026-11-13T12:21:50Z",
+      "updatedAt": "2026-11-14T13:27:00Z",
       "license": "Apache-2.0",
       "score": 70,
       "capabilities": [
@@ -362,7 +326,7 @@
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 7,
-      "updatedAt": "2026-11-13T14:52:55Z",
+      "updatedAt": "2026-11-14T13:46:40Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
@@ -391,48 +355,14 @@
       }
     },
     {
-      "id": "1205267694",
-      "name": "LanNguyenSi/agent-dx",
-      "url": "https://github.com/LanNguyenSi/agent-dx",
-      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
-      "stars": 6,
-      "updatedAt": "2026-11-13T12:25:13Z",
-      "license": "MIT",
-      "score": 63,
-      "capabilities": [
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1415333343",
-      "name": "eloyhere/deepseek-coordination",
-      "url": "https://github.com/eloyhere/deepseek-coordination",
-      "summary": "A dual-face Cordis plugin for DeepSeek Harness: the host half owns a coordination SQLite database, seven model-facing tools and an HTTP surface; the web half mounts five composer dropdowns, a settings catalog and the service-level takeover dialog.",
-      "stars": 1,
-      "updatedAt": "2026-11-13T12:31:17Z",
+      "id": "1339554434",
+      "name": "nisconder/npm-safe-forDSH",
+      "url": "https://github.com/nisconder/npm-safe-forDSH",
+      "summary": "DeepSeek Harness plugin that checks npm packages before install — 22 supply-chain rules, deep tarball scans, CI gates, local-first.",
+      "stars": 5,
+      "updatedAt": "2026-11-14T11:48:25Z",
       "license": "Apache-2.0",
-      "score": 60,
+      "score": 63,
       "capabilities": [
         "tool.search",
         "knowledge.search"
@@ -459,28 +389,23 @@
       }
     },
     {
-      "id": "1425543662",
-      "name": "shahed1475/Studio",
-      "url": "https://github.com/shahed1475/Studio",
-      "summary": "Automated YouTube story channel: script, voice, footage, render, review, upload, growth agent, 24/7 Docker worker",
-      "stars": 0,
-      "updatedAt": "2026-11-13T14:41:52Z",
-      "license": "UNKNOWN",
-      "score": 59,
+      "id": "1367044972",
+      "name": "Qiuner/birdview",
+      "url": "https://github.com/Qiuner/birdview",
+      "summary": "Stop letting AI code blind. Map the architecture before every change with Birdview.",
+      "stars": 687,
+      "updatedAt": "2026-11-14T10:43:30Z",
+      "license": "MIT",
+      "score": 61,
       "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "tool.search"
       ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
+      "riskFlags": [],
+      "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -497,12 +422,12 @@
       }
     },
     {
-      "id": "1437278903",
-      "name": "faxforagents/sdk-typescript",
-      "url": "https://github.com/faxforagents/sdk-typescript",
-      "summary": "Fax for Agents is a fax API, a hosted MCP server and SDKs built so AI agents can send and receive faxes. It is made by JSB Holdings LLC.",
+      "id": "1230972042",
+      "name": "Haven16262/bili-progress-pwa",
+      "url": "https://github.com/Haven16262/bili-progress-pwa",
+      "summary": "Bilibili 多 P 视频观看进度 3D 可视化 PWA，自动同步观看历史并可视化追踪进度",
       "stars": 0,
-      "updatedAt": "2026-11-13T11:37:29Z",
+      "updatedAt": "2026-11-14T04:33:35Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
@@ -515,6 +440,74 @@
       "adaptation": {
         "mode": "pattern-first",
         "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1313178990",
+      "name": "Kamran5H/VideoStudio",
+      "url": "https://github.com/Kamran5H/VideoStudio",
+      "summary": "🎥 AI Video Generation Studio — Text-to-Video & Image-to-Video engine with Gradio & Free Cloud GPU Acceleration",
+      "stars": 0,
+      "updatedAt": "2026-11-14T13:44:06Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "video.generate",
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1457507637",
+      "name": "stock-programmer/set",
+      "url": "https://github.com/stock-programmer/set",
+      "summary": "片场 · 短剧制作工作台｜从一句创意开始做 AI 短剧、AI 视频与 AI 电影。剧本 Agent 和视频制作 Agent 协作完成分镜、角色定妆与试音、镜头生成和验收，支持资产版本绑定、成片预览与全流程 Trace 追踪。",
+      "stars": 0,
+      "updatedAt": "2026-11-14T13:08:18Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "video.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
