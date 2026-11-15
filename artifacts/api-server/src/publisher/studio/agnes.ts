@@ -1,4 +1,4 @@
-/** Agnes Video Flash: explicit opt-in only. No automatic spend or publishing. */
+/** Agnes Video Flash: explicit opt-in only. No automatic scheduling or publishing. */
 export type AgnesTask = { video_id: string; status?: string };
 export type AgnesState = "queued" | "in_progress" | "completed" | "failed";
 const endpoint = "https://apihub.agnes-ai.com";
@@ -10,13 +10,13 @@ export class AgnesVideoError extends Error {
 export function agnesConfigured(env: NodeJS.ProcessEnv = process.env) {
   return Boolean(env.AGNES_API_KEY?.trim());
 }
-/** Requires an explicit, separately verified zero-cost authorization. */
+/** Requires explicit user authorization; no separate zero-cost attestation gate. */
 export async function submitAgnesVideo(
   prompt: string,
-  options: { confirmedZeroCost: boolean; authorized: boolean; key?: string; fetcher?: typeof fetch },
+  options: { confirmedZeroCost?: boolean; authorized: boolean; key?: string; fetcher?: typeof fetch },
 ): Promise<AgnesTask> {
-  if (!options.authorized || !options.confirmedZeroCost)
-    throw new AgnesVideoError("AGNES_COST_OR_AUTHORIZATION_UNVERIFIED");
+  if (!options.authorized)
+    throw new AgnesVideoError("AGNES_AUTHORIZATION_REQUIRED");
   const key = options.key ?? process.env.AGNES_API_KEY;
   if (!key?.trim()) throw new AgnesVideoError("AGNES_API_KEY_MISSING");
   if (!prompt.trim() || prompt.length > 1000) throw new AgnesVideoError("AGNES_PROMPT_INVALID");
