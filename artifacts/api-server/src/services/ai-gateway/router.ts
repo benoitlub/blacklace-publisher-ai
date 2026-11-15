@@ -18,14 +18,19 @@ export class AiGatewayRouter {
         continue;
       }
 
-      const response = await candidate.generate(request);
-      if (response.ok) {
-        this.quotaStore.markSuccess(candidate.id);
-        this.lastProviderUsed = candidate.id;
-        return {
-          ...response,
-          fallbackUsed: candidate.id === "mock" && request.preferredProvider !== "mock" ? true : response.fallbackUsed
-        };
+      try {
+        const response = await candidate.generate(request);
+        if (response.ok) {
+          this.quotaStore.markSuccess(candidate.id);
+          this.lastProviderUsed = candidate.id;
+          return {
+            ...response,
+            fallbackUsed: candidate.id === "mock" && request.preferredProvider !== "mock" ? true : response.fallbackUsed
+          };
+        }
+      } catch {
+        // A provider timeout, network error or SDK exception must not abort
+        // the entire gateway. Never expose exception messages or credentials.
       }
 
       this.quotaStore.markFailure(candidate.id);
