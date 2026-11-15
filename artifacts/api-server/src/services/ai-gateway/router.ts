@@ -46,9 +46,19 @@ export class AiGatewayRouter {
       };
     }
 
-    const response = await mock.generate(request);
-    this.lastProviderUsed = mock.id;
-    return { ...response, fallbackUsed: true };
+    try {
+      const response = await mock.generate(request);
+      this.lastProviderUsed = mock.id;
+      return { ...response, fallbackUsed: true };
+    } catch {
+      return {
+        ok: false,
+        provider: "none",
+        output: "",
+        fallbackUsed: true,
+        error: "No AI provider available"
+      };
+    }
   }
 
   getStatus(): { readonly mode: "mock" | "auto"; readonly lastProviderUsed: string } {
