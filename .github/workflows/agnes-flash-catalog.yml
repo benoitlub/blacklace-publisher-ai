@@ -1,0 +1,44 @@
+name: Agnes Flash model availability (read only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Query model catalog without generating
+        env:
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          const key = process.env.AGNES_API_KEY;
+          if (!key) { console.error("AGNES_API_KEY_MISSING"); process.exitCode = 1; }
+          else {
+            try {
+              const response = await fetch("https://apihub.agnes-ai.com/v1/models", {
+                headers: { Authorization: "Bearer " + key },
+                signal: AbortSignal.timeout(20000),
+              });
+              if (!response.ok) throw new Error("AGNES_CATALOG_HTTP_" + response.status);
+              const payload = await response.json();
+              const entries = Array.isArray(payload?.data) ? payload.data :
+                Array.isArray(payload?.models) ? payload.models :
+                Array.isArray(payload) ? payload : null;
+              if (!entries) throw new Error("AGNES_CATALOG_SCHEMA_UNKNOWN");
+              const matching = entries.find(item => item?.id === "agnes-video-2.5-flash" || item?.name === "agnes-video-2.5-flash");
+              if (!matching) throw new Error("AGNES_FLASH_NOT_LISTED");
+              console.log("AGNES_FLASH_LISTED=true");
+              // Pricing is not inferred from the model listing.
+              console.log("AGNES_FLASH_ZERO_COST_CONFIRMED=false");
+              console.log("VIDEO_GENERATIONS=0");
+            } catch (e) {
+              console.error(e instanceof Error ? e.message : "AGNES_CATALOG_ERROR");
+              process.exitCode = 1;
+            }
+          }
+          NODE
