@@ -27,6 +27,21 @@ jobs:
         with:
           node-version: 22
 
+      - name: Curate existing Studio media (metadata only)
+        run: node scripts/observatory-studio-media.mjs
+
+      - name: Save Studio media inventory independently of Notion
+        run: |
+          git config user.name "Blacklace Publisher"
+          git config user.email "actions@users.noreply.github.com"
+          git add public/knowledge-packs/studio-media-inventory.json
+          if git diff --cached --quiet; then
+            echo "No Studio media inventory changes"
+          else
+            git commit -m "knowledge(publisher): refresh Studio media inventory"
+            git push
+          fi
+
       - name: Check Notion configuration
         run: |
           if [ -z "$NOTION_API_KEY" ]; then
