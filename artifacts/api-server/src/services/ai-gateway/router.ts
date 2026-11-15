@@ -18,14 +18,19 @@ export class AiGatewayRouter {
         continue;
       }
 
-      const response = await candidate.generate(request);
-      if (response.ok) {
-        this.quotaStore.markSuccess(candidate.id);
-        this.lastProviderUsed = candidate.id;
-        return {
-          ...response,
-          fallbackUsed: candidate.id === "mock" && request.preferredProvider !== "mock" ? true : response.fallbackUsed
-        };
+      try {
+        const response = await candidate.generate(request);
+        if (response.ok) {
+          this.quotaStore.markSuccess(candidate.id);
+          this.lastProviderUsed = candidate.id;
+          return {
+            ...response,
+            fallbackUsed: candidate.id === "mock" && request.preferredProvider !== "mock" ? true : response.fallbackUsed
+          };
+        }
+      } catch {
+        // A provider timeout, network error or SDK exception must not abort
+        // the entire gateway. Never expose exception messages or credentials.
       }
 
       this.quotaStore.markFailure(candidate.id);
@@ -41,9 +46,19 @@ export class AiGatewayRouter {
       };
     }
 
-    const response = await mock.generate(request);
-    this.lastProviderUsed = mock.id;
-    return { ...response, fallbackUsed: true };
+    try {
+      const response = await mock.generate(request);
+      this.lastProviderUsed = mock.id;
+      return { ...response, fallbackUsed: true };
+    } catch {
+      return {
+        ok: false,
+        provider: "none",
+        output: "",
+        fallbackUsed: true,
+        error: "No AI provider available"
+      };
+    }
   }
 
   getStatus(): { readonly mode: "mock" | "auto"; readonly lastProviderUsed: string } {
