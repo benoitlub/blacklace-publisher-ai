@@ -1,0 +1,71 @@
+name: Agnes first video - manual gated test
+
+on:
+  workflow_dispatch:
+    inputs:
+      zero_cost_confirmed:
+        description: 'I verified the current Flash API generation price is $0 for this account'
+        type: boolean
+        required: true
+        default: false
+      authorized_once:
+        description: 'I authorize exactly one 5-second Flash video request'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agnes-first-video-single-flight
+  cancel-in-progress: false
+
+jobs:
+  first-video:
+    if: ${{ inputs.zero_cost_confirmed && inputs.authorized_once }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Create one Flash video task and poll without publishing
+        env:
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+        run: |
+          node --input-type=module <<'NODE'
+          const key = process.env.AGNES_API_KEY;
+          if (!key) throw new Error("AGNES_API_KEY_MISSING");
+          const root = "https://apihub.agnes-ai.com";
+          const model = "agnes-video-2.5-flash";
+          const prompt = "Cinematic vertical fantasy animation: the harbor of Blacklace Island at blue hour, warm lanterns flickering on along wooden docks, a tiny seagull gliding across the sky, a distant volcano glowing gently; smooth forward camera movement, whimsical adventurous atmosphere, no text, no logos, no violence.";
+          const submit = await fetch(root + "/v1/videos", {
+            method: "POST",
+            headers: { Authorization: "Bearer " + key, "Content-Type": "application/json" },
+            body: JSON.stringify({ model, mode: "text", prompt, seconds: "5", size: "720P", aspect_ratio: "9:16" }),
+            signal: AbortSignal.timeout(30000),
+          });
+          if (!submit.ok) throw new Error("AGNES_SUBMIT_HTTP_" + submit.status);
+          const created = await submit.json();
+          const videoId = created?.video_id ?? created?.data?.video_id;
+          if (typeof videoId !== "string" || !/^[\w-]{1,160}$/.test(videoId))
+            throw new Error("AGNES_TASK_ID_MISSING");
+          console.log("AGNES_TASK_CREATED=true"); // Never print IDs, URLs, provider bodies or credentials.
+          for (let attempt = 0; attempt < 12; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, 15000));
+            const response = await fetch(root + "/agnesapi?video_id=" + encodeURIComponent(videoId) + "&model_name=" + model, {
+              headers: { Authorization: "Bearer " + key },
+              signal: AbortSignal.timeout(20000),
+            });
+            if (!response.ok) throw new Error("AGNES_POLL_HTTP_" + response.status);
+            const data = await response.json();
+            const status = data?.status ?? data?.data?.status;
+            if (status === "completed") {
+              console.log("AGNES_VIDEO_COMPLETED=true");
+              console.log("AGNES_VIDEO_DOWNLOAD_NOT_YET_IMPLEMENTED=true");
+              process.exit(0);
+            }
+            if (status === "failed") throw new Error("AGNES_GENERATION_FAILED");
+            if (status !== "queued" && status !== "in_progress") throw new Error("AGNES_UNKNOWN_STATUS");
+            console.log("AGNES_VIDEO_PENDING attempt=" + (attempt + 1));
+          }
+          throw new Error("AGNES_POLL_TIMEOUT_TASK_MAY_STILL_BE_RUNNING");
+          NODE

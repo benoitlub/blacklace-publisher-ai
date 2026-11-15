@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "project": "Blacklace Island",
+  "status": "reference-metadata-only",
+  "notes": "Visuals were supplied in the conversation, not committed to this repository. No file URLs or hashes are asserted. Image-to-video is disabled until the Agnes API input contract and rights-checked asset ingestion are verified.",
+  "references": [
+    {
+      "id": "harbor-day",
+      "source": "user-upload-1",
+      "scene": "harbor",
+      "lighting": "sunset",
+      "features": ["stone causeway centered in frame", "turquoise-domed buildings", "glowing volcano in the background", "water and wooden quays", "warm hanging lanterns"]
+    },
+    {
+      "id": "harbor-night",
+      "source": "user-upload-2",
+      "scene": "harbor",
+      "lighting": "moonlit-night",
+      "features": ["same composition and architecture as harbor-day", "moon in upper-left sky", "warm lit windows", "cool blue sea", "distant glowing volcano"]
+    },
+    {
+      "id": "institute-day",
+      "source": "user-upload-3",
+      "scene": "feuch-institute",
+      "lighting": "day",
+      "features": ["symmetrical double curved staircase", "central golden eye emblem", "glass skylight", "plants and leather armchairs", "FEUCH INSTITUTE signage"]
+    },
+    {
+      "id": "institute-night",
+      "source": "user-upload-4",
+      "scene": "feuch-institute",
+      "lighting": "night",
+      "features": ["same staircase and layout as institute-day", "blue moonlight", "warm lamps", "central golden eye emblem"]
+    },
+    {
+      "id": "harbor-parallax-layers",
+      "source": "user-upload-5",
+      "scene": "harbor",
+      "lighting": "mixed",
+      "layers": ["sky and atmosphere", "mountains and volcano", "distant villages", "Rotas and main architecture", "docks and rocks", "foreground props"],
+      "notes": "The supplied image is a labeled compositing reference sheet, not a verified set of individually transparent PNG assets."
+    }
+  ],
+  "generationPolicy": {
+    "preferred": "image-to-video when API and secured image ingestion are proven",
+    "fallback": "text-to-video using reference-derived descriptions only",
+    "noPaidFallback": true,
+    "noAutomaticPublication": true
+  }
+}
