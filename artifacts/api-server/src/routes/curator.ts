@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { AutonomousCurator, type CuratorContext, type CuratorSignal } from "../services/autonomous-curator.js";
 import { CuratorPostgresStore } from "../services/curator-postgres-store.js";
+import { studioMediaCuratorSignals } from "../services/curator-studio-media.js";
 
 const router: IRouter = Router();
 const store = new CuratorPostgresStore();
@@ -64,6 +65,22 @@ router.post("/signals", async (req, res, next) => {
     }
     const record = await store.ingest(signal);
     res.status(202).json({ status: "captured", signalId: signal.id, ...record });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Explicit synchronization: no automatic provider access or publishing.
+router.post("/media/sync", async (_req, res, next) => {
+  try {
+    const { signals, skipped } = await studioMediaCuratorSignals();
+    const captured = [];
+    for (const signal of signals) {
+      const record = await store.ingest(signal);
+      captured.push({ signalId: signal.id, ...record });
+    }
+    res.json({ status: "synced", source: "publisher-studio-catalog",
+      capturedCount: captured.length, skipped, captured, publicationEnabled: false });
   } catch (error) {
     next(error);
   }
