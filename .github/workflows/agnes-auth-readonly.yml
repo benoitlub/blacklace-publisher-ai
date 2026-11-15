@@ -1,0 +1,35 @@
+name: Agnes read-only authentication check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify-agnes-auth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Verify API key using read-only model listing
+        env:
+          AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$AGNES_API_KEY" ]; then
+            echo "::error::AGNES_API_KEY_MISSING"
+            exit 1
+          fi
+          # Never print token, response body or provider URLs. No generation request.
+          http_status=$(curl --silent --show-error --location --max-time 20 \
+            --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer $AGNES_API_KEY" \
+            --header "Accept: application/json" \
+            'https://apihub.agnes-ai.com/v1/models')
+          case "$http_status" in
+            200) echo "AGNES_READONLY_AUTH_HTTP_200";;
+            401|403) echo "::error::AGNES_AUTH_REJECTED_HTTP_$http_status"; exit 1;;
+            *) echo "::error::AGNES_MODELS_HTTP_$http_status"; exit 1;;
+          esac
+          echo "No video creation, no credit spend, no publication."
