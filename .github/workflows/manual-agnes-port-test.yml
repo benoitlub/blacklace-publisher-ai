@@ -1,0 +1,37 @@
+name: Manual Agnes Blacklace port test
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type GENERATE to authorize one Agnes Flash video request (may consume credits)"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: manual-agnes-port-test
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    if: ${{ inputs.confirm == 'GENERATE' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      AGNES_API_KEY: ${{ secrets.AGNES_API_KEY }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Generate one port video and poll
+        run: node scripts/manual-agnes-port-test.mjs
+      - name: Upload safe status report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agnes-port-status
+          path: agnes-port-result.json
+          if-no-files-found: ignore
+          retention-days: 7
