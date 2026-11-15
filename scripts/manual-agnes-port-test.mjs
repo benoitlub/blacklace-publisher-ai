@@ -10,10 +10,30 @@ const prompt = 'Blacklace Island, the Port of Porsa Rotas, cinematic fantasy isl
 const headers = {Authorization: 'Bearer ' + key, 'Content-Type':'application/json'};
 async function request(url, init) {
   const response = await fetch(url, {...init, signal: AbortSignal.timeout(25000), redirect:'error'});
-  if (!response.ok) throw new Error('AGNES_HTTP_' + response.status);
+  if (!response.ok) {
+    const contentType = response.headers.get('content-type') || '';
+    const retryAfter = response.headers.get('retry-after');
+    const raw = await response.text().catch(() => '');
+    let code = '';
+    if (contentType.includes('application/json')) {
+      try {
+        const body = JSON.parse(raw);
+        const candidate = body?.error?.code ?? body?.code ?? body?.error?.type;
+        if (typeof candidate === 'string' && /^[a-zA-Z0-9_.-]{1,80}$/.test(candidate)) code = candidate;
+      } catch {}
+    }
+    // Only allowlisted metadata; never expose raw responses or authentication.
+    report.httpStatus = response.status;
+    report.providerErrorCode = code || undefined;
+    report.retryAfterSeconds = retryAfter && /^[0-9]{1,5}$/.test(retryAfter) ? Number(retryAfter) : undefined;
+    report.responseType = contentType.split(';')[0].slice(0,80);
+    report.failurePhase = report.video_id ? 'poll' : 'submit';
+    save();
+    throw new Error('AGNES_HTTP_' + response.status + (code ? '_' + code : ''));
+  }
   return response.json();
 }
-const report = {model, mode:'text', seconds:5, status:'submitting', referenceImageUsed:false, note:'Text-to-video only; reference-image API not yet integrated'};
+const report = {model, mode:'text', seconds:5, status:'submitting', referenceImageUsed:false, note:'This manual test uses text mode; Agnes Flash reference-image mode is documented but not yet connected'};
 const save = () => fs.writeFileSync('agnes-port-result.json', JSON.stringify(report,null,2));
 save();
 try {
