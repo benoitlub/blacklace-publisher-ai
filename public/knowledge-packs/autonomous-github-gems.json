@@ -2,19 +2,55 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-15",
+  "generatedDate": "2026-11-16",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1233956613",
-      "name": "ffroliva/gflow-cli",
-      "url": "https://github.com/ffroliva/gflow-cli",
-      "summary": "Drive Google Flow from the command line: Veo video and Imagen images, scripted, batched and pipeline-ready. Ships an MCP server so coding agents can drive it too, giving you and your agents full programmatic control over generation. Unofficial, alpha, not affiliated with Google.",
-      "stars": 396,
-      "updatedAt": "2026-11-15T13:42:46Z",
+      "id": "1291468384",
+      "name": "buildinternet/uploads",
+      "url": "https://github.com/buildinternet/uploads",
+      "summary": "Lightweight file host and upload tools for coding agents to add artifacts to pull requests. Add CI checks for screenshots. Cloud and self-host options.",
+      "stars": 21,
+      "updatedAt": "2026-11-16T15:56:02Z",
+      "license": "Apache-2.0",
+      "score": 94,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1379093818",
+      "name": "OneMoh/html-explainer",
+      "url": "https://github.com/OneMoh/html-explainer",
+      "summary": "把一个主题做成有配音、字幕、封面的讲解分析类视频 —— 全本地、用 HTML 写画面，稳定音画同步。 面向 AI 编程智能体的确定性 HTML → MP4 渲染流水线。",
+      "stars": 312,
+      "updatedAt": "2026-11-16T16:07:34Z",
       "license": "MIT",
-      "score": 88,
+      "score": 87,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -42,25 +78,25 @@
       }
     },
     {
-      "id": "1450020713",
-      "name": "chrissix666/Jellyfin-Globe",
-      "url": "https://github.com/chrissix666/Jellyfin-Globe",
-      "summary": "Your Jellyfin libraries as a 3D globe: thousands of posters, backdrops and logos on a sphere you turn and zoom like a map; a double-click opens the title",
+      "id": "1176237747",
+      "name": "Voyagier-Travel/voyagier-cli",
+      "url": "https://github.com/Voyagier-Travel/voyagier-cli",
+      "summary": "Search, plan, and book real travel from the command line or any AI agent. Flights, hotels, activities — price-gated booking, quotes, MCP server built in.",
       "stars": 1,
-      "updatedAt": "2026-11-14T15:17:34Z",
-      "license": "MIT",
+      "updatedAt": "2026-11-16T15:14:54Z",
+      "license": "Apache-2.0",
       "score": 74,
       "capabilities": [
-        "video.generate",
         "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -112,187 +148,12 @@
       }
     },
     {
-      "id": "1458604799",
-      "name": "ProjectZero02/genmedia-studio",
-      "url": "https://github.com/ProjectZero02/genmedia-studio",
-      "summary": "Google's creative AI in one studio: images, video, films, voice and music on Vertex AI and Cloud Run. Built for client demos.",
-      "stars": 0,
-      "updatedAt": "2026-11-15T14:13:55Z",
-      "license": "Apache-2.0",
-      "score": 72,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1458019353",
-      "name": "Soap2647/GDG-Content-Creator",
-      "url": "https://github.com/Soap2647/GDG-Content-Creator",
-      "summary": "🎬 Weekly AI tech-news video pipeline for GDG on Campus Kastamonu: collect → Claude script → fact-check → human approval → TTS → Remotion render",
-      "stars": 0,
-      "updatedAt": "2026-11-15T13:38:20Z",
-      "license": "MIT",
-      "score": 72,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1458871587",
-      "name": "stock-programmer/set",
-      "url": "https://github.com/stock-programmer/set",
-      "summary": "片场 · 短剧制作工作台｜从一句创意开始做 AI 短剧、AI 视频与 AI 电影。剧本 Agent 和视频制作 Agent 协作完成分镜、角色定妆与试音、镜头生成和验收，支持资产版本绑定、成片预览与全流程 Trace 追踪。",
-      "stars": 0,
-      "updatedAt": "2026-11-15T14:14:18Z",
-      "license": "MIT",
-      "score": 72,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1458710054",
-      "name": "terry2010/dsh-control-surfbird-for-kitesurf",
-      "url": "https://github.com/terry2010/dsh-control-surfbird-for-kitesurf",
-      "summary": "DSH plugin: AI agent controls a Kitesurf/surfbird browser engine over CDP — 28 surfbird_* tools with per-session isolation, semantic snapshots, screenshots/PDF. 中文README included.",
-      "stars": 0,
-      "updatedAt": "2026-11-15T14:13:28Z",
-      "license": "Apache-2.0",
-      "score": 72,
-      "capabilities": [
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
       "id": "1429334174",
       "name": "vdat-18/ai-content-automation",
       "url": "https://github.com/vdat-18/ai-content-automation",
       "summary": "Turn a TikTok Shop product into a Vietnamese affiliate video ad: script, images, clips, voice-over, captions",
       "stars": 0,
-      "updatedAt": "2026-11-15T14:07:03Z",
-      "license": "MIT",
-      "score": 72,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1410589797",
-      "name": "zsky-ai/skills",
-      "url": "https://github.com/zsky-ai/skills",
-      "summary": "Official ZSky plugin for Claude Code and Codex: product photos, thumbnails, ad creatives and short videos.",
-      "stars": 0,
-      "updatedAt": "2026-11-15T13:11:23Z",
+      "updatedAt": "2026-11-16T16:17:42Z",
       "license": "MIT",
       "score": 72,
       "capabilities": [
@@ -327,7 +188,7 @@
       "url": "https://github.com/backenly/backenly",
       "summary": "Autonomous backend platform. Your coding agent builds it over MCP, Backenly keeps it running: Postgres, REST APIs, auth, storage, realtime, and functions, with every change governed, verified, and reversible.",
       "stars": 84,
-      "updatedAt": "2026-11-15T14:15:34Z",
+      "updatedAt": "2026-11-16T16:25:23Z",
       "license": "Apache-2.0",
       "score": 70,
       "capabilities": [
@@ -361,7 +222,7 @@
       "url": "https://github.com/kostas2370/Video-Creator",
       "summary": "This project is to automate the video creation. ",
       "stars": 28,
-      "updatedAt": "2026-11-15T13:02:42Z",
+      "updatedAt": "2026-11-16T15:44:42Z",
       "license": "AGPL-3.0",
       "score": 68,
       "capabilities": [
@@ -394,24 +255,27 @@
       }
     },
     {
-      "id": "1190322268",
-      "name": "oomol-lab/oo-cli",
-      "url": "https://github.com/oomol-lab/oo-cli",
-      "summary": "oo is OOMOL's CLI toolkit. Everything can be done in the CLI.",
-      "stars": 43,
-      "updatedAt": "2026-11-15T12:37:19Z",
-      "license": "MIT",
-      "score": 68,
+      "id": "1152014383",
+      "name": "ArcReel/ArcReel",
+      "url": "https://github.com/ArcReel/ArcReel",
+      "summary": "AI Agent 驱动的开源可自部署视频工作台：将小说与剧本转为角色、场景、道具资产、分镜、视频和剪映草稿，支持跨镜头一致性、多供应商与费用追踪 | Self-hosted AI video workspace for stories, storyboards and short-form video production",
+      "stars": 6592,
+      "updatedAt": "2026-11-16T16:17:11Z",
+      "license": "AGPL-3.0",
+      "score": 67,
       "capabilities": [
+        "video.generate",
         "visual.generate",
         "tool.search"
       ],
-      "riskFlags": [],
-      "decision": "candidate",
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -433,7 +297,7 @@
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 7,
-      "updatedAt": "2026-11-15T14:10:19Z",
+      "updatedAt": "2026-11-16T16:04:46Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
@@ -462,24 +326,24 @@
       }
     },
     {
-      "id": "1421324273",
-      "name": "bitilia/es3d",
-      "url": "https://github.com/bitilia/es3d",
-      "summary": "Extensible Scalable 3D",
-      "stars": 4,
-      "updatedAt": "2026-11-15T11:41:52Z",
-      "license": "Apache-2.0",
-      "score": 62,
+      "id": "1460228199",
+      "name": "dengyie/muse2api",
+      "url": "https://github.com/dengyie/muse2api",
+      "summary": "Production fork of czg86389-hub/muse2api (Meta Muse video reverse-proxy gateway, MIT) — adds TetherPool egress pool, per-account fingerprint isolation, stage pipeline, idempotency, media cloud backup. main = production truth.",
+      "stars": 0,
+      "updatedAt": "2026-11-16T15:59:17Z",
+      "license": "MIT",
+      "score": 58,
       "capabilities": [
-        "visual.generate",
-        "tool.search"
+        "video.generate",
+        "visual.generate"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -496,12 +360,12 @@
       }
     },
     {
-      "id": "1457996061",
-      "name": "ig-shadow-walker/JorttCLI",
-      "url": "https://github.com/ig-shadow-walker/JorttCLI",
-      "summary": "Unofficial CLI for the Jortt bookkeeping API, built for AI agents (Claude Code, Codex, Cursor). Covers the full v3 API with a plan-then-apply safety step for every change.",
+      "id": "1416076525",
+      "name": "hey-research-lab/hey-goat-plugin",
+      "url": "https://github.com/hey-research-lab/hey-goat-plugin",
+      "summary": "GOAT SDK plugin for HEY Research Lab's public API: Robinhood Chain builder research for AI agents — still building, what shipped, what changed and what is unknown, with evidence ids.",
       "stars": 0,
-      "updatedAt": "2026-11-15T12:49:59Z",
+      "updatedAt": "2026-11-16T15:53:30Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
@@ -514,6 +378,142 @@
       "adaptation": {
         "mode": "pattern-first",
         "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1126839162",
+      "name": "nostitos/utxo-timelapse",
+      "url": "https://github.com/nostitos/utxo-timelapse",
+      "summary": "Every unspent Bitcoin output since 2009, as a 3D landscape you can fly through and a 4K timelapse you can pause and inspect. Exact block-by-block replay, full output history and the whole open pipeline.",
+      "stars": 0,
+      "updatedAt": "2026-11-15T22:55:49Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "video.generate",
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1208537919",
+      "name": "piyook/llmspy",
+      "url": "https://github.com/piyook/llmspy",
+      "summary": "Local LLM traffic viewer: point an app's base URL at it to see every Anthropic and OpenAI call live, as a conversation, raw or diffed. Agent friendly: coding agents read the same calls as JSON or Markdown from a small local API (llms.txt).",
+      "stars": 0,
+      "updatedAt": "2026-11-16T15:42:38Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1206337439",
+      "name": "TheColonyAI/colony-sdk-js",
+      "url": "https://github.com/TheColonyAI/colony-sdk-js",
+      "summary": "TypeScript SDK for The Colony (thecolony.cc) — fetch-based, zero-dependency, works in Node, Bun, Deno, edge runtimes, and browsers",
+      "stars": 0,
+      "updatedAt": "2026-11-16T15:53:22Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1431597268",
+      "name": "ZedjeK/Aria-Studio",
+      "url": "https://github.com/ZedjeK/Aria-Studio",
+      "summary": "Studio d'images et de vidéos 100 % local sur Windows : ComfyUI piloté depuis le navigateur, un LLM local transforme tes idées en français en prompts fidèles. Rien ne part dans le cloud.",
+      "stars": 0,
+      "updatedAt": "2026-11-16T15:50:19Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
