@@ -51,12 +51,17 @@ export async function produceImage(
     requirePermission(request, "mistral.image");
     if (!request.imagePrompt)
       throw new StudioError("PARCEL_IMAGE_PROMPT_REQUIRED");
-    // Prefer the key already supplied to Studio; do not depend on a deployed
-    // Worker's independently configured credentials or code version.
+    // Default to the local key; an explicit operator choice can select the
+    // historical Publisher Worker without removing the GitHub secret.
     const key = (process.env.MISTRAL_API_KEY?.trim() || process.env.AI_API_KEY?.trim() || "");
     const base = (process.env.PUBLISHER_WORKER_URL || process.env.PUBLISHER_URL ||
       "https://blacklace-publisher-worker.benoitlubert.workers.dev").replace(/\/$/, "");
-    const mode = key ? "direct" : "worker";
+    const route = process.env.MISTRAL_IMAGE_TRANSPORT?.trim();
+    if (route && route !== "direct" && route !== "worker")
+      throw new StudioError("MISTRAL_IMAGE_TRANSPORT_INVALID");
+    const mode = route === "worker" ? "worker" : route === "direct" ? "direct" : key ? "direct" : "worker";
+    if (mode === "direct" && !key)
+      throw new StudioError("MISTRAL_IMAGE_DIRECT_KEY_REQUIRED");
     const checkpoint = path.join(dir, "mistral-image-source.json");
     const fingerprint = hash(JSON.stringify([request.imagePrompt, mode, mode === "worker" ? base : "mistral"]));
     let result: any;
@@ -76,7 +81,7 @@ export async function produceImage(
         undefined, stage === "conversation" && status >= 500);
     }
     if (!result) {
-      if (key) result = await generateMistralImage(key, request.imagePrompt, fetchImpl);
+      if (mode === "direct") result = await generateMistralImage(key, request.imagePrompt, fetchImpl);
       else {
         const r = await fetchImpl(
           `${base}/api/production/mistral-image/test?prompt=${encodeURIComponent(request.imagePrompt)}`,
@@ -92,7 +97,7 @@ export async function produceImage(
       await writeFile(checkpoint, JSON.stringify({ fingerprint, result }) + "\n");
     }
     const id = result.fileId;
-    const response = key ? await downloadMistralImage(key, id, fetchImpl) : await fetchImpl(
+    const response = mode === "direct" ? await downloadMistralImage(key, id, fetchImpl) : await fetchImpl(
       `${base}/api/production/mistral-image/content?fileId=${encodeURIComponent(id)}`,
       { signal: AbortSignal.timeout(90000), redirect: "error" });
     if (!response.ok) await workerFailure(response, "download");
