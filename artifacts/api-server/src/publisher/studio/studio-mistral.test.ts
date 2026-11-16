@@ -114,4 +114,34 @@ describe("Mistral image transport and safe Studio resumption", () => {
     await expect(produceImage({ ...request, authorizedResources: ["image.studio"] }, dir, fetcher)).rejects.toThrow("STUDIO_AUTHORIZATION_REQUIRED");
     expect(fetcher).not.toHaveBeenCalled();
   });
+
+  it("explicitly routes generation and retrieval through Publisher Worker even with a local key", async () => {
+    const dir = await setup(), png = await fixture(dir);
+    vi.stubEnv("MISTRAL_IMAGE_TRANSPORT", "worker");
+    vi.stubEnv("PUBLISHER_WORKER_URL", "https://worker.example.test");
+    const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async (url, init) => {
+      expect(String(url)).toMatch(/^https:\/\/worker\.example\.test\/api\/production\/mistral-image\//);
+      expect((init?.headers as any)?.Authorization).toBeUndefined();
+      if (String(url).includes("/test?")) return Response.json({
+        status: "generated", result: { fileId: "worker-file", conversationId: "worker-conversation" },
+      });
+      expect(String(url)).toBe("https://worker.example.test/api/production/mistral-image/content?fileId=worker-file");
+      return new Response(png, { headers: { "content-type": "image/png" } });
+    });
+    const result = await runStudio(request, "image.studio");
+    expect(result.status).toBe("ready-for-review");
+    expect((result as any).image).toMatchObject({
+      transport: "worker", fileId: "worker-file", verifiedFile: true,
+    });
+    expect(result.published).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+  it("rejects invalid transport selection without contacting Mistral or Worker", async () => {
+    const dir = await setup();
+    vi.stubEnv("MISTRAL_IMAGE_TRANSPORT", "automatic-fallback");
+    const fetcher = vi.fn();
+    await expect(produceImage(request, dir, fetcher)).rejects.toThrow("MISTRAL_IMAGE_TRANSPORT_INVALID");
+    expect(fetcher).not.toHaveBeenCalled();
+  });
+
 });
