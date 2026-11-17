@@ -28,3 +28,14 @@ test("null JSON produces a readable rejected result instead of a handler excepti
   const response = await worker.fetch(new Request("https://publisher.test/api/social/publication/finalize", { method: "POST", headers: { "Content-Type": "application/json" }, body: "null" }), {});
   assert.equal((await response.json()).status, "rejected");
 });
+
+test("Gérard's fallback image request requires production identity before invoking providers", async t => {
+  const network = t.mock.method(globalThis, "fetch", async () => { throw new Error("must not access any service"); });
+  const response = await worker.fetch(new Request("https://publisher.test/api/social/media/request", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: "Bearer invalid-token" },
+    body: JSON.stringify({ mode: "gerard-facebook-fallback", seedId: "feuch-lab", title: "Feuch Lab", text: "Une visite." }),
+  }), {});
+  assert.equal(response.status, 401);
+  assert.equal(network.mock.callCount(), 0);
+});
