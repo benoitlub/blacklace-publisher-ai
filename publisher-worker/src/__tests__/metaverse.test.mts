@@ -4,23 +4,15 @@ import { metaverse } from "../metaverse/routes";
 
 const env = {
   OCTOPUS_ENGINE_URL: "https://octopus.example",
-  PUBLISHER_PUBLIC_URL: "https://publisher.example",
   OCTOPUS_ENGINE: {
     async fetch(request: Request) {
       const path = new URL(request.url).pathname;
       const payload = await request.json();
-      if (path === "/adapters/register") {
-        assert.equal(payload.executeUrl, "https://publisher.example/api/metaverse/execute");
-        return Response.json({ status: "registered" }, { status: 201 });
-      }
       assert.equal(path, "/mission");
-      assert.equal(payload.prompt, "crate red");
+      assert.deepEqual(payload.requiredCapabilities, ["execution.track"]);
       assert.deepEqual(payload.authorizedResources, []);
-      const callback = await metaverse.request("/execute", {
-        method: "POST",
-        body: JSON.stringify({ contract: "octopus-adapter-execution-v1", adapterId: "metaverse-procedural", mission: payload }),
-      });
-      return Response.json({ ...await callback.json(), adapterId: "metaverse-procedural" });
+      assert.equal(payload.prompt, undefined);
+      return Response.json({ status: "completed", operationId: payload.operationId });
     },
   },
 };

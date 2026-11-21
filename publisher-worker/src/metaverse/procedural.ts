@@ -1,7 +1,5 @@
 import { packGlb } from "./glb";
 
-export const PROCEDURAL_CAPABILITY = "asset.procedural.plan";
-
 type Vec3 = [number, number, number];
 type Part = { name: string; translation: Vec3; scale: Vec3; accent?: boolean };
 const palette = {
