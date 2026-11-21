@@ -1,3 +1,4 @@
+import { metaverse } from "./metaverse/routes";
 import { metricoolReviewMail } from "./metricool-review-mail";
 import { generateMistralImage, downloadMistralImage, MistralImageError } from "../../artifacts/api-server/src/services/mistral-image";
 import { candidatureAddress, candidatureId, candidatureRevision, GERARD_GMAIL, gmailCandidatureReceipt, parseCandidatureMail } from "./candidature-mail";
@@ -122,6 +123,7 @@ async function mistralApiKey(env: Env): Promise<string> {
 
 const app = new Hono<{ Bindings: Env }>();
 app.use("*", cors());
+app.route("/api/metaverse", metaverse);
 
 // Explicitly authenticated, opt-in Notion writing. It only creates research-only
 // review records in a fixed client-specific database; it never sends outreach.
