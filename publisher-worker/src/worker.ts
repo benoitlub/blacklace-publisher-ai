@@ -73,6 +73,7 @@ export type SecretsStoreSecret = { get(): Promise<string> };
 type ServiceBinding = { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> };
 type Env = {
   MISTRAL_API_KEY?: string | SecretsStoreSecret;
+  CERENITE_ACCESS_CODE?: string | SecretsStoreSecret;
   AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
@@ -218,6 +219,54 @@ app.get("/api/health", async (c) => {
     service: "blacklace-publisher-worker",
     adapterRegistration,
   });
+});
+
+// Private Cérénité voice-chat endpoint. Reuses Publisher's existing Mistral text service.
+// No public access, publishing side effects, database writes, or stored conversations.
+app.post("/api/cerenite/chat", async (c) => {
+  const origin = c.req.header("Origin") ?? "";
+  const allowedOrigin = "https://benoitlub.github.io";
+  c.header("Access-Control-Allow-Origin", allowedOrigin);
+  c.header("Cache-Control", "no-store");
+  c.header("Vary", "Origin, X-Cerenite-Access");
+  if (origin !== allowedOrigin) return c.json({ error: "origin_forbidden" }, 403);
+  const expected = await resolveSecret(c.env.CERENITE_ACCESS_CODE);
+  const supplied = c.req.header("X-Cerenite-Access") ?? "";
+  if (!expected || !supplied || supplied !== expected) return c.json({ error: "unauthorized" }, 401);
+  const raw = await c.req.text();
+  if (raw.length > 12000) return c.json({ error: "too_large" }, 413);
+  let body: any;
+  try { body = JSON.parse(raw); } catch { return c.json({ error: "invalid_json" }, 400); }
+  const message = typeof body?.message === "string" ? body.message.slice(0, 500).trim() : "";
+  if (!message) return c.json({ error: "message_required" }, 400);
+  const history = Array.isArray(body?.history)
+    ? body.history.slice(-10).filter((item: any) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")
+      .map((item: any) => ({ role: item.role, content: item.content.slice(0, 1100) }))
+    : [];
+  const persona = "Tu es Cérénité Blablabla, présentatrice officielle de BNN24 et interlocutrice du Feuch Lab. Parle français avec naturel, humour et créativité, sans formules mécaniques ni questions systématiques. Rebondis sur les paroles exactes de ton interlocuteur. Réponses généralement courtes, adaptées à l'oral. N'invente pas de capacités médicales, d'EMDR ou de reprogrammation cérébrale. Respecte les refus et demandes d'arrêt.";
+  const transcript = history.map((item: any) => (item.role === "user" ? "Utilisateur : " : "Cérénité : ") + item.content).join("\n");
+  try {
+    const artifact = await executeMistralText(c.env, {
+      title: "Cérénité — conversation",
+      systemPrompt: persona,
+      prompt: [transcript, "Utilisateur : " + message, "Cérénité :"].filter(Boolean).join("\n"),
+      maxTokens: 240,
+      temperature: 0.8,
+    });
+    return c.json({ reply: artifact.content, model: artifact.metadata?.model });
+  } catch (error) {
+    console.warn("Cérénité Mistral failure", error instanceof Error ? error.message.slice(0, 160) : "unknown");
+    return c.json({ error: "mistral_unavailable" }, 502);
+  }
+});
+
+app.options("/api/cerenite/chat", (c) => {
+  const origin = c.req.header("Origin") ?? "";
+  if (origin !== "https://benoitlub.github.io") return c.body(null, 403);
+  c.header("Access-Control-Allow-Origin", origin);
+  c.header("Access-Control-Allow-Headers", "Content-Type, X-Cerenite-Access");
+  c.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+  return c.body(null, 204);
 });
 
 function safeContent(value: unknown): string {
