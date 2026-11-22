@@ -282,7 +282,7 @@ app.post("/api/cerenite/voice-test", async (c) => {
   if (!expected || !provided || provided !== expected) return c.json({ error: "unauthorized" }, 401);
   const apiKey = await mistralApiKey(c.env);
   if (!apiKey) return c.json({ error: "mistral_not_configured" }, 503);
-  const input = "[emotion=happy] Bonsoir, ici Cérénité Blablabla, en direct de BNN24 ! [pace=slow] Ce soir, mon cerveau a décidé de prendre des vacances... sans prévenir son propriétaire !";
+  const input = "Bonsoir, ici Cérénité Blablabla !";
   try {
     const response = await fetch("https://api.mistral.ai/v1/audio/speech", {
       method: "POST",
