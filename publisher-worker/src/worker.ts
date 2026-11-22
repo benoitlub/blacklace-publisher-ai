@@ -269,6 +269,50 @@ app.options("/api/cerenite/chat", (c) => {
   return c.body(null, 204);
 });
 
+// One-click, opt-in TTS sample. Reuses Publisher's existing Mistral secret.
+app.post("/api/cerenite/voice-test", async (c) => {
+  const allowedOrigin = "https://benoitlub.github.io";
+  const origin = c.req.header("Origin") ?? "";
+  c.header("Access-Control-Allow-Origin", allowedOrigin);
+  c.header("Cache-Control", "no-store");
+  c.header("Vary", "Origin, X-Cerenite-Access");
+  if (origin !== allowedOrigin) return c.json({ error: "origin_forbidden" }, 403);
+  const expected = await resolveSecret(c.env.CERENITE_ACCESS_CODE);
+  const provided = c.req.header("X-Cerenite-Access") ?? "";
+  if (!expected || !provided || provided !== expected) return c.json({ error: "unauthorized" }, 401);
+  const apiKey = await mistralApiKey(c.env);
+  if (!apiKey) return c.json({ error: "mistral_not_configured" }, 503);
+  const input = "[emotion=happy] Bonsoir, ici Cérénité Blablabla, en direct de BNN24 ! [pace=slow] Ce soir, mon cerveau a décidé de prendre des vacances... sans prévenir son propriétaire !";
+  try {
+    const response = await fetch("https://api.mistral.ai/v1/audio/speech", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({ input, model: "voxtral-mini-tts-3-0", response_format: "mp3", voice_id: "voice_589" }),
+    });
+    if (!response.ok) {
+      console.warn("Cérénité voice test failed", response.status);
+      return c.json({ error: "tts_upstream_failed", upstreamStatus: response.status }, 502);
+    }
+    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
+    const audio = payload.audio_data;
+    if (typeof audio !== "string" || !/^[A-Za-z0-9+/=]+$/.test(audio) || audio.length > 8_000_000) {
+      return c.json({ error: "tts_invalid_audio" }, 502);
+    }
+    return c.json({ audio_data: audio, mime_type: "audio/mpeg", voice_id: "voice_589" });
+  } catch {
+    return c.json({ error: "tts_network_failed" }, 502);
+  }
+});
+
+app.options("/api/cerenite/voice-test", (c) => {
+  const origin = c.req.header("Origin") ?? "";
+  if (origin !== "https://benoitlub.github.io") return c.body(null, 403);
+  c.header("Access-Control-Allow-Origin", origin);
+  c.header("Access-Control-Allow-Headers", "Content-Type, X-Cerenite-Access");
+  c.header("Access-Control-Allow-Methods", "POST, OPTIONS");
+  return c.body(null, 204);
+});
+
 function safeContent(value: unknown): string {
   if (typeof value === "string") return value.trim();
   if (Array.isArray(value)) {
