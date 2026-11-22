@@ -73,6 +73,7 @@ export type SecretsStoreSecret = { get(): Promise<string> };
 type ServiceBinding = { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> };
 type Env = {
   MISTRAL_API_KEY?: string | SecretsStoreSecret;
+  CERENITE_ACCESS_CODE?: string | SecretsStoreSecret;
   AI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_MODEL?: string;
   COMPOSIO_API_KEY?: string | SecretsStoreSecret;
