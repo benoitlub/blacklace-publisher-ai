@@ -296,7 +296,8 @@ app.post("/api/cerenite/voice-test", async (c) => {
     const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
     const audio = payload.audio_data;
     if (typeof audio !== "string" || !/^[A-Za-z0-9+/=]+$/.test(audio) || audio.length > 8_000_000) {
-      return c.json({ error: "tts_invalid_audio" }, 502);
+      console.warn("Cérénité TTS unexpected payload", Object.keys(payload).join(","));
+      return c.json({ error: "tts_invalid_audio", responseFields: Object.keys(payload).filter(k => k !== "audio_data").slice(0, 12) }, 502);
     }
     return c.json({ audio_data: audio, mime_type: "audio/mpeg", voice_id: "voice_589" });
   } catch {
