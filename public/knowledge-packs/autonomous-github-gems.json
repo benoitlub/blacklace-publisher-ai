@@ -2,19 +2,126 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-22",
+  "generatedDate": "2026-11-23",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1331882604",
-      "name": "scenario-labs/skills",
-      "url": "https://github.com/scenario-labs/skills",
-      "summary": "Get production-ready images, video, audio, and 3D from any AI agent: skills that pick the right model, price before spending, and keep characters and brands consistent through the Scenario MCP, plus expert teams that drive Blender, Maya, ZBrush, Unreal, and Unity.",
-      "stars": 3975,
-      "updatedAt": "2026-11-22T14:53:58Z",
+      "id": "1301932013",
+      "name": "cavi-ai/mlx-agent",
+      "url": "https://github.com/cavi-ai/mlx-agent",
+      "summary": "Run and manage local AI models on Apple Silicon. Generate images, video, music, speech and 3D assets through a CLI and MCP interface.",
+      "stars": 2,
+      "updatedAt": "2026-11-23T18:26:57Z",
       "license": "MIT",
-      "score": 94,
+      "score": 89,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1466789488",
+      "name": "VideoGym/VideoGym",
+      "url": "https://github.com/VideoGym/VideoGym",
+      "summary": "VideoGym: official framework for the paper \"Can Video Generation Models Really Learn to Reason?\" covering procedural task synthesis, SFT & RLVR post-training, full-video verification, and seven-level generalization evaluation",
+      "stars": 2,
+      "updatedAt": "2026-11-23T18:14:36Z",
+      "license": "Apache-2.0",
+      "score": 89,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1401664277",
+      "name": "alexshpunt/pi-agent-computer-use",
+      "url": "https://github.com/alexshpunt/pi-agent-computer-use",
+      "summary": "Computer use for the Pi coding agent — Windows apps, browsers and desktops through native UI trees, screenshots and real input.",
+      "stars": 104,
+      "updatedAt": "2026-11-23T15:57:12Z",
+      "license": "MIT",
+      "score": 84,
+      "capabilities": [
+        "video.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1248936820",
+      "name": "lpalbou/mlx-gen",
+      "url": "https://github.com/lpalbou/mlx-gen",
+      "summary": "Generative image and video runtimes for Apple Silicon (MLX): text/image-to-image, instruction editing, masked edit, text/image/reference-to-video, video editing, and restoration.",
+      "stars": 48,
+      "updatedAt": "2026-11-23T18:18:24Z",
+      "license": "MIT",
+      "score": 82,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -42,97 +149,25 @@
       }
     },
     {
-      "id": "1427136446",
-      "name": "IsraelWebDev/funkbox",
-      "url": "https://github.com/IsraelWebDev/funkbox",
-      "summary": "Make funky shader loops, posters, FastSD images and 9:16 product video ads with Claude, on your own computer. One MCP server + Claude Code plugin. No cloud, no accounts, no NVIDIA GPU.",
-      "stars": 1,
-      "updatedAt": "2026-11-22T14:54:05Z",
+      "id": "1393558411",
+      "name": "ZLHad/OpenVideoHarness",
+      "url": "https://github.com/ZLHad/OpenVideoHarness",
+      "summary": "A controllable workflow for making videos with code, open source: say one sentence, a coding agent (Claude Code, Codex) writes the code and renders the film, and you direct every step in a visual Studio. 用代码做视频的一套可控工作流：说一句话，agent 写代码出片；每一步看得见、改得动、能重做，你在 Studio 里当导演。",
+      "stars": 42,
+      "updatedAt": "2026-11-23T18:39:51Z",
       "license": "MIT",
-      "score": 88,
+      "score": 82,
       "capabilities": [
         "video.generate",
         "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1466465256",
-      "name": "clarowang/comfyui-colab-queue",
-      "url": "https://github.com/clarowang/comfyui-colab-queue",
-      "summary": "Batch render ComfyUI video workflows on Google Colab. Queue shots on one GPU, download verified MP4s, resume interrupted transfers, and release the runtime.",
-      "stars": 0,
-      "updatedAt": "2026-11-22T14:43:13Z",
-      "license": "MIT",
-      "score": 86,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1333579278",
-      "name": "ZASENJC/dsh-plugins-store",
-      "url": "https://github.com/ZASENJC/dsh-plugins-store",
-      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
-      "stars": 73,
-      "updatedAt": "2026-11-22T11:44:29Z",
-      "license": "MIT",
-      "score": 83,
-      "capabilities": [
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -153,8 +188,8 @@
       "name": "strukto-ai/mirage",
       "url": "https://github.com/strukto-ai/mirage",
       "summary": "The World's First Virtual Terminal for AI Agents",
-      "stars": 3810,
-      "updatedAt": "2026-11-22T14:53:41Z",
+      "stars": 3814,
+      "updatedAt": "2026-11-23T16:55:47Z",
       "license": "Apache-2.0",
       "score": 79,
       "capabilities": [
@@ -183,47 +218,12 @@
       }
     },
     {
-      "id": "1452415213",
-      "name": "VibeClip/awesome-fable-5-2-videos",
-      "url": "https://github.com/VibeClip/awesome-fable-5-2-videos",
-      "summary": "Awesome Claude Fable 5.2 videos, AI animation, motion graphics and prompts. Explore code-to-video, Three.js, Blender, Remotion, HyperFrames, 3D worlds, product films, explainers and games. Curated by VibeClip in 5 languages.",
-      "stars": 8,
-      "updatedAt": "2026-11-22T14:17:23Z",
-      "license": "MIT",
-      "score": 78,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
       "id": "1153981814",
       "name": "khalidsaidi/ragmap",
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 7,
-      "updatedAt": "2026-11-22T14:50:07Z",
+      "updatedAt": "2026-11-23T18:25:23Z",
       "license": "MIT",
       "score": 77,
       "capabilities": [
@@ -288,47 +288,12 @@
       }
     },
     {
-      "id": "1456446342",
-      "name": "liutaige/MolStudio",
-      "url": "https://github.com/liutaige/MolStudio",
-      "summary": "2D chemical structure & reaction mechanism canvas with AI assistant, MCP server, RDKit 3D preview, and native macOS shell",
-      "stars": 0,
-      "updatedAt": "2026-11-22T02:01:55Z",
-      "license": "Apache-2.0",
-      "score": 72,
-      "capabilities": [
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
       "id": "1309158860",
       "name": "backenly/backenly",
       "url": "https://github.com/backenly/backenly",
       "summary": "Autonomous backend platform. Your coding agent builds it over MCP, Backenly keeps it running: Postgres, REST APIs, auth, storage, realtime, and functions, with every change governed, verified, and reversible.",
-      "stars": 99,
-      "updatedAt": "2026-11-22T14:14:55Z",
+      "stars": 100,
+      "updatedAt": "2026-11-23T17:20:01Z",
       "license": "Apache-2.0",
       "score": 70,
       "capabilities": [
@@ -357,85 +322,14 @@
       }
     },
     {
-      "id": "1152014383",
-      "name": "ArcReel/ArcReel",
-      "url": "https://github.com/ArcReel/ArcReel",
-      "summary": "AI Agent 驱动的开源可自部署视频工作台：将小说与剧本转为角色、场景、道具资产、分镜、视频和剪映草稿，支持跨镜头一致性、多供应商与费用追踪 | Self-hosted AI video workspace for stories, storyboards and short-form video production",
-      "stars": 6707,
-      "updatedAt": "2026-11-22T14:17:57Z",
-      "license": "AGPL-3.0",
+      "id": "1449765107",
+      "name": "BennyDaBall930/comfyui_hyperflow_int8_nodes",
+      "url": "https://github.com/BennyDaBall930/comfyui_hyperflow_int8_nodes",
+      "summary": "Unofficial ComfyUI loader for HyperFlow H3 Flash INT8 checkpoints (fl2va and ref2va) on ComfyUI's native INT8 convrot kernels. Needs the official ComfyUI-HyperFlow-Flash pack.",
+      "stars": 23,
+      "updatedAt": "2026-11-23T18:42:17Z",
+      "license": "GPL-3.0",
       "score": 67,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1205267694",
-      "name": "LanNguyenSi/agent-dx",
-      "url": "https://github.com/LanNguyenSi/agent-dx",
-      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
-      "stars": 6,
-      "updatedAt": "2026-11-22T12:33:00Z",
-      "license": "MIT",
-      "score": 63,
-      "capabilities": [
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1463859851",
-      "name": "instax-dutta/T4-Bench",
-      "url": "https://github.com/instax-dutta/T4-Bench",
-      "summary": "Measured benchmarks of image, video, LLM, agent and fine-tuning workloads on Kaggle 2x Tesla T4 GPUs, with a lightweight visual site.",
-      "stars": 0,
-      "updatedAt": "2026-11-22T14:43:31Z",
-      "license": "UNKNOWN",
-      "score": 59,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -466,14 +360,48 @@
       }
     },
     {
-      "id": "1466568469",
-      "name": "Omodaka9375/DNSi",
-      "url": "https://github.com/Omodaka9375/DNSi",
-      "summary": "Access LLM from any device, on any network, using nothing but DNS. No app, no login, no HTTP.",
-      "stars": 0,
-      "updatedAt": "2026-11-22T13:19:52Z",
-      "license": "Apache-2.0",
-      "score": 58,
+      "id": "1265605845",
+      "name": "eric-rolph/packet-highway",
+      "url": "https://github.com/eric-rolph/packet-highway",
+      "summary": "3D network traffic & PCAP visualizer built with Python (FastAPI + Scapy) and Three.js. Packets become vehicles on a divided highway — inspect live traffic or replay Wireshark .pcap/.pcapng captures with full scrub/seek control.",
+      "stars": 28,
+      "updatedAt": "2026-11-23T00:50:57Z",
+      "license": "MIT",
+      "score": 67,
+      "capabilities": [
+        "video.generate",
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1205267694",
+      "name": "LanNguyenSi/agent-dx",
+      "url": "https://github.com/LanNguyenSi/agent-dx",
+      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
+      "stars": 6,
+      "updatedAt": "2026-11-23T18:39:49Z",
+      "license": "MIT",
+      "score": 63,
       "capabilities": [
         "tool.search",
         "knowledge.search"
@@ -500,12 +428,79 @@
       }
     },
     {
+      "id": "1228284468",
+      "name": "rogerchappel/contextloom",
+      "url": "https://github.com/rogerchappel/contextloom",
+      "summary": "Local-first context manager for lossless agent transcripts with cited chunks",
+      "stars": 1,
+      "updatedAt": "2026-11-23T14:55:59Z",
+      "license": "MIT",
+      "score": 60,
+      "capabilities": [
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1255917800",
+      "name": "vb2250158/RabiRoute",
+      "url": "https://github.com/vb2250158/RabiRoute",
+      "summary": "Self-hosted gateway that bridges QQ, WeChat/WeCom and Feishu chat to your existing Codex or agent task — remote control from your phone, schedules and role context. | 自托管 AI 消息网关：把 QQ、微信、飞书接到你已有的 Codex / Agent 任务，支持手机远程、定时任务和角色上下文。",
+      "stars": 493,
+      "updatedAt": "2026-11-23T18:30:08Z",
+      "license": "MIT",
+      "score": 60,
+      "capabilities": [
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
       "id": "1465405018",
       "name": "prazg/neurocorridor-3d",
       "url": "https://github.com/prazg/neurocorridor-3d",
       "summary": "Interactive 3D MNI-152 browser sandbox for eloquent neuroanatomy, white-matter tractography, and neurosurgical corridor education.",
       "stars": 0,
-      "updatedAt": "2026-11-21T21:10:53Z",
+      "updatedAt": "2026-11-23T16:36:53Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
