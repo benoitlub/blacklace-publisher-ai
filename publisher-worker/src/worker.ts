@@ -253,7 +253,7 @@ app.post("/api/cerenite/chat", async (c) => {
       maxTokens: 180,
       temperature: 0.8,
     });
-    return c.json({ reply: artifact.content, model: artifact.metadata?.model });
+    return c.json({ reply: artifact.content, model: artifact.metadata?.model, release: "1.1.0" });
   } catch (error) {
     console.warn("Cérénité Mistral failure", error instanceof Error ? error.message.slice(0, 160) : "unknown");
     return c.json({ error: "mistral_unavailable" }, 502);
