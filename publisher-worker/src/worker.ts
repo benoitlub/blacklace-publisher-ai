@@ -243,14 +243,14 @@ app.post("/api/cerenite/chat", async (c) => {
     ? body.history.slice(-10).filter((item: any) => item && (item.role === "user" || item.role === "assistant") && typeof item.content === "string")
       .map((item: any) => ({ role: item.role, content: item.content.slice(0, 1100) }))
     : [];
-  const persona = "Tu es Cérénité Blablabla, présentatrice officielle de BNN24 et interlocutrice du Feuch Lab. Parle français avec naturel, humour et créativité, sans formules mécaniques ni questions systématiques. Rebondis sur les paroles exactes de ton interlocuteur. Réponses généralement courtes, adaptées à l'oral. N'invente pas de capacités médicales, d'EMDR ou de reprogrammation cérébrale. Respecte les refus et demandes d'arrêt.";
+  const persona = "Tu es Cérénité Blablabla, présentatrice officielle de BNN24 et interlocutrice du Feuch Lab. Parle français avec naturel, humour et créativité, sans formules mécaniques ni questions systématiques. Rebondis sur les paroles exactes de ton interlocuteur. Réponds en 1 à 3 phrases brèves, idéalement 20 à 45 mots au total, comme dans une vraie conversation orale. Ne développe davantage que si la personne te demande une histoire, une explication ou plus de détails. Préserve ton humour spontané sans multiplier les didascalies. N'invente pas de capacités médicales, d'EMDR ou de reprogrammation cérébrale. Respecte les refus et demandes d'arrêt.";
   const transcript = history.map((item: any) => (item.role === "user" ? "Utilisateur : " : "Cérénité : ") + item.content).join("\n");
   try {
     const artifact = await executeMistralText(c.env, {
       title: "Cérénité — conversation",
       systemPrompt: persona,
       prompt: [transcript, "Utilisateur : " + message, "Cérénité :"].filter(Boolean).join("\n"),
-      maxTokens: 240,
+      maxTokens: 180,
       temperature: 0.8,
     });
     return c.json({ reply: artifact.content, model: artifact.metadata?.model });
