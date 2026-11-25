@@ -2,17 +2,53 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-24",
+  "generatedDate": "2026-11-25",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
+      "id": "1266438067",
+      "name": "JuneYaooo/capsule-cinema",
+      "url": "https://github.com/JuneYaooo/capsule-cinema",
+      "summary": "把视频做成模版，一次配方无限视频 · Turn videos into templates. One recipe, unlimited videos.",
+      "stars": 350,
+      "updatedAt": "2026-11-25T16:26:11Z",
+      "license": "Apache-2.0",
+      "score": 100,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
       "id": "1321544757",
       "name": "openvetta/open-vetta",
       "url": "https://github.com/openvetta/open-vetta",
-      "summary": "Open-source, local-first AI agent for coding and real work. BYOK models, MCP, skills, plugins, workflows, and private knowledge bases.",
-      "stars": 421,
-      "updatedAt": "2026-11-24T16:20:37Z",
+      "summary": "Open-source, local-first AI agent for real work.",
+      "stars": 462,
+      "updatedAt": "2026-11-25T16:45:38Z",
       "license": "Apache-2.0",
       "score": 100,
       "capabilities": [
@@ -43,14 +79,14 @@
       }
     },
     {
-      "id": "1054512829",
-      "name": "vllm-project/vllm-omni",
-      "url": "https://github.com/vllm-project/vllm-omni",
-      "summary": "A framework for efficient model inference with omni-modality models",
-      "stars": 7939,
-      "updatedAt": "2026-11-24T17:58:56Z",
+      "id": "1441937889",
+      "name": "sandbaseai/sandbase",
+      "url": "https://github.com/sandbaseai/sandbase",
+      "summary": "One API key. Build your personal agent. Agents and sandboxes are free, and agents can call 2,000+ AI models and data APIs (LLM, image, video, TikTok, YouTube, SEO, finance). OpenAI Agents API, E2B and OpenAI compatible. Python, TypeScript, Go.",
+      "stars": 6,
+      "updatedAt": "2026-11-25T16:26:31Z",
       "license": "Apache-2.0",
-      "score": 100,
+      "score": 91,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -79,14 +115,14 @@
       }
     },
     {
-      "id": "1393558411",
-      "name": "ZLHad/OpenVideoHarness",
-      "url": "https://github.com/ZLHad/OpenVideoHarness",
-      "summary": "A controllable workflow for making videos with code, open source: say one sentence, a coding agent (Claude Code, Codex) writes the code and renders the film, and you direct every step in a visual Studio. 用代码做视频的一套可控工作流：说一句话，agent 写代码出片；每一步看得见、改得动、能重做，你在 Studio 里当导演。",
-      "stars": 43,
-      "updatedAt": "2026-11-24T17:45:18Z",
+      "id": "1233956613",
+      "name": "ffroliva/gflow-cli",
+      "url": "https://github.com/ffroliva/gflow-cli",
+      "summary": "MCP server and CLI for Google Flow: generate Veo 3.1 and Omni video and Nano Banana / Imagen images from Claude Code, Claude Desktop, Cursor, Codex or the terminal. Free, MIT, on PyPI. Independent project, not affiliated with Google.",
+      "stars": 852,
+      "updatedAt": "2026-11-25T17:34:54Z",
       "license": "MIT",
-      "score": 82,
+      "score": 90,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -114,52 +150,18 @@
       }
     },
     {
-      "id": "1351180987",
-      "name": "IvenKooLab/comfy-agent",
-      "url": "https://github.com/IvenKooLab/comfy-agent",
-      "summary": "本地 AI 短剧工作台：12 个功能页 · 15 套内置工作流 · 680 个官方模板 · 23 个模型清单一键下载 · 18 条镜头预检规则 · 82 项测试；后端纯 Python 标准库、前端原生 JS，安装包 40MB",
-      "stars": 34,
-      "updatedAt": "2026-11-24T17:03:16Z",
-      "license": "MIT",
-      "score": 81,
+      "id": "1466789488",
+      "name": "VideoGym/VideoGym",
+      "url": "https://github.com/VideoGym/VideoGym",
+      "summary": "VideoGym: official framework for the paper \"Can Video Generation Models Really Learn to Reason?\" covering procedural task synthesis, SFT & RLVR post-training, full-video verification, and seven-level generalization evaluation",
+      "stars": 2,
+      "updatedAt": "2026-11-25T16:34:33Z",
+      "license": "Apache-2.0",
+      "score": 89,
       "capabilities": [
         "video.generate",
         "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1425995077",
-      "name": "atakann/dgx-spark-recipes",
-      "url": "https://github.com/atakann/dgx-spark-recipes",
-      "summary": "Measured recipes for the NVIDIA DGX Spark, on one or two Sparks: LLM serving, image, video and speech",
-      "stars": 25,
-      "updatedAt": "2026-11-24T18:03:34Z",
-      "license": "MIT",
-      "score": 80,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
+        "tool.search",
         "knowledge.search"
       ],
       "riskFlags": [],
@@ -167,7 +169,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -184,25 +186,96 @@
       }
     },
     {
-      "id": "1452415213",
-      "name": "VibeClip/awesome-fable-5-2-videos",
-      "url": "https://github.com/VibeClip/awesome-fable-5-2-videos",
-      "summary": "Awesome Claude Fable 5.2 videos, AI animation, motion graphics and prompts. Explore code-to-video, Three.js, Blender, Remotion, HyperFrames, 3D worlds, product films, explainers and games. Curated by VibeClip in 5 languages.",
-      "stars": 8,
-      "updatedAt": "2026-11-24T17:39:14Z",
+      "id": "1117435862",
+      "name": "Sayhi-bzb/CharDesk",
+      "url": "https://github.com/Sayhi-bzb/CharDesk",
+      "summary": "A Unicode canvas for humans and AI. Draw diagrams, interfaces, and slides as editable text.",
+      "stars": 434,
+      "updatedAt": "2026-11-25T16:21:16Z",
       "license": "MIT",
-      "score": 78,
+      "score": 88,
       "capabilities": [
-        "video.generate",
         "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1331651740",
+      "name": "BrianCLowe/xAIkit",
+      "url": "https://github.com/BrianCLowe/xAIkit",
+      "summary": "Unofficial Python kit for the xAI (Grok) API — typed client, model catalog, usage metering, image/video, and realtime voice",
+      "stars": 0,
+      "updatedAt": "2026-11-25T17:13:14Z",
+      "license": "MIT",
+      "score": 86,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1401664277",
+      "name": "alexshpunt/pi-agent-computer-use",
+      "url": "https://github.com/alexshpunt/pi-agent-computer-use",
+      "summary": "Computer use for the Pi coding agent — Windows apps, browsers and desktops through native UI trees, screenshots and real input.",
+      "stars": 105,
+      "updatedAt": "2026-11-25T16:31:43Z",
+      "license": "MIT",
+      "score": 84,
+      "capabilities": [
+        "video.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -224,7 +297,7 @@
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 7,
-      "updatedAt": "2026-11-24T18:03:23Z",
+      "updatedAt": "2026-11-25T17:28:58Z",
       "license": "MIT",
       "score": 77,
       "capabilities": [
@@ -254,95 +327,25 @@
       }
     },
     {
-      "id": "1430399086",
-      "name": "MlkBlk-IT/Mcp-QadGraph",
-      "url": "https://github.com/MlkBlk-IT/Mcp-QadGraph",
-      "summary": "Qdrant control plane: 3D similarity dashboard + read-only MCP server (9 tools). See the vector memory, don't just query it. Python stdlib server, 100% local, 0 paid API, 0 Docker.",
-      "stars": 1,
-      "updatedAt": "2026-11-24T04:42:56Z",
+      "id": "1459587676",
+      "name": "magrify/moonfactory",
+      "url": "https://github.com/magrify/moonfactory",
+      "summary": "AI video generation for creators: turn a start image or a prompt into a short vertical video with music. Self-hosted Wan 2.2 lanes, priced from measured pay-per-use costs.",
+      "stars": 0,
+      "updatedAt": "2026-11-25T16:08:33Z",
       "license": "MIT",
-      "score": 74,
+      "score": 72,
       "capabilities": [
+        "video.generate",
         "visual.generate",
-        "tool.search",
-        "knowledge.search"
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1470544678",
-      "name": "Hamidreza59/newsroom-ai",
-      "url": "https://github.com/Hamidreza59/newsroom-ai",
-      "summary": "Multi-agent AI newsroom (MCP + RAG) that produces a daily animated markets & AI-news show: fact-checked two-anchor script, voices and broadcast-style video",
-      "stars": 0,
-      "updatedAt": "2026-11-24T17:38:43Z",
-      "license": "MIT",
-      "score": 72,
-      "capabilities": [
-        "video.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1470575095",
-      "name": "NocturneSky3715092/nonprofit-video-cutover-python",
-      "url": "https://github.com/NocturneSky3715092/nonprofit-video-cutover-python",
-      "summary": "Typed Python workflow for nonprofit video jobs and expiring clip links.",
-      "stars": 0,
-      "updatedAt": "2026-11-24T18:01:40Z",
-      "license": "MIT",
-      "score": 72,
-      "capabilities": [
-        "video.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -363,8 +366,8 @@
       "name": "ArcReel/ArcReel",
       "url": "https://github.com/ArcReel/ArcReel",
       "summary": "AI Agent 驱动的开源可自部署视频工作台：将小说与剧本转为角色、场景、道具资产、分镜、视频和剪映草稿，支持跨镜头一致性、多供应商与费用追踪 | Self-hosted AI video workspace for stories, storyboards and short-form video production",
-      "stars": 6743,
-      "updatedAt": "2026-11-24T18:07:43Z",
+      "stars": 6764,
+      "updatedAt": "2026-11-25T17:26:33Z",
       "license": "AGPL-3.0",
       "score": 67,
       "capabilities": [
@@ -396,48 +399,14 @@
       }
     },
     {
-      "id": "1186680049",
-      "name": "koltyakov/browser-bridge",
-      "url": "https://github.com/koltyakov/browser-bridge",
-      "summary": "🤖 Browser Bridge for Agentic AI Development - browser extension, MCP, and skilled CLI",
-      "stars": 31,
-      "updatedAt": "2026-11-24T16:12:08Z",
+      "id": "1205267694",
+      "name": "LanNguyenSi/agent-dx",
+      "url": "https://github.com/LanNguyenSi/agent-dx",
+      "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
+      "stars": 6,
+      "updatedAt": "2026-11-25T14:06:20Z",
       "license": "MIT",
-      "score": 67,
-      "capabilities": [
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1077757315",
-      "name": "lzehrung/codegraph",
-      "url": "https://github.com/lzehrung/codegraph",
-      "summary": "CLI, MCP and TS library that turns source code into a map of files, symbols, references, and dependencies using tree-sitter.",
-      "stars": 10,
-      "updatedAt": "2026-11-24T18:09:42Z",
-      "license": "MIT",
-      "score": 64,
+      "score": 63,
       "capabilities": [
         "tool.search",
         "knowledge.search"
@@ -516,6 +485,40 @@
       "adaptation": {
         "mode": "pattern-first",
         "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1440080400",
+      "name": "Rhuthvija/exoplanet_explorer",
+      "url": "https://github.com/Rhuthvija/exoplanet_explorer",
+      "summary": "SOLICE: an AI-powered 3D explorer for 6,000+ real exoplanets from NASA's Exoplanet Archive, with a grounded AI astronomer, habitability dashboard and cinematic WebGL intro.",
+      "stars": 0,
+      "updatedAt": "2026-11-24T07:38:56Z",
+      "license": "MIT",
+      "score": 58,
+      "capabilities": [
+        "visual.generate",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
