@@ -3,6 +3,10 @@ import type { BlacklaceKnowledgeItem } from "./notion";
 const NOTION_API_URL = "https://api.notion.com/v1";
 const NOTION_VERSION = "2022-06-28";
 
+// Shared across aliases, pagination and nested blocks for one knowledge lookup.
+// Leave room in the Worker invocation for generation and durable persistence.
+export interface NotionReadBudget { remaining: number }
+
 interface NotionPageResult {
   object: "page";
   id: string;
@@ -109,11 +113,13 @@ function blockText(block: NotionBlock): string {
   return richText((payload as Record<string, unknown>).rich_text);
 }
 
-async function readBlocks(apiKey: string, blockId: string, depth = 0): Promise<string[]> {
-  if (depth > 4) return [];
+async function readBlocks(apiKey: string, blockId: string, budget: NotionReadBudget, depth = 0): Promise<string[]> {
+  if (depth > 4 || budget.remaining <= 0) return [];
   const texts: string[] = [];
   let cursor: string | undefined;
   do {
+    if (budget.remaining <= 0) break;
+    budget.remaining--;
     const url = new URL(`${NOTION_API_URL}/blocks/${blockId}/children`);
     url.searchParams.set("page_size", "100");
     if (cursor) url.searchParams.set("start_cursor", cursor);
@@ -123,18 +129,20 @@ async function readBlocks(apiKey: string, blockId: string, depth = 0): Promise<s
     for (const block of payload.results ?? []) {
       const text = blockText(block);
       if (text) texts.push(text);
-      if (block.has_children) texts.push(...await readBlocks(apiKey, block.id, depth + 1));
+      if (block.has_children) texts.push(...await readBlocks(apiKey, block.id, budget, depth + 1));
     }
     cursor = payload.has_more && payload.next_cursor ? payload.next_cursor : undefined;
   } while (cursor);
   return texts;
 }
 
-async function searchPages(apiKey: string, query: string): Promise<NotionPageResult[]> {
+async function searchPages(apiKey: string, query: string, budget: NotionReadBudget): Promise<NotionPageResult[]> {
   const pages: NotionPageResult[] = [];
   let cursor: string | undefined;
 
   do {
+    if (budget.remaining <= 0) break;
+    budget.remaining--;
     const body: Record<string, unknown> = {
       filter: { property: "object", value: "page" },
       sort: { direction: "descending", timestamp: "last_edited_time" },
@@ -166,17 +174,18 @@ export async function searchNotionWorkspaceKnowledge(
   apiKey: string | undefined,
   query: string,
   requestedUniverse: string,
+  budget: NotionReadBudget = { remaining: 8 },
 ): Promise<BlacklaceKnowledgeItem[]> {
   if (!apiKey) return [];
   const normalizedQuery = query.trim();
   const normalizedUniverse = requestedUniverse.trim();
-  const pages = await searchPages(apiKey, normalizedQuery);
+  const pages = await searchPages(apiKey, normalizedQuery, budget);
   const items: BlacklaceKnowledgeItem[] = [];
 
   for (const page of pages) {
     const title = pageTitle(page);
     const metadata = pageMetadata(page);
-    const blockContent = (await readBlocks(apiKey, page.id)).join("\n\n").trim();
+    const blockContent = (await readBlocks(apiKey, page.id, budget)).join("\n\n").trim();
     const content = [metadata.content, blockContent].filter(Boolean).join("\n\n").trim();
     if (!content) continue;
 
