@@ -280,7 +280,11 @@ app.post("/api/cerenite/voice-test", async (c) => {
   const expected = await resolveSecret(c.env.CERENITE_ACCESS_CODE);
   const provided = c.req.header("X-Cerenite-Access") ?? "";
   if (!expected || !provided || provided !== expected) return c.json({ error: "unauthorized" }, 401);
-  // Paused at Benoît\u2019s request: do not call Mistral audio or resolve its key.\n  return c.json({ error: "voxtral_paused", message: "Essais Voxtral suspendus." }, 410);\n});\n\napp.options("/api/cerenite/voice-test", (c) => {
+  // Voxtral paused at the owner's request; no Mistral call.
+  return c.json({ error: "voxtral_paused", message: "Essais Voxtral suspendus." }, 410);
+});
+
+app.options("/api/cerenite/voice-test", (c) => {
   const origin = c.req.header("Origin") ?? "";
   if (origin !== "https://benoitlub.github.io") return c.body(null, 403);
   c.header("Access-Control-Allow-Origin", origin);
