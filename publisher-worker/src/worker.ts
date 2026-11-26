@@ -280,31 +280,7 @@ app.post("/api/cerenite/voice-test", async (c) => {
   const expected = await resolveSecret(c.env.CERENITE_ACCESS_CODE);
   const provided = c.req.header("X-Cerenite-Access") ?? "";
   if (!expected || !provided || provided !== expected) return c.json({ error: "unauthorized" }, 401);
-  const apiKey = await mistralApiKey(c.env);
-  if (!apiKey) return c.json({ error: "mistral_not_configured" }, 503);
-  const input = "Bonsoir, ici Cérénité Blablabla !";
-  try {
-    const response = await fetch("https://api.mistral.ai/v1/audio/speech", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ input, model: "voxtral-mini-tts-3-0", response_format: "mp3", voice_id: "voice_589" }),
-    });
-    if (!response.ok) {
-      console.warn("Cérénité voice test failed", response.status);
-      return c.json({ error: "tts_upstream_failed", upstreamStatus: response.status }, 502);
-    }
-    const payload = await response.json().catch(() => ({})) as Record<string, unknown>;
-    const audio = payload.audio_data;
-    if (typeof audio !== "string" || !/^[A-Za-z0-9+/=]+$/.test(audio) || audio.length > 8_000_000) {
-      return c.json({ error: "tts_invalid_audio" }, 502);
-    }
-    return c.json({ audio_data: audio, mime_type: "audio/mpeg", voice_id: "voice_589" });
-  } catch {
-    return c.json({ error: "tts_network_failed" }, 502);
-  }
-});
-
-app.options("/api/cerenite/voice-test", (c) => {
+  // Paused at Benoît\u2019s request: do not call Mistral audio or resolve its key.\n  return c.json({ error: "voxtral_paused", message: "Essais Voxtral suspendus." }, 410);\n});\n\napp.options("/api/cerenite/voice-test", (c) => {
   const origin = c.req.header("Origin") ?? "";
   if (origin !== "https://benoitlub.github.io") return c.body(null, 403);
   c.header("Access-Control-Allow-Origin", origin);
