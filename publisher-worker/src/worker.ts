@@ -3834,13 +3834,13 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
   try {
-    const canva = await executeCanvaDesign(env, tentacle.title);
+    const canva = knowledge.verified ? await executeCanvaDesign(env, tentacle.title) : null;
     if (canva) {
       visualUrl = canva.artifact.url;
       toolCombination = `canva:${canva.toolSlug}`;
       canvaStatus = "success";
     } else {
-      canvaStatus = "no-artifact";
+      canvaStatus = knowledge.verified ? "no-artifact" : "skipped-unverified";
     }
   } catch (error) {
     canvaStatus = "error";
@@ -3871,7 +3871,9 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
   const triedCanvaSlugs = (tentacle.tools_tried || []).filter((entry) => entry.startsWith("canva:")).map((entry) => entry.slice("canva:".length));
   let visualUrl: string | null = null;
   let toolCombination: string | null = null;
-  const canva = await executeCanvaDesign(env, `${tentacle.title} · expérimentation`, { excludeSlugs: triedCanvaSlugs, requireNovel: true }).catch(() => null);
+  const canva = knowledge.verified
+    ? await executeCanvaDesign(env, `${tentacle.title} · expérimentation`, { excludeSlugs: triedCanvaSlugs, requireNovel: true }).catch(() => null)
+    : null;
   if (canva) { visualUrl = canva.artifact.url; toolCombination = `canva:${canva.toolSlug}`; }
 
   let content: string | null = null;
