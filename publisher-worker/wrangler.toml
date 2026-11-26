@@ -45,7 +45,7 @@ secret_name = "GITHUB_TOKEN"
 # every 15 minutes; each tentacle's own cooldown (20min-6h, doubling per
 # iteration) governs actual pacing, so most ticks find nothing due.
 [triggers]
-crons = [] # Temporarily suspend autonomous tentacle cycles while diagnosing Mistral 429.
+crons = ["*/15 * * * *"] # Restore the existing autonomous harvest loop; per-tentacle cooldowns still apply.
 
 # Worker-to-Worker calls on the same workers.dev zone must use a Service Binding.
 # This avoids Cloudflare error 1042 while keeping the public URL as a fallback.
