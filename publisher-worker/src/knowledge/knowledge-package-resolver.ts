@@ -267,11 +267,12 @@ export async function resolveKnowledgePackage(
   let items = rankItems(pool, slug);
   const discovered = new Map<string, BlacklaceKnowledgeItem>();
   const apiKey = env.NOTION_API_KEY;
+  const discoveryBudget = { remaining: 8 };
 
   if (items.length < 2) {
     const targetedQueries = [...new Set([slug.replace(/-/g, " "), ...(KNOWN_ALIASES[slug] ?? [])])];
     for (const query of targetedQueries) {
-      const results = await searchNotionWorkspaceKnowledge(apiKey, query, slug);
+      const results = await searchNotionWorkspaceKnowledge(apiKey, query, slug, discoveryBudget);
       for (const item of results) discovered.set(item.id, item);
       const merged = new Map(pool.map((item) => [item.id, item]));
       for (const item of discovered.values()) merged.set(item.id, item);
@@ -280,7 +281,7 @@ export async function resolveKnowledgePackage(
       if (items.length > 0) break;
     }
     if (items.length === 0) {
-      const results = await searchNotionWorkspaceKnowledge(apiKey, "", slug);
+      const results = await searchNotionWorkspaceKnowledge(apiKey, "", slug, discoveryBudget);
       for (const item of results) discovered.set(item.id, item);
       const merged = new Map(pool.map((item) => [item.id, item]));
       for (const item of discovered.values()) merged.set(item.id, item);
