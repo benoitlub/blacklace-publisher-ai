@@ -582,14 +582,14 @@ function accountFor(accounts: ComposioConnectedAccount[], toolkitSlug: string): 
   return accounts.find((account) => (toolkitSlug === "metricool" ? isMetricoolToolkit(account.toolkitSlug) : account.toolkitSlug === toolkitSlug) && isActiveComposioStatus(account.status)) ?? null;
 }
 
-async function listComposioTools(env: Env, toolkitSlug: string, timeoutMs?: number): Promise<ComposioTool[]> {
+async function listComposioTools(env: Env, toolkitSlug: string, timeoutMs?: number, maxPages = 30): Promise<ComposioTool[]> {
   const normalizedToolkit = normalize(toolkitSlug);
   for (const parameter of ["toolkit_slugs", "toolkit_slug"]) {
     const found = new Map<string, ComposioTool>();
     const cursors = new Set<string>();
     let cursor = "";
     try {
-      for (let page = 0; page < 30; page++) {
+      for (let page = 0; page < maxPages; page++) {
         const payload = await composioRequest(env, `/tools?${parameter}=${encodeURIComponent(toolkitSlug)}&limit=250${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {});
         for (const item of extractItems(payload)) {
           const record = asRecord(item);
@@ -1077,7 +1077,7 @@ async function executeCanvaDesign(env: Env, title: string, options: { excludeSlu
   const accounts = await listComposioConnectedAccounts(env);
   const account = accountFor(accounts, "canva");
   if (!account) return null;
-  const scored = selectCanvaCreateTools(await listComposioTools(env, "canva"));
+  const scored = selectCanvaCreateTools(await listComposioTools(env, "canva", undefined, 3));
   const excluded = new Set(options.excludeSlugs || []);
   const pool = options.requireNovel ? scored.filter((candidate) => !excluded.has(candidate.slug)) : scored;
   if (options.requireNovel && !pool.length) return null;
