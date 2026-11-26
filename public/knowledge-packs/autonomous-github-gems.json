@@ -2,127 +2,91 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-25",
+  "generatedDate": "2026-11-26",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "1266438067",
-      "name": "JuneYaooo/capsule-cinema",
-      "url": "https://github.com/JuneYaooo/capsule-cinema",
-      "summary": "把视频做成模版，一次配方无限视频 · Turn videos into templates. One recipe, unlimited videos.",
-      "stars": 350,
-      "updatedAt": "2026-11-25T16:26:11Z",
-      "license": "Apache-2.0",
-      "score": 100,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1321544757",
-      "name": "openvetta/open-vetta",
-      "url": "https://github.com/openvetta/open-vetta",
-      "summary": "Open-source, local-first AI agent for real work.",
-      "stars": 462,
-      "updatedAt": "2026-11-25T16:45:38Z",
-      "license": "Apache-2.0",
-      "score": 100,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1441937889",
-      "name": "sandbaseai/sandbase",
-      "url": "https://github.com/sandbaseai/sandbase",
-      "summary": "One API key. Build your personal agent. Agents and sandboxes are free, and agents can call 2,000+ AI models and data APIs (LLM, image, video, TikTok, YouTube, SEO, finance). OpenAI Agents API, E2B and OpenAI compatible. Python, TypeScript, Go.",
-      "stars": 6,
-      "updatedAt": "2026-11-25T16:26:31Z",
-      "license": "Apache-2.0",
-      "score": 91,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1233956613",
-      "name": "ffroliva/gflow-cli",
-      "url": "https://github.com/ffroliva/gflow-cli",
-      "summary": "MCP server and CLI for Google Flow: generate Veo 3.1 and Omni video and Nano Banana / Imagen images from Claude Code, Claude Desktop, Cursor, Codex or the terminal. Free, MIT, on PyPI. Independent project, not affiliated with Google.",
-      "stars": 852,
-      "updatedAt": "2026-11-25T17:34:54Z",
+      "id": "786160729",
+      "name": "Anil-matcha/Seedance-2-API",
+      "url": "https://github.com/Anil-matcha/Seedance-2-API",
+      "summary": "Uncensored Seedance 2 API search? This Python SDK covers standard Seedance 2.0/2.5 workflows and Seedance 2.5 Flash Spicy routes; for relaxed-moderation Seedance 2 and 2 Mini, use the dedicated Seedance 2 Spicy API.",
+      "stars": 364,
+      "updatedAt": "2026-11-26T16:59:13Z",
       "license": "MIT",
-      "score": 90,
+      "score": 100,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "848220364",
+      "name": "Anil-matcha/Wan-3.0-API",
+      "url": "https://github.com/Anil-matcha/Wan-3.0-API",
+      "summary": "Uncensored Wan 3.0 API search? This Python SDK and MCP server documents standard routes; the Wan 3.0 Spicy companion provides relaxed-moderation endpoints.",
+      "stars": 83,
+      "updatedAt": "2026-11-26T16:59:16Z",
+      "license": "MIT",
+      "score": 98,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "650657605",
+      "name": "SamurAIGPT/Seedance-2.5-API",
+      "url": "https://github.com/SamurAIGPT/Seedance-2.5-API",
+      "summary": "Uncensored Seedance 2.5 API: Python SDK for ByteDance Seedance 2.5 and Flash, with Spicy relaxed-moderation routes for text/image-to-video, references, edit, and extend. Native 4K, 30-second clips, and MCP via MuAPI; provider terms apply.",
+      "stars": 517,
+      "updatedAt": "2026-11-26T16:59:20Z",
+      "license": "MIT",
+      "score": 88,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -150,50 +114,14 @@
       }
     },
     {
-      "id": "1466789488",
-      "name": "VideoGym/VideoGym",
-      "url": "https://github.com/VideoGym/VideoGym",
-      "summary": "VideoGym: official framework for the paper \"Can Video Generation Models Really Learn to Reason?\" covering procedural task synthesis, SFT & RLVR post-training, full-video verification, and seven-level generalization evaluation",
-      "stars": 2,
-      "updatedAt": "2026-11-25T16:34:33Z",
-      "license": "Apache-2.0",
-      "score": 89,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1117435862",
-      "name": "Sayhi-bzb/CharDesk",
-      "url": "https://github.com/Sayhi-bzb/CharDesk",
-      "summary": "A Unicode canvas for humans and AI. Draw diagrams, interfaces, and slides as editable text.",
-      "stars": 434,
-      "updatedAt": "2026-11-25T16:21:16Z",
+      "id": "1333579278",
+      "name": "ZASENJC/dsh-plugins-store",
+      "url": "https://github.com/ZASENJC/dsh-plugins-store",
+      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
+      "stars": 73,
+      "updatedAt": "2026-11-26T15:47:08Z",
       "license": "MIT",
-      "score": 88,
+      "score": 83,
       "capabilities": [
         "visual.generate",
         "tool.search",
@@ -221,17 +149,15 @@
       }
     },
     {
-      "id": "1331651740",
-      "name": "BrianCLowe/xAIkit",
-      "url": "https://github.com/BrianCLowe/xAIkit",
-      "summary": "Unofficial Python kit for the xAI (Grok) API — typed client, model catalog, usage metering, image/video, and realtime voice",
-      "stars": 0,
-      "updatedAt": "2026-11-25T17:13:14Z",
-      "license": "MIT",
-      "score": 86,
+      "id": "1231135337",
+      "name": "strukto-ai/mirage",
+      "url": "https://github.com/strukto-ai/mirage",
+      "summary": "The World's First Virtual Terminal for AI Agents",
+      "stars": 3938,
+      "updatedAt": "2026-11-26T17:15:30Z",
+      "license": "Apache-2.0",
+      "score": 80,
       "capabilities": [
-        "video.generate",
-        "visual.generate",
         "tool.search",
         "knowledge.search"
       ],
@@ -240,7 +166,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -257,25 +183,60 @@
       }
     },
     {
-      "id": "1401664277",
-      "name": "alexshpunt/pi-agent-computer-use",
-      "url": "https://github.com/alexshpunt/pi-agent-computer-use",
-      "summary": "Computer use for the Pi coding agent — Windows apps, browsers and desktops through native UI trees, screenshots and real input.",
-      "stars": 105,
-      "updatedAt": "2026-11-25T16:31:43Z",
+      "id": "1392697561",
+      "name": "Anil-matcha/Seedance-2.5-Spicy-API",
+      "url": "https://github.com/Anil-matcha/Seedance-2.5-Spicy-API",
+      "summary": "Uncensored Seedance 2.5 API (Spicy): Python SDK for ByteDance text-to-video, image-to-video, Omni Reference, video edit/extend, and motion control via MuAPI relaxed-moderation routes. Native audio, 4K, and clips up to 30 seconds; provider terms still apply.",
+      "stars": 7,
+      "updatedAt": "2026-11-26T16:59:03Z",
       "license": "MIT",
-      "score": 84,
+      "score": 77,
       "capabilities": [
         "video.generate",
-        "tool.search",
-        "knowledge.search"
+        "visual.generate",
+        "tool.search"
       ],
       "riskFlags": [],
       "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1392683456",
+      "name": "Anil-matcha/Wan-3.0-Spicy-API",
+      "url": "https://github.com/Anil-matcha/Wan-3.0-Spicy-API",
+      "summary": "Uncensored Wan 3.0 API (Spicy): Python SDK and MCP server for Alibaba Wan text-to-video, image-to-video, and reference-to-video with synchronized audio via MuAPI relaxed-moderation routes. Provider terms still apply.",
+      "stars": 5,
+      "updatedAt": "2026-11-26T16:59:10Z",
+      "license": "MIT",
+      "score": 77,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -297,7 +258,7 @@
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 7,
-      "updatedAt": "2026-11-25T17:28:58Z",
+      "updatedAt": "2026-11-26T17:18:41Z",
       "license": "MIT",
       "score": 77,
       "capabilities": [
@@ -327,12 +288,47 @@
       }
     },
     {
-      "id": "1459587676",
-      "name": "magrify/moonfactory",
-      "url": "https://github.com/magrify/moonfactory",
-      "summary": "AI video generation for creators: turn a start image or a prompt into a short vertical video with music. Self-hosted Wan 2.2 lanes, priced from measured pay-per-use costs.",
+      "id": "1392672121",
+      "name": "Anil-matcha/Seedance-2-Spicy-API",
+      "url": "https://github.com/Anil-matcha/Seedance-2-Spicy-API",
+      "summary": "Uncensored Seedance 2 API (Spicy): Python SDK for ByteDance Seedance 2 and 2 Mini text-to-video, image-to-video, and Omni Reference via MuAPI relaxed-moderation routes, including fast tiers and native audio. Provider terms still apply.",
+      "stars": 3,
+      "updatedAt": "2026-11-26T16:59:06Z",
+      "license": "MIT",
+      "score": 76,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1461949131",
+      "name": "endynamoo/poiesis",
+      "url": "https://github.com/endynamoo/poiesis",
+      "summary": "Portfolio for Rhapsode (reads books aloud) and Opsis (turns a book into a film) - local-first AI, built end to end",
       "stars": 0,
-      "updatedAt": "2026-11-25T16:08:33Z",
+      "updatedAt": "2026-11-26T17:19:02Z",
       "license": "MIT",
       "score": 72,
       "capabilities": [
@@ -362,27 +358,25 @@
       }
     },
     {
-      "id": "1152014383",
-      "name": "ArcReel/ArcReel",
-      "url": "https://github.com/ArcReel/ArcReel",
-      "summary": "AI Agent 驱动的开源可自部署视频工作台：将小说与剧本转为角色、场景、道具资产、分镜、视频和剪映草稿，支持跨镜头一致性、多供应商与费用追踪 | Self-hosted AI video workspace for stories, storyboards and short-form video production",
-      "stars": 6764,
-      "updatedAt": "2026-11-25T17:26:33Z",
-      "license": "AGPL-3.0",
-      "score": 67,
+      "id": "1472646841",
+      "name": "robellephrm/ripple",
+      "url": "https://github.com/robellephrm/ripple",
+      "summary": "Mosaic-theory research map for a single stock.",
+      "stars": 0,
+      "updatedAt": "2026-11-26T05:30:50Z",
+      "license": "MIT",
+      "score": 72,
       "capabilities": [
-        "video.generate",
         "visual.generate",
-        "tool.search"
+        "tool.search",
+        "knowledge.search"
       ],
-      "riskFlags": [
-        "license-review-required"
-      ],
-      "decision": "needs-review",
+      "riskFlags": [],
+      "decision": "candidate",
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -404,7 +398,7 @@
       "url": "https://github.com/LanNguyenSi/agent-dx",
       "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
       "stars": 6,
-      "updatedAt": "2026-11-25T14:06:20Z",
+      "updatedAt": "2026-11-26T14:30:11Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
@@ -433,14 +427,14 @@
       }
     },
     {
-      "id": "1435745125",
-      "name": "briton2008/hengliyuan-carton-packing-planner",
-      "url": "https://github.com/briton2008/hengliyuan-carton-packing-planner",
-      "summary": "Plan single-SKU cartons or a mixed single-carton trial from measured packs, with interactive 3D and PDF.",
-      "stars": 0,
-      "updatedAt": "2026-11-24T10:36:01Z",
-      "license": "MIT",
-      "score": 58,
+      "id": "1421324273",
+      "name": "bitilia/es3d",
+      "url": "https://github.com/bitilia/es3d",
+      "summary": "Extensible Scalable 3D",
+      "stars": 4,
+      "updatedAt": "2026-11-26T13:25:57Z",
+      "license": "Apache-2.0",
+      "score": 62,
       "capabilities": [
         "visual.generate",
         "tool.search"
@@ -467,16 +461,15 @@
       }
     },
     {
-      "id": "1436009197",
-      "name": "briton2008/hengliyuan-container-loading-calculator",
-      "url": "https://github.com/briton2008/hengliyuan-container-loading-calculator",
-      "summary": "Compare 20GP, 40GP and 40HC container loads from measured cartons, with 3D views and company PDF.",
-      "stars": 0,
-      "updatedAt": "2026-11-24T10:31:13Z",
+      "id": "1255917800",
+      "name": "vb2250158/RabiRoute",
+      "url": "https://github.com/vb2250158/RabiRoute",
+      "summary": "Self-hosted gateway that bridges QQ, WeChat/WeCom and Feishu chat to your existing Codex or agent task — remote control from your phone, schedules and role context. | 自托管 AI 消息网关：把 QQ、微信、飞书接到你已有的 Codex / Agent 任务，支持手机远程、定时任务和角色上下文。",
+      "stars": 494,
+      "updatedAt": "2026-11-26T14:24:15Z",
       "license": "MIT",
-      "score": 58,
+      "score": 60,
       "capabilities": [
-        "visual.generate",
         "tool.search"
       ],
       "riskFlags": [],
@@ -484,7 +477,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -501,16 +494,16 @@
       }
     },
     {
-      "id": "1440080400",
-      "name": "Rhuthvija/exoplanet_explorer",
-      "url": "https://github.com/Rhuthvija/exoplanet_explorer",
-      "summary": "SOLICE: an AI-powered 3D explorer for 6,000+ real exoplanets from NASA's Exoplanet Archive, with a grounded AI astronomer, habitability dashboard and cinematic WebGL intro.",
+      "id": "1473456264",
+      "name": "neulketing/toolrelay",
+      "url": "https://github.com/neulketing/toolrelay",
+      "summary": "One key, every tool your agent needs. Open-source tool gateway for AI agents on Cloudflare Workers: routed calls, misses free, MCP + llms.txt. MIT.",
       "stars": 0,
-      "updatedAt": "2026-11-24T07:38:56Z",
+      "updatedAt": "2026-11-26T17:19:10Z",
       "license": "MIT",
       "score": 58,
       "capabilities": [
-        "visual.generate",
+        "tool.search",
         "knowledge.search"
       ],
       "riskFlags": [],
@@ -518,7 +511,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
