@@ -1,0 +1,28 @@
+name: Identify existing Mistral credential
+on:
+  push:
+    branches: [diagnostic/mistral-key-comparison-20261126]
+    paths: [.github/workflows/mistral-key-comparison.yml]
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+    steps:
+      - name: Identify key without exposing it and test only named keys
+        shell: bash
+        run: |
+          node --input-type=module <<'JS'
+          import {createHash} from 'node:crypto';
+          const key=(process.env.MISTRAL_API_KEY||'').trim();
+          const label=key?(key.endsWith('x9P2')?'octo':key.endsWith('4izP')?'Pulpito':'unidentified'):'missing';
+          console.log(JSON.stringify({repository:process.env.GITHUB_REPOSITORY,label,fingerprint:key?createHash('sha256').update(key).digest('hex').slice(0,16):null}));
+          if(label==='octo'||label==='Pulpito'){
+            const response=await fetch('https://api.mistral.ai/v1/chat/completions',{method:'POST',headers:{Authorization:'Bearer '+key,'Content-Type':'application/json'},body:JSON.stringify({model:'ministral-8b-2512',messages:[{role:'user',content:'Réponds uniquement OK.'}],max_tokens:8,temperature:0}),signal:AbortSignal.timeout(45000)});
+            const data=await response.json().catch(()=>({}));
+            console.log(JSON.stringify({label,httpStatus:response.status,code:data.code,message:String(data.message||'').replaceAll(key,'[REDACTED]').slice(0,300),reply:data.choices?.[0]?.message?.content}));
+          }
+          JS
