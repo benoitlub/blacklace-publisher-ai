@@ -1,3 +1,5 @@
+import { searchPublicWeb, fetchPublicPage } from "./public-web-discovery";
+import { generateCloudflareText, type TextAiBinding, type TextRequest } from "./cloudflare-text";
 import { metaverse } from "./metaverse/routes";
 import { metricoolReviewMail } from "./metricool-review-mail";
 import { generateMistralImage, downloadMistralImage, MistralImageError } from "../../artifacts/api-server/src/services/mistral-image";
@@ -72,6 +74,8 @@ import { observeWithOctopus, type PublisherObservationInput } from "./octopus-ob
 export type SecretsStoreSecret = { get(): Promise<string> };
 type ServiceBinding = { fetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> };
 type Env = {
+  AI?: TextAiBinding;
+  TEXT_PROVIDER?: string;
   MISTRAL_API_KEY?: string | SecretsStoreSecret;
   CERENITE_ACCESS_CODE?: string | SecretsStoreSecret;
   AI_API_KEY?: string | SecretsStoreSecret;
@@ -358,6 +362,18 @@ async function executeMistralText(env: Env, request: { title: string; prompt: st
     createdAt: new Date().toISOString(),
     metadata: { provider: "mistral", model, finishReason: choice?.finish_reason ?? null, usage: payload.usage ?? null },
   };
+}
+
+async function executePublisherText(env: Env, request: TextRequest) {
+  if (env.TEXT_PROVIDER !== "cloudflare") return executeMistralText(env, request);
+  return generateCloudflareText(env.AI, request, async () => {
+    const sql = await getSql(env);
+    await sql`CREATE TABLE IF NOT EXISTS publisher_text_daily_budget (day date PRIMARY KEY, requests integer NOT NULL)`;
+    const rows = await sql`INSERT INTO publisher_text_daily_budget(day,requests) VALUES ((now() AT TIME ZONE 'UTC')::date,1)
+      ON CONFLICT(day) DO UPDATE SET requests=publisher_text_daily_budget.requests+1
+      WHERE publisher_text_daily_budget.requests<20 RETURNING requests`;
+    return rows.length === 1;
+  });
 }
 
 type MistralImageToolPack = {
@@ -3570,14 +3586,14 @@ app.post("/api/production/execute", async (c) => {
         }, 422);
       }
 
-      const artifact = await executeMistralText(c.env, {
+      const artifact = await executePublisherText(c.env, {
         title,
         prompt,
         systemPrompt: [knowledge.prompt, input.systemPrompt ?? body.systemPrompt].filter(Boolean).join("\n\n"),
         maxTokens: Number(input.maxTokens ?? body.maxTokens ?? 5000),
         temperature: Number(input.temperature ?? body.temperature ?? 0.25),
       });
-      return c.json({ status: "completed", provider: "mistral", tool: "mistral", action: "copy.generate", artifact, knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: knowledge.verified } });
+      return c.json({ status: "completed", provider: artifact.metadata.provider, tool: artifact.metadata.provider, action: "copy.generate", artifact, knowledgePackage: { slug: knowledge.slug, source: knowledge.source, verified: knowledge.verified } });
     }
 
     const capability = String(body.capability ?? body.type ?? tool).toLowerCase();
@@ -3800,7 +3816,7 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
   // Notion fiable — corrigé ici à la racine plutôt que côté client seul.
   if (knowledge.verified) {
     try {
-      const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous, knowledge.prompt) });
+      const artifact = await executePublisherText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous, knowledge.prompt) });
       content = artifact.content;
       mistralStatus = "success";
     } catch (error) {
@@ -3859,7 +3875,7 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
   let content: string | null = null;
   if (knowledge.verified) {
     try {
-      const artifact = await executeMistralText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, Boolean(toolCombination), knowledge.prompt), temperature: 0.9 });
+      const artifact = await executePublisherText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, Boolean(toolCombination), knowledge.prompt), temperature: 0.9 });
       content = artifact.content;
     } catch (_) { /* fine — this cycle just yields whatever it managed */ }
   }
@@ -4410,10 +4426,7 @@ app.get("/api/observatory/capability-discover", async (c) => {
   const query = queries[capability];
   if (!query) return c.json({ status: "rejected", error: "Unknown capability." }, 400);
   try {
-    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_WEB", {
-      method: "POST",
-      body: JSON.stringify({ arguments: { query }, user_id: await composioUserId(c.env), version: "latest" }),
-    });
+    const preview = await searchPublicWeb(query);
     const root = asRecord(preview);
     const data = asRecord(root.data);
     const citations = Array.isArray(data.citations) ? data.citations : [];
@@ -4423,7 +4436,7 @@ app.get("/api/observatory/capability-discover", async (c) => {
       url: stringValue(citation.url ?? citation.link),
       description: stringValue(citation.snippet ?? citation.description ?? citation.text),
       evidence: {
-        engine: "COMPOSIO_SEARCH_WEB",
+        engine: "keenable-public",
         capability,
         verifiedExecutable: false,
         requiresEnrichment: true,
@@ -4452,10 +4465,7 @@ app.get("/api/observatory/capability-verify", async (c) => {
   const url = String(c.req.query("url") || "").trim();
   if (!capability || !/^https?:\/\//i.test(url)) return c.json({ status: "rejected", error: "capability and public url are required." }, 400);
   try {
-    const fetched = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_FETCH_URL_CONTENT", {
-      method: "POST",
-      body: JSON.stringify({ arguments: { urls: [url], text: true, summary: true, max_characters: 16000 }, user_id: await composioUserId(c.env), version: "latest" }),
-    });
+    const fetched = await fetchPublicPage(url);
     const evidenceText = JSON.stringify(fetched);
     const detected = capabilitiesFromToolText(evidenceText);
     const explicitCapability = detected.includes(capability);
@@ -4468,7 +4478,7 @@ app.get("/api/observatory/capability-verify", async (c) => {
       capability,
       url,
       verifiedExecutableCapability: verified,
-      evidence: { explicitCapability, apiEvidence, imageGenerationEvidence, source: url, engine: "COMPOSIO_SEARCH_FETCH_URL_CONTENT" },
+      evidence: { explicitCapability, apiEvidence, imageGenerationEvidence, source: url, engine: "keenable-public" },
       promotion: verified ? {
         contract: "publisher-tool-pack-v1",
         role: "verified-candidate",
@@ -4565,60 +4575,18 @@ app.get("/api/observatory/tool-packs", async (c) => {
   }
 });
 
-app.get("/api/observatory/discovery/schema", async (c) => {
-  try {
-    const payload = await composioRequest(c.env, "/tools?toolkit_slug=composio_search&limit=100&toolkit_versions=latest");
-    const tools = extractItems(payload).map((item) => {
-      const record = asRecord(item);
-      const schema = asRecord(record.input_parameters ?? record.input_schema ?? record.inputSchema ?? record.parameters ?? record.schema);
-      return {
-        slug: stringValue(record.slug ?? record.name ?? record.tool_slug ?? record.toolSlug),
-        name: stringValue(record.name ?? record.display_name),
-        toolkit: toolkitFrom(record),
-        description: stringValue(record.description),
-        inputSchema: schema,
-      };
-    }).filter((tool) => {
-      const slug = (tool.slug ?? "").toUpperCase();
-      const haystack = [tool.slug, tool.name, tool.description].filter(Boolean).join(" ").toLowerCase();
-      return (
-        slug === "COMPOSIO_SEARCH_WEB" ||
-        slug === "COMPOSIO_SEARCH_TAVILY" ||
-        slug === "COMPOSIO_SEARCH_DUCK_DUCK_GO" ||
-        slug === "COMPOSIO_SEARCH_GOOGLE" ||
-        slug === "COMPOSIO_SEARCH_BING" ||
-        (slug.startsWith("COMPOSIO_SEARCH_") &&
-          /web|internet|tavily|duck.?duck.?go|google|bing|search engine/.test(haystack))
-      );
-    });
-    return c.json({ status: "ok", executable: false, tools });
-  } catch (error) {
-    return c.json({ status: "failed", executable: false, error: error instanceof Error ? error.message : String(error) }, 502);
-  }
-});
+app.get("/api/observatory/discovery/schema", (c) => c.json({
+  status: "ok", executable: false, provider: "keenable-public", credentialRequired: false,
+  tools: [
+    { slug: "public.web.search", inputSchema: { type: "object", required: ["query"], properties: { query: { type: "string", maxLength: 1200 } } } },
+    { slug: "public.web.fetch", inputSchema: { type: "object", required: ["url"], properties: { url: { type: "string", format: "uri" } } } },
+  ],
+}));
 
-app.get("/api/observatory/discovery/account", async (c) => {
-  try {
-    const accounts = await listComposioConnectedAccounts(c.env);
-    const searchAccounts = accounts
-      .filter((account) => account.toolkitSlug === "composio-search" || account.toolkitSlug === "composio_search")
-      .map((account) => ({ id: account.id, toolkit: account.toolkitSlug, status: account.status, active: isActiveComposioStatus(account.status) }));
-    return c.json({
-      status: "ok",
-      configured: await isComposioConfigured(c.env),
-      userIdConfigured: Boolean(await resolveSecret(c.env.COMPOSIO_USER_ID)),
-      searchAccountCount: searchAccounts.length,
-      searchAccounts,
-      executable: false,
-    });
-  } catch (error) {
-    return c.json({
-      status: "failed",
-      executable: false,
-      error: error instanceof Error ? error.message : String(error),
-    }, 502);
-  }
-});
+app.get("/api/observatory/discovery/account", (c) => c.json({
+  status: "ok", configured: true, provider: "keenable-public", credentialRequired: false,
+  searchAccountCount: 0, searchAccounts: [], executable: false,
+}));
 
 app.post("/api/observatory/discovery/preview", async (c) => {
   try {
@@ -4626,14 +4594,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
     const query = String(body.query || "").trim();
     if (!query) return c.json({ status: "failed", executable: false, error: "query is required" }, 400);
 
-    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_WEB", {
-      method: "POST",
-      body: JSON.stringify({
-        arguments: { query },
-        user_id: await composioUserId(c.env),
-        version: "latest",
-      }),
-    });
+    const preview = await searchPublicWeb(query);
 
     const previewRecord = asRecord(preview);
     const data = asRecord(previewRecord.data);
@@ -4660,7 +4621,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
           publishedDate: stringValue(item.publishedDate ?? item.published_date),
           image: stringValue(item.image),
           provenance: {
-            engine: "COMPOSIO_SEARCH_WEB",
+            engine: "keenable-public",
             query,
           },
         };
@@ -4672,7 +4633,7 @@ app.post("/api/observatory/discovery/preview", async (c) => {
       status: "ok",
       executable: false,
       persisted: false,
-      engine: "COMPOSIO_SEARCH_WEB",
+      engine: "keenable-public",
       limit: 5,
       query,
       candidates,
@@ -4696,20 +4657,13 @@ app.post("/api/observatory/discovery/enrich", async (c) => {
       return c.json({ status: "rejected", executable: false, persisted: false, code: "INVALID_URL", error: "A public http(s) url is required." }, 400);
     }
 
-    const preview = await composioRequest(c.env, "/tools/execute/COMPOSIO_SEARCH_FETCH_URL_CONTENT", {
-      method: "POST",
-      body: JSON.stringify({
-        arguments: { urls: [url], text: true, summary: true, max_characters: 12000 },
-        user_id: await composioUserId(c.env),
-        version: "latest",
-      }),
-    });
+    const preview = await fetchPublicPage(url);
 
     return c.json({
       status: "ok",
       executable: false,
       persisted: false,
-      engine: "COMPOSIO_SEARCH_FETCH_URL_CONTENT",
+      engine: "keenable-public",
       url,
       preview,
     });
@@ -4769,7 +4723,7 @@ app.post("/api/observatory/discovery/accept", async (c) => {
         role: "discovered-tool",
         capabilities,
         provenance: {
-          engine: "COMPOSIO_SEARCH_WEB",
+          engine: "keenable-public",
           publishedDate: String(candidate.publishedDate || "").trim() || null,
           image: String(candidate.image || "").trim() || null,
         },
@@ -4789,7 +4743,7 @@ app.post("/api/observatory/discovery/accept", async (c) => {
 });
 
 app.get("/api/adapter/health", async (c) => {
-  const textProducerConfigured = Boolean(await mistralApiKey(c.env));
+  const textProducerConfigured = c.env.TEXT_PROVIDER === "cloudflare" ? Boolean(c.env.AI) : Boolean(await mistralApiKey(c.env));
   return c.json({
     status: "ok",
     adapterId: PUBLISHER_ADAPTER_ID,
@@ -4798,6 +4752,9 @@ app.get("/api/adapter/health", async (c) => {
     capabilities: [...PUBLISHER_ADAPTER_CAPABILITIES],
     executeUrl: `${publisherPublicUrl(c.env)}/api/octopus-adapter/execute`,
     textProducerConfigured,
+    textProvider: c.env.TEXT_PROVIDER === "cloudflare" ? "cloudflare-workers-ai" : "mistral",
+    generationVerified: false,
+    dailyTextRequestLimit: c.env.TEXT_PROVIDER === "cloudflare" ? 20 : null,
     composioConfigured: await isComposioConfigured(c.env),
   });
 });
@@ -4805,7 +4762,7 @@ app.get("/api/adapter/health", async (c) => {
 app.post("/api/octopus-adapter/execute", async (c) => {
   const envelope = await c.req.json<OctopusAdapterEnvelope>().catch(() => ({}) as OctopusAdapterEnvelope);
   const result = await executeAdapterMission(envelope, {
-    generateText: (request) => executeMistralText(c.env, request),
+    generateText: (request) => executePublisherText(c.env, request),
     knowledgeEnv: await knowledgeEnvFor(c.env),
     publishSocial: async (input) => finalizeSocialPublication(c.env, input, c.req.header("Authorization")),
     discoverTools: async query => {

@@ -5,6 +5,7 @@ compatibility_date = "2024-11-01"
 # Non-secret. Announced to Octopus as this adapter's base URL, so the
 # engine can call back into /api/octopus-adapter/execute.
 [vars]
+TEXT_PROVIDER = "cloudflare"
 PUBLISHER_PUBLIC_URL = "https://blacklace-publisher-worker.benoitlubert.workers.dev"
 OCTOPUS_ENGINE_URL = "https://octopus-engine-app.benoitlubert.workers.dev"
 # Gérard's book publishing is authorized by Benoît. Declare it here so
@@ -52,3 +53,7 @@ crons = ["*/15 * * * *"] # Restore the existing autonomous harvest loop; per-ten
 [[services]]
 binding = "OCTOPUS_ENGINE"
 service = "octopus-engine-app"
+
+# Existing Cloudflare account; no external API credential required.
+[ai]
+binding = "AI"
