@@ -2,162 +2,22 @@
   "version": 1,
   "contract": "publisher-autonomous-gems-v1",
   "source": "github-public-discovery",
-  "generatedDate": "2026-11-26",
+  "generatedDate": "2026-11-27",
   "executable": false,
   "policy": "discover-evaluate-adapt-test-before-execution",
   "gems": [
     {
-      "id": "786160729",
-      "name": "Anil-matcha/Seedance-2-API",
-      "url": "https://github.com/Anil-matcha/Seedance-2-API",
-      "summary": "Uncensored Seedance 2 API search? This Python SDK covers standard Seedance 2.0/2.5 workflows and Seedance 2.5 Flash Spicy routes; for relaxed-moderation Seedance 2 and 2 Mini, use the dedicated Seedance 2 Spicy API.",
-      "stars": 364,
-      "updatedAt": "2026-11-26T16:59:13Z",
-      "license": "MIT",
-      "score": 100,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "848220364",
-      "name": "Anil-matcha/Wan-3.0-API",
-      "url": "https://github.com/Anil-matcha/Wan-3.0-API",
-      "summary": "Uncensored Wan 3.0 API search? This Python SDK and MCP server documents standard routes; the Wan 3.0 Spicy companion provides relaxed-moderation endpoints.",
-      "stars": 83,
-      "updatedAt": "2026-11-26T16:59:16Z",
-      "license": "MIT",
-      "score": 98,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "650657605",
-      "name": "SamurAIGPT/Seedance-2.5-API",
-      "url": "https://github.com/SamurAIGPT/Seedance-2.5-API",
-      "summary": "Uncensored Seedance 2.5 API: Python SDK for ByteDance Seedance 2.5 and Flash, with Spicy relaxed-moderation routes for text/image-to-video, references, edit, and extend. Native 4K, 30-second clips, and MCP via MuAPI; provider terms apply.",
-      "stars": 517,
-      "updatedAt": "2026-11-26T16:59:20Z",
-      "license": "MIT",
-      "score": 88,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1333579278",
-      "name": "ZASENJC/dsh-plugins-store",
-      "url": "https://github.com/ZASENJC/dsh-plugins-store",
-      "summary": "自动分类、收录和验证 DeepSeek-Harness 社区插件的市场。 Automatically categorize, curate, and validate the DeepSeek-Harness community plugin marketplace.",
-      "stars": 73,
-      "updatedAt": "2026-11-26T15:47:08Z",
-      "license": "MIT",
-      "score": 83,
-      "capabilities": [
-        "visual.generate",
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1231135337",
-      "name": "strukto-ai/mirage",
-      "url": "https://github.com/strukto-ai/mirage",
-      "summary": "The World's First Virtual Terminal for AI Agents",
-      "stars": 3938,
-      "updatedAt": "2026-11-26T17:15:30Z",
+      "id": "1441937889",
+      "name": "sandbaseai/sandbase",
+      "url": "https://github.com/sandbaseai/sandbase",
+      "summary": "One API key. Build your personal agent. Agents and sandboxes are free, and agents can call 2,000+ AI models and data APIs (LLM, image, video, TikTok, YouTube, SEO, finance). OpenAI Agents API, E2B and OpenAI compatible. Python, TypeScript, Go.",
+      "stars": 6,
+      "updatedAt": "2026-11-27T16:23:32Z",
       "license": "Apache-2.0",
-      "score": 80,
+      "score": 91,
       "capabilities": [
+        "video.generate",
+        "visual.generate",
         "tool.search",
         "knowledge.search"
       ],
@@ -166,7 +26,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
@@ -183,49 +43,14 @@
       }
     },
     {
-      "id": "1392697561",
-      "name": "Anil-matcha/Seedance-2.5-Spicy-API",
-      "url": "https://github.com/Anil-matcha/Seedance-2.5-Spicy-API",
-      "summary": "Uncensored Seedance 2.5 API (Spicy): Python SDK for ByteDance text-to-video, image-to-video, Omni Reference, video edit/extend, and motion control via MuAPI relaxed-moderation routes. Native audio, 4K, and clips up to 30 seconds; provider terms still apply.",
-      "stars": 7,
-      "updatedAt": "2026-11-26T16:59:03Z",
+      "id": "1407856233",
+      "name": "alaintural/synctile-h3",
+      "url": "https://github.com/alaintural/synctile-h3",
+      "summary": "MiniMax H3: seam-free 1080p to 4K via synchronized tiles (SyncTile). ComfyUI node + workflow, scene-file Studio, 4.9x faster generation, benchmarks.",
+      "stars": 28,
+      "updatedAt": "2026-11-27T16:26:40Z",
       "license": "MIT",
-      "score": 77,
-      "capabilities": [
-        "video.generate",
-        "visual.generate",
-        "tool.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1392683456",
-      "name": "Anil-matcha/Wan-3.0-Spicy-API",
-      "url": "https://github.com/Anil-matcha/Wan-3.0-Spicy-API",
-      "summary": "Uncensored Wan 3.0 API (Spicy): Python SDK and MCP server for Alibaba Wan text-to-video, image-to-video, and reference-to-video with synchronized audio via MuAPI relaxed-moderation routes. Provider terms still apply.",
-      "stars": 5,
-      "updatedAt": "2026-11-26T16:59:10Z",
-      "license": "MIT",
-      "score": 77,
+      "score": 81,
       "capabilities": [
         "video.generate",
         "visual.generate",
@@ -258,7 +83,7 @@
       "url": "https://github.com/khalidsaidi/ragmap",
       "summary": "Find a retrieval MCP server that works today: a daily-checked list of MCP servers that search knowledge",
       "stars": 7,
-      "updatedAt": "2026-11-26T17:18:41Z",
+      "updatedAt": "2026-11-27T16:58:01Z",
       "license": "MIT",
       "score": 77,
       "capabilities": [
@@ -288,12 +113,12 @@
       }
     },
     {
-      "id": "1392672121",
-      "name": "Anil-matcha/Seedance-2-Spicy-API",
-      "url": "https://github.com/Anil-matcha/Seedance-2-Spicy-API",
-      "summary": "Uncensored Seedance 2 API (Spicy): Python SDK for ByteDance Seedance 2 and 2 Mini text-to-video, image-to-video, and Omni Reference via MuAPI relaxed-moderation routes, including fast tiers and native audio. Provider terms still apply.",
-      "stars": 3,
-      "updatedAt": "2026-11-26T16:59:06Z",
+      "id": "1473101956",
+      "name": "rrezartprebreza/narrated-slides",
+      "url": "https://github.com/rrezartprebreza/narrated-slides",
+      "summary": "",
+      "stars": 4,
+      "updatedAt": "2026-11-27T16:49:49Z",
       "license": "MIT",
       "score": 76,
       "capabilities": [
@@ -323,13 +148,153 @@
       }
     },
     {
-      "id": "1461949131",
-      "name": "endynamoo/poiesis",
-      "url": "https://github.com/endynamoo/poiesis",
-      "summary": "Portfolio for Rhapsode (reads books aloud) and Opsis (turns a book into a film) - local-first AI, built end to end",
-      "stars": 0,
-      "updatedAt": "2026-11-26T17:19:02Z",
+      "id": "1474675702",
+      "name": "MrCastilloF/explicador-3d-preventa",
+      "url": "https://github.com/MrCastilloF/explicador-3d-preventa",
+      "summary": "Skill de agente para crear explainers 3D interactivos de arquitectura de redes y ciberseguridad, con Three.js, vista explosionada, etapas, inspector y verificacion en navegador real.",
+      "stars": 1,
+      "updatedAt": "2026-11-27T16:44:45Z",
       "license": "MIT",
+      "score": 74,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1437852799",
+      "name": "DevZjQx/dsh-zdiary-kit",
+      "url": "https://github.com/DevZjQx/dsh-zdiary-kit",
+      "summary": "给 DSH（deepseek-harness）装一个内置 zk 的知识库 / 日记本：一键装 zk、自动建笔记本，给 agent 一组 zk_* 工具（检索、读写、日记、双链、体检）",
+      "stars": 0,
+      "updatedAt": "2026-11-27T16:01:25Z",
+      "license": "MIT",
+      "score": 72,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1354400279",
+      "name": "Joanna8521/konect4ai-webmcp",
+      "url": "https://github.com/Joanna8521/konect4ai-webmcp",
+      "summary": "Agents propose, humans approve. A WebMCP workspace where an agent can request a new data capability but only the page owner can grant it — and when it asks a question, the answer comes from the owner's own BYOK model, so the tool returns the answer, not the dataset.",
+      "stars": 0,
+      "updatedAt": "2026-11-27T15:43:26Z",
+      "license": "MIT",
+      "score": 72,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1459587676",
+      "name": "magrify/moonfactory",
+      "url": "https://github.com/magrify/moonfactory",
+      "summary": "AI video generation for creators: turn a start image or a prompt into a short vertical video with music. Self-hosted Wan 2.2 lanes, priced from measured pay-per-use costs.",
+      "stars": 0,
+      "updatedAt": "2026-11-27T16:52:09Z",
+      "license": "MIT",
+      "score": 72,
+      "capabilities": [
+        "video.generate",
+        "visual.generate",
+        "tool.search"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "1471607163",
+      "name": "phoenix7956/mlx-studio",
+      "url": "https://github.com/phoenix7956/mlx-studio",
+      "summary": "MLX Studio —— 本地 AI 创作工作台（音乐/出图/视频/配音/TTS/对话），Apple Silicon 原生桌面端 + HTTP API",
+      "stars": 0,
+      "updatedAt": "2026-11-27T16:33:18Z",
+      "license": "Apache-2.0",
       "score": 72,
       "capabilities": [
         "video.generate",
@@ -363,7 +328,7 @@
       "url": "https://github.com/robellephrm/ripple",
       "summary": "Mosaic-theory research map for a single stock.",
       "stars": 0,
-      "updatedAt": "2026-11-26T05:30:50Z",
+      "updatedAt": "2026-11-26T20:53:20Z",
       "license": "MIT",
       "score": 72,
       "capabilities": [
@@ -393,12 +358,83 @@
       }
     },
     {
+      "id": "1265605845",
+      "name": "eric-rolph/packet-highway",
+      "url": "https://github.com/eric-rolph/packet-highway",
+      "summary": "3D network traffic & PCAP visualizer built with Python (FastAPI + Scapy) and Three.js. Packets become vehicles on a divided highway — inspect live traffic or replay Wireshark .pcap/.pcapng captures with full scrub/seek control.",
+      "stars": 28,
+      "updatedAt": "2026-11-27T07:05:57Z",
+      "license": "MIT",
+      "score": 67,
+      "capabilities": [
+        "video.generate",
+        "visual.generate"
+      ],
+      "riskFlags": [],
+      "decision": "candidate",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces video.generate, visual.generate ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
+      "id": "254328371",
+      "name": "NangoHQ/nango",
+      "url": "https://github.com/NangoHQ/nango",
+      "summary": "Connect your agents to 1,600+ APIs.",
+      "stars": 13337,
+      "updatedAt": "2026-11-27T16:53:42Z",
+      "license": "NOASSERTION",
+      "score": 67,
+      "capabilities": [
+        "visual.generate",
+        "tool.search",
+        "knowledge.search"
+      ],
+      "riskFlags": [
+        "license-review-required"
+      ],
+      "decision": "needs-review",
+      "execution": "disabled",
+      "adaptation": {
+        "mode": "pattern-first",
+        "recipe": "Étudier les interfaces visual.generate, tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "validation": [
+          "license",
+          "source-review",
+          "unit-tests",
+          "sandbox-dry-run",
+          "authorization"
+        ],
+        "autoInstall": false
+      },
+      "provenance": {
+        "provider": "github-api",
+        "evidence": "repository-metadata-and-readme",
+        "verifiedFunctionality": false
+      }
+    },
+    {
       "id": "1205267694",
       "name": "LanNguyenSi/agent-dx",
       "url": "https://github.com/LanNguyenSi/agent-dx",
       "summary": "Monorepo workshop for agent-development tooling: orchestrator-workflow and okf-kit ship on npm; slop-detector is the AI-slop linter for PRs.",
       "stars": 6,
-      "updatedAt": "2026-11-26T14:30:11Z",
+      "updatedAt": "2026-11-27T15:54:49Z",
       "license": "MIT",
       "score": 63,
       "capabilities": [
@@ -427,14 +463,14 @@
       }
     },
     {
-      "id": "1421324273",
-      "name": "bitilia/es3d",
-      "url": "https://github.com/bitilia/es3d",
-      "summary": "Extensible Scalable 3D",
-      "stars": 4,
-      "updatedAt": "2026-11-26T13:25:57Z",
-      "license": "Apache-2.0",
-      "score": 62,
+      "id": "1471571394",
+      "name": "saywhy-dev/warren",
+      "url": "https://github.com/saywhy-dev/warren",
+      "summary": "Agent-first isolated browser workbench — per-environment storage, proxy egress, dual Person/Agent spaces & CLI · 面向 AI Agent 的本地隔离浏览器工作台",
+      "stars": 2,
+      "updatedAt": "2026-11-27T16:11:22Z",
+      "license": "MIT",
+      "score": 61,
       "capabilities": [
         "visual.generate",
         "tool.search"
@@ -461,15 +497,16 @@
       }
     },
     {
-      "id": "1255917800",
-      "name": "vb2250158/RabiRoute",
-      "url": "https://github.com/vb2250158/RabiRoute",
-      "summary": "Self-hosted gateway that bridges QQ, WeChat/WeCom and Feishu chat to your existing Codex or agent task — remote control from your phone, schedules and role context. | 自托管 AI 消息网关：把 QQ、微信、飞书接到你已有的 Codex / Agent 任务，支持手机远程、定时任务和角色上下文。",
-      "stars": 494,
-      "updatedAt": "2026-11-26T14:24:15Z",
+      "id": "1455925649",
+      "name": "henryk86/whisky-collection-manager",
+      "url": "https://github.com/henryk86/whisky-collection-manager",
+      "summary": "Self-hosted whisky collection manager with insurance documentation, 3D storage planning, tasting flights and encrypted backups.",
+      "stars": 1,
+      "updatedAt": "2026-11-26T21:35:30Z",
       "license": "MIT",
       "score": 60,
       "capabilities": [
+        "visual.generate",
         "tool.search"
       ],
       "riskFlags": [],
@@ -477,41 +514,7 @@
       "execution": "disabled",
       "adaptation": {
         "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
-        "validation": [
-          "license",
-          "source-review",
-          "unit-tests",
-          "sandbox-dry-run",
-          "authorization"
-        ],
-        "autoInstall": false
-      },
-      "provenance": {
-        "provider": "github-api",
-        "evidence": "repository-metadata-and-readme",
-        "verifiedFunctionality": false
-      }
-    },
-    {
-      "id": "1473456264",
-      "name": "neulketing/toolrelay",
-      "url": "https://github.com/neulketing/toolrelay",
-      "summary": "One key, every tool your agent needs. Open-source tool gateway for AI agents on Cloudflare Workers: routed calls, misses free, MCP + llms.txt. MIT.",
-      "stars": 0,
-      "updatedAt": "2026-11-26T17:19:10Z",
-      "license": "MIT",
-      "score": 58,
-      "capabilities": [
-        "tool.search",
-        "knowledge.search"
-      ],
-      "riskFlags": [],
-      "decision": "candidate",
-      "execution": "disabled",
-      "adaptation": {
-        "mode": "pattern-first",
-        "recipe": "Étudier les interfaces tool.search, knowledge.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
+        "recipe": "Étudier les interfaces visual.generate, tool.search ; adapter uniquement aux connecteurs Publisher existants ; écrire des tests et vérifier les autorisations avant activation.",
         "validation": [
           "license",
           "source-review",
