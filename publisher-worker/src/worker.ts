@@ -1,3 +1,4 @@
+import { generateGeminiText } from "./gemini-text";
 import { searchPublicWeb, fetchPublicPage } from "./public-web-discovery";
 import { generateCloudflareText, type TextAiBinding, type TextRequest } from "./cloudflare-text";
 import { metaverse } from "./metaverse/routes";
@@ -76,6 +77,7 @@ type ServiceBinding = { fetch(input: RequestInfo | URL, init?: RequestInit): Pro
 type Env = {
   AI?: TextAiBinding;
   TEXT_PROVIDER?: string;
+  GEMINI_API_KEY?: string | SecretsStoreSecret;
   MISTRAL_API_KEY?: string | SecretsStoreSecret;
   CERENITE_ACCESS_CODE?: string | SecretsStoreSecret;
   AI_API_KEY?: string | SecretsStoreSecret;
@@ -365,6 +367,7 @@ async function executeMistralText(env: Env, request: { title: string; prompt: st
 }
 
 async function executePublisherText(env: Env, request: TextRequest) {
+  if (env.TEXT_PROVIDER === "gemini") return generateGeminiText(await resolveSecret(env.GEMINI_API_KEY), request);
   if (env.TEXT_PROVIDER !== "cloudflare") return executeMistralText(env, request);
   return generateCloudflareText(env.AI, request, async () => {
     const sql = await getSql(env);
@@ -4743,7 +4746,7 @@ app.post("/api/observatory/discovery/accept", async (c) => {
 });
 
 app.get("/api/adapter/health", async (c) => {
-  const textProducerConfigured = c.env.TEXT_PROVIDER === "cloudflare" ? Boolean(c.env.AI) : Boolean(await mistralApiKey(c.env));
+  const textProducerConfigured = c.env.TEXT_PROVIDER === "gemini" ? Boolean(await resolveSecret(c.env.GEMINI_API_KEY)) : c.env.TEXT_PROVIDER === "cloudflare" ? Boolean(c.env.AI) : Boolean(await mistralApiKey(c.env));
   return c.json({
     status: "ok",
     adapterId: PUBLISHER_ADAPTER_ID,
@@ -4752,7 +4755,7 @@ app.get("/api/adapter/health", async (c) => {
     capabilities: [...PUBLISHER_ADAPTER_CAPABILITIES],
     executeUrl: `${publisherPublicUrl(c.env)}/api/octopus-adapter/execute`,
     textProducerConfigured,
-    textProvider: c.env.TEXT_PROVIDER === "cloudflare" ? "cloudflare-workers-ai" : "mistral",
+    textProvider: c.env.TEXT_PROVIDER === "gemini" ? "google-gemini" : c.env.TEXT_PROVIDER === "cloudflare" ? "cloudflare-workers-ai" : "mistral",
     generationVerified: false,
     dailyTextRequestLimit: c.env.TEXT_PROVIDER === "cloudflare" ? 20 : null,
     composioConfigured: await isComposioConfigured(c.env),

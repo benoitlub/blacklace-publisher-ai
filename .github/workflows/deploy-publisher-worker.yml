@@ -29,12 +29,22 @@ jobs:
           node-version: 24
       - run: pnpm install --frozen-lockfile
       - run: pnpm run typecheck
+      - name: Validate Worker text providers
+        working-directory: publisher-worker
+        run: |
+          npm install --ignore-scripts --no-package-lock --no-audit --no-fund --workspaces=false
+          npm run typecheck
+          node --import tsx --test src/__tests__/gemini-text.test.mts src/__tests__/octopus-adapter.test.mts src/__tests__/discovery-text-recovery.test.mts
 
   deploy:
     needs: validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Require Gemini secret before deployment
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: test -n "$GEMINI_API_KEY"
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
@@ -42,3 +52,7 @@ jobs:
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4.119.0"
           workingDirectory: publisher-worker
+          secrets: |
+            GEMINI_API_KEY
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
