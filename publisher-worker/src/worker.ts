@@ -3802,8 +3802,8 @@ function buildPlayPrompt(tentacle: TentacleRow, previous: { content: string | nu
 
 async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, tentacle: TentacleRow): Promise<{ seedId: string; mode: TentacleMode; status: string; diagnostics?: Record<string, unknown> }> {
   const previous = await latestIteration(sql, tentacle.seed_id);
-  let mistralStatus = "not-attempted";
-  let mistralError: string | null = null;
+  let textStatus = "not-attempted";
+  let textError: string | null = null;
   let canvaStatus = "not-attempted";
   let canvaError: string | null = null;
   const notionApiKey = await resolveSecret(env.NOTION_API_KEY);
@@ -3821,13 +3821,13 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     try {
       const artifact = await executePublisherText(env, { title: tentacle.title, prompt: buildImprovePrompt(tentacle, previous, knowledge.prompt) });
       content = artifact.content;
-      mistralStatus = "success";
+      textStatus = "success";
     } catch (error) {
-      mistralStatus = "error";
-      mistralError = error instanceof Error ? error.message : String(error);
+      textStatus = "error";
+      textError = error instanceof Error ? error.message : String(error);
     }
   } else {
-    mistralStatus = "skipped-unverified";
+    textStatus = "skipped-unverified";
   }
 
   let visualUrl: string | null = null;
@@ -3853,7 +3853,7 @@ async function runImproveCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>
     status: content || visualUrl ? "completed" : "skipped-no-provider",
     diagnostics: {
       knowledge: { verified: knowledge.verified, slug: knowledge.slug, source: knowledge.source },
-      mistral: { status: mistralStatus, error: mistralError },
+      text: { provider: env.TEXT_PROVIDER === "gemini" ? "google-gemini" : env.TEXT_PROVIDER === "cloudflare" ? "cloudflare-workers-ai" : "mistral", status: textStatus, error: textError },
       canva: { status: canvaStatus, error: canvaError, toolCombination },
       visualUrl,
     },
@@ -3880,9 +3880,9 @@ async function runPlayCycle(env: Env, sql: Awaited<ReturnType<typeof getSql>>, t
     try {
       const artifact = await executePublisherText(env, { title: tentacle.title, prompt: buildPlayPrompt(tentacle, previous, Boolean(toolCombination), knowledge.prompt), temperature: 0.9 });
       content = artifact.content;
+      if (!toolCombination) toolCombination = `${artifact.metadata.provider}:playful-riff`;
     } catch (_) { /* fine — this cycle just yields whatever it managed */ }
   }
-  if (!toolCombination) toolCombination = "mistral:playful-riff";
 
   await recordIteration(sql, { seedId: tentacle.seed_id, mode: "play", content, visualUrl, toolCombination });
   return { seedId: tentacle.seed_id, mode: "play", status: content || visualUrl ? "completed" : "skipped-no-provider" };
