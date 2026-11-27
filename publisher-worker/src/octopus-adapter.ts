@@ -17,7 +17,7 @@ import { discoverAutonomousGemTools } from "./autonomous-gems";
  * registration alive (Octopus stores adapters in an in-memory Map that does not
  * survive isolate recycling).
  *
- * Scope: the text capabilities, served by Mistral, plus knowledge.search.
+ * Scope: the text capabilities, served by the configured text provider, plus knowledge.search.
  * Canva/production capabilities stay behind /api/production/execute and are not
  * exposed here yet.
  */
@@ -87,7 +87,7 @@ export type MistralTextExecutor = (request: {
   systemPrompt?: string;
   maxTokens?: number;
   temperature?: number;
-}) => Promise<{ content: string; title: string; id: string }>;
+}) => Promise<{ content: string; title: string; id: string; metadata?: { provider?: string; model?: string } }>;
 
 export interface KnowledgeEnvLike {
   DATABASE_URL?: any;
@@ -336,7 +336,7 @@ export async function executeAdapterMission(
         summary: `${capability} exécutée par Publisher.`,
         // `text` is the field generic consumers read first; `content` and the
         // artifact repeat it so a caller expecting either convention works.
-        output: { capability, text: result.content, content: result.content, producer: "mistral" },
+        output: { capability, text: result.content, content: result.content, producer: result.metadata?.provider ?? "mistral" },
         artifacts: [
           {
             id: result.id,
@@ -399,9 +399,8 @@ export async function registerWithOctopus(options: {
         id: PUBLISHER_ADAPTER_ID,
         name: "Blacklace Publisher",
         version: options.version ?? "worker",
-        // Reserve copy.generate for the native Octopus Mistral resource.
-        // Publisher remains the executor for content.generate and knowledge.search.
-        capabilities: PUBLISHER_ADAPTER_CAPABILITIES.filter((capability) => capability !== "copy.generate"),
+        // Publisher routes text to its configured producer, including copy.generate.
+        capabilities: [...PUBLISHER_ADAPTER_CAPABILITIES],
         executeUrl: `${publicBaseUrl}/api/octopus-adapter/execute`,
         // Deliberately not /api/octopus-adapter/health: that path already
         // serves the octopus-witness view (GitHub Actions history of

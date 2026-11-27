@@ -5,6 +5,7 @@ import {
   PUBLISHER_ADAPTER_CAPABILITIES,
   executeAdapterMission,
   requestedCapability,
+  registerWithOctopus,
 } from "../octopus-adapter.ts";
 
 const knowledgeEnv = {};
@@ -148,4 +149,27 @@ test("social delivery needs a nonempty provider ID and the matching confirmed fl
     }), { generateText, knowledgeEnv, publishSocial: async () => output });
     assert.equal(result.status, "needs-input");
   }
+});
+
+
+test("copy.generate preserves the configured producer provenance", async () => {
+  const result = await executeAdapterMission(mission({ requiredCapabilities: ["copy.generate"] }), {
+    knowledgeEnv,
+    generateText: async request => ({ ...await generateText(request), metadata: { provider: "cloudflare-workers-ai" } }),
+  });
+  assert.equal(result.status, "completed");
+  assert.equal(result.output.producer, "cloudflare-workers-ai");
+});
+
+test("registration advertises copy.generate to avoid the blocked native producer", async () => {
+  let advertised: string[] = [];
+  const result = await registerWithOctopus({
+    octopusUrl: "https://octopus.example", publicBaseUrl: "https://publisher.example",
+    fetcher: (async (_url, init) => {
+      advertised = JSON.parse(String(init?.body)).capabilities;
+      return new Response("{}", { status: 200 });
+    }) as typeof fetch,
+  });
+  assert.equal(result.registered, true);
+  assert.ok(advertised.includes("copy.generate"));
 });
