@@ -61,6 +61,27 @@ describe("production connections route", () => {
     vi.resetModules();
   });
 
+  it("isolates Gerard Gmail OAuth under his own Composio user and does not send mail", async () => {
+    const { server, baseUrl } = await makeApp();
+    try {
+      const response = await fetch(`${baseUrl}/production/connections/gmail/connect`, { method: "POST" });
+      const body = await response.json() as { status: string; toolkit: string; userId: string };
+      expect(response.status).toBe(201);
+      expect(body).toMatchObject({ status: "waiting-authorization", toolkit: "gmail", userId: "gerard-poulpe-fiction" });
+      expect(composio.initiateInput).toMatchObject({ toolkitSlug: "gmail", userId: "gerard-poulpe-fiction" });
+      const status = await fetch(`${baseUrl}/production/connections/gerard-gmail`);
+      expect(await status.json()).toMatchObject({ connected: false, sendingEnabled: false });
+    } finally { server.close(); }
+  });
+
+  it("Gmail status only accepts Gerard-owned connections", async () => {
+    composio.accounts = [{ id: "gmail-gerard", toolkitSlug: "gmail", status: "ACTIVE", raw: {} }];
+    const { server, baseUrl } = await makeApp();
+    try {
+      const response = await fetch(`${baseUrl}/production/connections/gerard-gmail`);
+      expect(await response.json()).toMatchObject({ connected: true, connectedAccountId: "gmail-gerard", sendingEnabled: false });
+    } finally { server.close(); }
+  });
   it("returns the real Composio authorization URL", async () => {
     const { server, baseUrl } = await makeApp();
     try {
